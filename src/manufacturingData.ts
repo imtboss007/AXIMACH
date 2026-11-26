@@ -177,6 +177,20 @@ export type PlannedCostEntry = {
   plannedQty: number; unit: "piece" | "set"; plannedRate: number; notes: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export type ProductionOperatorStatus = "Active" | "Inactive";
+export type ProductionOperatorRecord = {
+  id:string; companyId:string; factoryId:string; employeeCode:string; displayName:string;
+  role:string; processDefinitionIds:string[]; machineTypeCapabilities:string[];
+  status:ProductionOperatorStatus; notes:string; createdAt:string; updatedAt:string; deletedAt?:string;
+};
+export type ProductionAssignmentStatus = "Planned" | "Assigned" | "Running" | "Completed" | "Cancelled";
+export type ProductionAssignmentRecord = {
+  id:string; companyId:string; factoryId:string; poId:string; poLineId:string; componentId:string;
+  operationId:string; machineId:string; operatorId:string; operatorCode:string; operatorName:string;
+  shiftCode:string; shiftName:string; plannedStart:string; plannedEnd:string; actualStart:string; actualEnd:string;
+  targetQuantity:number; status:ProductionAssignmentStatus; notes:string;
+  createdAt:string; updatedAt:string; deletedAt?:string;
+};
 export type OperationRecord = {
   id: string; poId: string; poLineId: string; componentId: string; processDefinitionId?: string; machineId?: string; toolingAssetIds?: string[]; fixtureAssetIds?: string[]; sequence: number; name: string;
   category: string; machine: string; vendorId: string; status: LifecycleStatus;
@@ -298,7 +312,7 @@ export type InventoryTransactionRecord = {
 export type ManufacturingData = {
   updatedAt: string;
   companies: CompanyRecord[]; customers: CustomerRecord[]; prospects: ProspectRecord[]; factories: FactoryRecord[]; machines: MachineRecord[]; toolingAssets:ToolingAssetRecord[]; fixtureAssets:FixtureAssetRecord[]; resourceUsageEvents:ResourceUsageEventRecord[]; maintenancePlans: MachineMaintenancePlanRecord[]; maintenanceWorkOrders: MachineMaintenanceWorkOrderRecord[]; machineDowntime: MachineDowntimeRecord[]; purchaseOrders: PurchaseOrderRecord[];
-  components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
+  components: ComponentRecord[]; vendors: VendorRecord[]; productionOperators:ProductionOperatorRecord[]; productionAssignments:ProductionAssignmentRecord[]; operations: OperationRecord[];
   quotations: QuotationRecord[]; materials: MaterialRecord[]; componentParts: ComponentPartRecord[]; materialCostEntries: MaterialCostEntryRecord[]; bomLines: BomLineRecord[]; materialProcessLinks: MaterialProcessLinkRecord[]; materialConsumptions:MaterialConsumptionRecord[];
   inventoryTransactions: InventoryTransactionRecord[];
   contactProfiles: ContactProfileRecord[]; processDefinitions: ProcessDefinitionRecord[]; plannedCosts: PlannedCostEntry[];
@@ -318,7 +332,7 @@ export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.
 
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], customers: [], prospects: [], factories: [], machines: [], toolingAssets: [], fixtureAssets: [], resourceUsageEvents: [], maintenancePlans: [], maintenanceWorkOrders: [], machineDowntime: [], purchaseOrders: [], components: [], vendors: [],
-  operations: [], quotations: [], materials: [], componentParts: [], materialCostEntries: [], bomLines: [], materialProcessLinks: [], materialConsumptions:[], inventoryTransactions: [],
+  productionOperators:[], productionAssignments:[], operations: [], quotations: [], materials: [], componentParts: [], materialCostEntries: [], bomLines: [], materialProcessLinks: [], materialConsumptions:[], inventoryTransactions: [],
   contactProfiles: [], processDefinitions: [], plannedCosts: [], transportRoutes: [], transportLegs: [], paymentTransactions: [], inspectionMeasurements: [],
   supplierInvoices: [], supplierPayments: [], supplierFinanceApprovals: [], supplierPaymentAllocations: [],
   routeRelationships: [], followUpAssignments: []
@@ -361,6 +375,8 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
       salePriceUnit: component.salePriceUnit === "set" ? "set" as const : component.salePriceUnit === "piece" ? "piece" as const : component.orderUnit === "Set" ? "set" as const : "piece" as const
     })) : empty.components,
     vendors: Array.isArray(value?.vendors) ? value.vendors : empty.vendors,
+    productionOperators: Array.isArray(value?.productionOperators) ? value.productionOperators.map(row=>({...row,processDefinitionIds:Array.isArray(row.processDefinitionIds)?[...new Set(row.processDefinitionIds.filter(id=>typeof id==="string"&&id))]:[],machineTypeCapabilities:Array.isArray(row.machineTypeCapabilities)?[...new Set(row.machineTypeCapabilities.filter(value=>typeof value==="string"&&value.trim()))]:[]})) : empty.productionOperators,
+    productionAssignments: Array.isArray(value?.productionAssignments) ? value.productionAssignments : empty.productionAssignments,
     operations: Array.isArray(value?.operations) ? value.operations.map(row=>({...row,toolingAssetIds:Array.isArray(row.toolingAssetIds)?[...new Set(row.toolingAssetIds.filter(id=>typeof id==="string"&&id))]:[],fixtureAssetIds:Array.isArray(row.fixtureAssetIds)?[...new Set(row.fixtureAssetIds.filter(id=>typeof id==="string"&&id))]:[]})) : empty.operations,
     quotations: Array.isArray(value?.quotations) ? value.quotations : empty.quotations,
     materials: Array.isArray(value?.materials) ? value.materials.map(material => ({
@@ -489,6 +505,8 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     purchaseOrders: mergePurchaseOrderRows(local.purchaseOrders, remote.purchaseOrders),
     components: mergeRows(local.components, remote.components),
     vendors: mergeRows(local.vendors, remote.vendors),
+    productionOperators: mergeRows(local.productionOperators, remote.productionOperators),
+    productionAssignments: mergeRows(local.productionAssignments, remote.productionAssignments),
     operations: mergeRows(local.operations, remote.operations),
     quotations: mergeRows(local.quotations, remote.quotations),
     materials: mergeRows(local.materials, remote.materials),
