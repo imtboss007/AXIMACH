@@ -85,3 +85,18 @@ test("operation assignment totals preserve completed targets and exclude cancell
  ];
  assert.deepEqual(getOperationAssignmentTotals(rows,"op-1"),{assignedQuantity:80,assignmentCount:3,activeCount:2,runningCount:1,completedCount:1});
 });
+
+test("started work can be completed and historised after the machine becomes unavailable or the operator is deactivated",()=>{
+ const running={...candidate,status:"Running",actualStart:"2026-12-01T08:15:00.000Z"};
+ const contextWithChangedState=context({
+  machines:[{...machine,status:"Breakdown"}],
+  operators:[{...operator,status:"Inactive"}],
+  assignments:[running]
+ });
+ const completed={...running,status:"Completed",actualEnd:"2026-12-01T12:15:00.000Z"};
+ assert.deepEqual(validateProductionAssignment(completed,{...contextWithChangedState,editingId:running.id}),{ok:true,reason:""});
+});
+test("an operation that starts late can retain its actual start against the original planned shift window",()=>{
+ const delayed={...candidate,status:"Running",actualStart:"2026-12-01T12:30:00.000Z"};
+ assert.deepEqual(validateProductionAssignment(delayed,context()),{ok:true,reason:""});
+});
