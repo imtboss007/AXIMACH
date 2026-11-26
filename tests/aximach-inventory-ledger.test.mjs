@@ -28,7 +28,7 @@ test("BOM issue planning uses only stock from the PO owning company and factory"
  ];
  const materials=[{id:"mat-1",code:"EN8"},{id:"mat-2",code:"AL6061"}];
  const stock=[
-  {id:"a",itemType:"material",itemId:"mat-1",transactionType:"Receipt",direction:"in",quantity:25,companyId:"c1",factoryId:"f1"},
+  {id:"a",itemType:"material",itemId:"mat-1",transactionType:"Receipt",direction:"in",quantity:529,companyId:"c1",factoryId:"f1"},
   {id:"b",itemType:"material",itemId:"mat-1",transactionType:"Receipt",direction:"in",quantity:1000,companyId:"c2",factoryId:"f1"},
   {id:"c",itemType:"material",itemId:"mat-1",transactionType:"Receipt",direction:"in",quantity:800,companyId:"c1",factoryId:"f2"},
   {id:"d",itemType:"material",itemId:"mat-2",transactionType:"Receipt",direction:"in",quantity:2,companyId:"c1",factoryId:"f1"},
