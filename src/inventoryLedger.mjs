@@ -37,7 +37,7 @@ export function buildBomMaterialIssuePlan({
   const material=asRows(materials).find(row=>row?.id===materialId&&!row.deletedAt);
   const issued=asRows(transactions).filter(row=>
    row&&!row.deletedAt&&row.itemType==="material"&&row.itemId===materialId&&
-   row.poId===po.id&&row.poLineId===line.id
+   row.companyId===po.companyId&&row.factoryId===po.factoryId&&row.poId===po.id&&row.poLineId===line.id
   ).reduce((sum,row)=>
    sum+(row.transactionType==="Issue to production"&&row.direction==="out"?finiteQuantity(row.quantity):
        row.transactionType==="Return"&&row.direction==="in"?-finiteQuantity(row.quantity):0),0);
@@ -79,11 +79,17 @@ export function buildMaterialConsumptionPlan({
   :finiteQuantity(bomLine.quantityPerPart)*(1+finiteQuantity(bomLine.scrapPercent)/100)*finiteQuantity(line.quantity);
  const scopeMatch=row=>row&&!row.deletedAt&&row.companyId===po.companyId&&row.factoryId===po.factoryId&&
   row.poId===po.id&&row.poLineId===line.id&&row.itemType==="material"&&row.itemId===material.id;
- const issues=asRows(inventoryTransactions).filter(row=>
-  scopeMatch(row)&&row.transactionType==="Issue to production"&&row.direction==="out"
+ const scopedTransactions=asRows(inventoryTransactions).filter(scopeMatch);
+ const issues=scopedTransactions.filter(row=>row.transactionType==="Issue to production"&&row.direction==="out");
+ const manualReturns=scopedTransactions.filter(row=>row.transactionType==="Return"&&row.direction==="in"&&!row.sourceConsumptionId);
+ const directIssued=Math.max(0,
+  issues.filter(row=>row.operationId===operation.id).reduce((sum,row)=>sum+finiteQuantity(row.quantity),0)-
+  manualReturns.filter(row=>row.operationId===operation.id).reduce((sum,row)=>sum+finiteQuantity(row.quantity),0)
  );
- const directIssued=issues.filter(row=>row.operationId===operation.id).reduce((sum,row)=>sum+finiteQuantity(row.quantity),0);
- const unassignedIssued=issues.filter(row=>!row.operationId).reduce((sum,row)=>sum+finiteQuantity(row.quantity),0);
+ const unassignedIssued=Math.max(0,
+  issues.filter(row=>!row.operationId).reduce((sum,row)=>sum+finiteQuantity(row.quantity),0)-
+  manualReturns.filter(row=>!row.operationId).reduce((sum,row)=>sum+finiteQuantity(row.quantity),0)
+ );
  const usageRows=asRows(materialConsumptions).filter(row=>
   row&&!row.deletedAt&&row.companyId===po.companyId&&row.factoryId===po.factoryId&&
   row.poId===po.id&&row.poLineId===line.id&&row.componentId===component.id&&row.materialId===material.id
