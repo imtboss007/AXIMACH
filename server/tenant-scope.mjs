@@ -694,20 +694,33 @@ export function validateManufacturingWrite(currentData, incoming, user) {
     case "materialProcessLinks":
      allowed=companyIds.has(row.companyId) && allowedChild(row,allowedPOById,{purchaseOrderIds:allowedPOIds,lineIds:lines,componentIds,operationIds},{requireOperation:true}) &&
        materialIds.has(row.materialId); break;
-    case "materialConsumptions":
-     allowed=materialConsumptionAllowed(row)&&
-      (row.returnedQuantity===0||[...rows(currentData,"inventoryTransactions"),...rows(incoming,"inventoryTransactions")].some(tx=>
-       tx&&tx.id&&!tx.deletedAt&&tx.sourceConsumptionId===row.id&&tx.itemType==="material"&&tx.itemId===row.materialId&&
-       tx.transactionType==="Return"&&tx.direction==="in"&&Number(tx.quantity)===Number(row.returnedQuantity)&&
-       tx.companyId===row.companyId&&tx.factoryId===row.factoryId&&tx.poId===row.poId&&tx.poLineId===row.poLineId&&tx.operationId===row.operationId
-      )); break;
+    case "materialConsumptions": {
+     const linkedReturns=[...rows(currentData,"inventoryTransactions"),...rows(incoming,"inventoryTransactions")]
+      .filter(tx=>tx&&!tx.deletedAt&&tx.sourceConsumptionId===row.id);
+     const returnIsValid=Number(row.returnedQuantity)>0
+      ?linkedReturns.length===1&&linkedReturns[0].itemType==="material"&&linkedReturns[0].itemId===row.materialId&&
+       linkedReturns[0].transactionType==="Return"&&linkedReturns[0].direction==="in"&&
+       Number(linkedReturns[0].quantity)===Number(row.returnedQuantity)&&
+       linkedReturns[0].companyId===row.companyId&&linkedReturns[0].factoryId===row.factoryId&&
+       linkedReturns[0].poId===row.poId&&linkedReturns[0].poLineId===row.poLineId&&linkedReturns[0].operationId===row.operationId
+      :linkedReturns.length===0;
+     allowed=materialConsumptionAllowed(row)&&returnIsValid;
+     break;
+    }
     case "inventoryTransactions":
      allowed=companyIds.has(row.companyId) && factoryAllowed(row.factoryId) &&
        (!row.poId || allowedPOIds.has(row.poId)) && (!row.poLineId || lines.has(row.poLineId)) &&
        (!row.vendorId || vendorIds.has(row.vendorId)) &&
-       (!row.sourceConsumptionId||validMaterialConsumptionIds.has(row.sourceConsumptionId)&&
-        row.itemType==="material"&&row.transactionType==="Return"&&row.direction==="in"&&
-        allMaterialConsumptions.get(row.sourceConsumptionId)?.materialId===row.itemId) &&
+       (!row.sourceConsumptionId||(() => {
+        const source=allMaterialConsumptions.get(row.sourceConsumptionId);
+        const linkedReturns=[...rows(currentData,"inventoryTransactions"),...rows(incoming,"inventoryTransactions")]
+         .filter(tx=>tx&&!tx.deletedAt&&tx.sourceConsumptionId===row.sourceConsumptionId);
+        return validMaterialConsumptionIds.has(row.sourceConsumptionId)&&source&&
+         source.returnedQuantity>0&&row.itemType==="material"&&row.transactionType==="Return"&&row.direction==="in"&&
+         source.materialId===row.itemId&&Number(row.quantity)===Number(source.returnedQuantity)&&
+         source.companyId===row.companyId&&source.factoryId===row.factoryId&&source.poId===row.poId&&
+         source.poLineId===row.poLineId&&source.operationId===row.operationId&&linkedReturns.length===1;
+       })()) &&
        (row.itemType==="component" ? componentIds.has(row.itemId) : materialIds.has(row.itemId)); break;
     case "componentParts": allowed=componentIds.has(row.componentId) && (!row.companyId || companyIds.has(row.companyId)) && (!row.materialId || materialIds.has(row.materialId)) && (Array.isArray(row.materialIds) ? row.materialIds.every(id=>materialIds.has(id)) : true) && (Array.isArray(row.vendorIds) ? row.vendorIds.every(id=>vendorIds.has(id)) : true); break;
     case "materialCostEntries":
