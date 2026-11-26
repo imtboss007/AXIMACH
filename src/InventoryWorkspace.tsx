@@ -436,6 +436,86 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     if (result.shortage.length) onNotice("No material was issued. " + result.shortage.join("; ") + ".");
     else onNotice(result.posted + " BOM material issue transaction(s) posted to the stock ledger for " + bomIssueSelection.po.number + " / " + bomIssueSelection.component.partNumber + ". Quantities were rechecked atomically against this PO's company and factory, BOM per-part quantity, scrap allowance, previous issues and returns.");
   };
+  const postMaterialConsumption = () => {
+    if(!consumptionSelection?.component||!consumptionBomLine||!consumptionMaterial||!consumptionOperation){
+      onNotice("Select the exact PO component line, BOM material and production operation before reconciling actual material.");
+      return;
+    }
+    if(!consumptionDate||!consumptionReference.trim()||!consumptionRecordedBy.trim()){
+      onNotice("Enter the actual consumption date, source reference and recorded-by person.");
+      return;
+    }
+    const consumed=Number(consumptionQuantity),scrap=Number(consumptionScrapQuantity),returned=Number(consumptionReturnQuantity);
+    const liveValidation=validateMaterialConsumptionQuantities(consumptionPlan,consumed,scrap,returned);
+    if(!liveValidation.ok){
+      const message=liveValidation.reason==="scrap-exceeds-consumption"?"Scrap quantity is a subset of consumed material and cannot exceed actual consumption."
+        :liveValidation.reason==="exceeds-issued-available"?"Consumed plus returned quantity exceeds material issued to this operation and the remaining shared PO-line issue pool."
+        :liveValidation.reason==="empty-reconciliation"?"Enter actual consumed quantity or quantity physically returned to stock."
+        :"The issue/operation context is no longer valid. Refresh the selected PO line, BOM material and operation.";
+      onNotice(message);return;
+    }
+    let result:{error:string;record?:MaterialConsumptionRecord}={error:""};
+    update(current=>{
+      const po=current.purchaseOrders.find(row=>row.id===consumptionSelection.po.id&&!row.deletedAt);
+      const line=po?.lines.find(row=>row.id===consumptionSelection.line.id&&!row.deletedAt);
+      const component=current.components.find(row=>row.id===line?.componentId&&!row.deletedAt);
+      const operation=current.operations.find(row=>row.id===consumptionOperation.id&&!row.deletedAt);
+      const bom=current.bomLines.find(row=>row.id===consumptionBomLine.id&&!row.deletedAt);
+      const material=current.materials.find(row=>row.id===consumptionMaterial.id&&!row.deletedAt);
+      if(!po||!line||!component||!operation||!bom||!material||
+         operation.poId!==po.id||operation.poLineId!==line.id||operation.componentId!==component.id||
+         bom.componentId!==component.id||bom.materialId!==material.id||
+         po.companyId!==consumptionSelection.po.companyId||po.factoryId!==consumptionSelection.po.factoryId){
+        result={error:"The PO, line, component, operation, BOM or material changed while this reconciliation was being prepared. Refresh the selected records."};
+        return current;
+      }
+      const plan=buildMaterialConsumptionPlan({
+        po,line,component,operation,bomLine:bom,material,
+        materialProcessLinks:current.materialProcessLinks||[],
+        inventoryTransactions:current.inventoryTransactions||[],
+        materialConsumptions:current.materialConsumptions||[]
+      });
+      const check=validateMaterialConsumptionQuantities(plan,consumed,scrap,returned);
+      if(!check.ok){
+        result={error:check.reason==="exceeds-issued-available"
+          ?"Issue balance changed. Another operation may have consumed or returned the remaining PO-line issue pool. No reconciliation was posted."
+          :check.reason==="scrap-exceeds-consumption"?"Scrap quantity cannot exceed actual consumed quantity."
+          :check.reason==="empty-reconciliation"?"Enter consumed or returned quantity."
+          :"The material consumption context is no longer valid. No reconciliation was posted."};
+        return current;
+      }
+      const stamp=nowIso();
+      const occurredAt=new Date(consumptionDate+"T12:00:00").toISOString();
+      const record:MaterialConsumptionRecord={
+        id:makeId("material-consumption"),
+        companyId:po.companyId,factoryId:po.factoryId,poId:po.id,poLineId:line.id,componentId:component.id,
+        partId:bom.partId||line.partId||"",bomLineId:bom.id,materialId:material.id,operationId:operation.id,
+        unit:plan!.unit,plannedQuantity:plan!.plannedQuantity,issuedQuantityAtRecord:plan!.availableToReconcile,
+        consumedQuantity:consumed,scrapQuantity:scrap,returnedQuantity:returned,
+        sourceMaterialProcessLinkIds:plan!.materialProcessLinkIds,
+        occurredAt,reference:consumptionReference.trim(),recordedBy:consumptionRecordedBy.trim(),notes:consumptionNotes.trim(),
+        createdAt:stamp,updatedAt:stamp
+      };
+      const returnTransaction:InventoryTransactionRecord|undefined=returned>0?{
+        id:makeId("stock"),itemType:"material",itemId:material.id,transactionType:"Return",direction:"in",
+        quantity:returned,occurredAt,reference:"MATERIAL RETURN · "+record.reference,
+        notes:"Return posted from actual material consumption reconciliation "+record.id+". "+record.notes,
+        companyId:po.companyId,factoryId:po.factoryId,poId:po.id,poLineId:line.id,operationId:operation.id,
+        vendorId:"",reversalOfId:"",sourceConsumptionId:record.id,createdAt:stamp,createdBy:"AXIMACH material consumption reconciliation"
+      }:undefined;
+      result={error:"",record};
+      return {
+        ...current,
+        materialConsumptions:[...(current.materialConsumptions||[]),record],
+        inventoryTransactions:returnTransaction?[...(current.inventoryTransactions||[]),returnTransaction]:(current.inventoryTransactions||[])
+      };
+    });
+    if(result.error){onNotice(result.error);return;}
+    setConsumptionQuantity("");setConsumptionScrapQuantity("0");setConsumptionReturnQuantity("0");
+    setConsumptionReference("");setConsumptionNotes("");
+    onNotice("Actual material consumption was recorded for "+consumptionMaterial.code+" / "+consumptionOperation.name+". Scrap is included inside consumed quantity. "+(returned>0?"The remaining "+returned.toLocaleString("en-IN")+" "+consumptionPlan?.unit+" was returned to the scoped stock ledger. ":"")+"Consumed material was not deducted from warehouse stock again.");
+  };
+
   const postTransaction = () => {
     if (!itemId || !selectedItem) { onNotice("Select the material or component that physically moved."); return; }
     const q = Number(quantity);
