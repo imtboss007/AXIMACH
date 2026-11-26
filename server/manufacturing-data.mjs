@@ -20,6 +20,7 @@ export const manufacturingCollections = Object.freeze([
   "materialCostEntries",
   "bomLines",
   "materialProcessLinks",
+  "materialConsumptions",
   "inventoryTransactions",
   "contactProfiles",
   "processDefinitions",
