@@ -91,6 +91,7 @@ export default function MachineMaintenanceWorkspace({machines,plans,workOrders,d
     setWorkDraft(blankWorkOrder(machine));
     setDowntimeDraft(blankDowntime(machine));
     setShowPlanForm(false);setShowWorkForm(false);setShowDowntimeForm(false);
+    setEditingPlanId("");setEditingWorkOrderId("");
   },[machine?.id]);
 
   const savePlan=()=>{
@@ -176,7 +177,7 @@ export default function MachineMaintenanceWorkspace({machines,plans,workOrders,d
     }
     const stamp=nowIso();
     const updated={...order,status,
-      actualStart:status==="Completed"?(order.actualStart||order.reportedAt||stamp):status==="In progress"?(order.actualStart||stamp):order.actualStart,
+      actualStart:status==="Completed"?(order.actualStart||""):status==="In progress"?(order.actualStart||stamp):order.actualStart,
       actualEnd:status==="Completed"?(order.actualEnd||stamp):status==="Cancelled"?order.actualEnd:"",
       updatedAt:stamp
     };
@@ -253,7 +254,7 @@ export default function MachineMaintenanceWorkspace({machines,plans,workOrders,d
       <button className={tab==="downtime"?"is-active":""} onClick={()=>setTab("downtime")}><Clock3 size={15}/> Downtime</button>
     </div>
     {tab==="plans"&&<>
-      <div className="machine-maintenance-section-heading"><div><h4>Maintenance schedules</h4><p>Frequency, next due date and technician checklist.</p></div><button className="button-primary compact-button" onClick={()=>{setPlanDraft(blankPlan(machine));setShowPlanForm(value=>!value);}}><Plus size={14}/> Add plan</button></div>
+      <div className="machine-maintenance-section-heading"><div><h4>Maintenance schedules</h4><p>Frequency, next due date and technician checklist.</p></div><button className="button-primary compact-button" onClick={()=>{setPlanDraft(blankPlan(machine));setEditingPlanId("");setShowPlanForm(value=>!value);}}><Plus size={14}/> Add plan</button></div>
       {showPlanForm&&<div className="module-record-form machine-maintenance-form">
         <label>Plan name *<input value={planDraft.planName} onChange={event=>setPlanDraft({...planDraft,planName:event.target.value})} placeholder="90-day spindle and lubrication service"/></label>
         <label>Maintenance type<select value={planDraft.maintenanceType} onChange={event=>setPlanDraft({...planDraft,maintenanceType:event.target.value as MachineMaintenancePlanType})}>{PLAN_TYPES.map(value=><option key={value}>{value}</option>)}</select></label>
