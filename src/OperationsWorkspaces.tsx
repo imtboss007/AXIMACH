@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity, ArrowRight, CalendarClock, Check, ClipboardCheck, FileDown, Package, Plus, RotateCcw, Search, ShieldCheck, Truck, Workflow, Wrench } from "lucide-react";
-import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type OperationRecord, type InspectionMeasurementRecord } from "./manufacturingData";
+import { Activity, ArrowRight, CalendarClock, Check, ClipboardCheck, Clock3, FileDown, Package, Plus, RotateCcw, Search, ShieldCheck, Truck, UserPlus, Users, Workflow, Wrench } from "lucide-react";
+import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type OperationRecord, type InspectionMeasurementRecord, type ProductionOperatorRecord, type ProductionAssignmentRecord, type ProductionAssignmentStatus } from "./manufacturingData";
+import { getEligibleProductionOperators, getOperationAssignmentTotals, validateProductionAssignment } from "./productionExecution.mjs";
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
 import { ComponentIcon } from "./IconStudio";
@@ -15,12 +16,28 @@ const money=(value:number)=>"₹"+(Number(value)||0).toLocaleString("en-IN",{max
 export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule,initialContext}:Props){
  const {data,update,syncStatus}=useManufacturingData();
  const companies=activeRows(data.companies),pos=activeRows(data.purchaseOrders),components=activeRows(data.components),ops=activeRows(data.operations);
+ const factories=activeRows(data.factories),machines=activeRows(data.machines),operators=activeRows(data.productionOperators||[]),assignments=activeRows(data.productionAssignments||[]);
+ const processDefinitions=activeRows(data.processDefinitions),maintenanceWorkOrders=activeRows(data.maintenanceWorkOrders||[]),machineDowntime=activeRows(data.machineDowntime||[]);
  const [search,setSearch]=useState("");
  const [companyFilters,setCompanyFilters]=useState<string[]>([]);
  const [poFilters,setPoFilters]=useState<string[]>([]);
  const [componentFilters,setComponentFilters]=useState<string[]>([]);
  const [jobStatusFilters,setJobStatusFilters]=useState<string[]>([]);
  const [selectedJobKeys,setSelectedJobKeys]=useState<string[]>([]);
+ const [showOperatorForm,setShowOperatorForm]=useState(false);
+ const [showAssignmentForm,setShowAssignmentForm]=useState(false);
+ const [operatorCompanyId,setOperatorCompanyId]=useState(initialContext?.companyId||"");
+ const [operatorFactoryId,setOperatorFactoryId]=useState("");
+ const [operatorDraft,setOperatorDraft]=useState({employeeCode:"",displayName:"",role:"",processDefinitionIds:[] as string[],machineTypeCapabilities:[] as string[],notes:""});
+ const [assignmentPoLineKey,setAssignmentPoLineKey]=useState(()=>initialContext?.poId&&initialContext?.poLineId?initialContext.poId+"::"+initialContext.poLineId:"");
+ const [assignmentOperationId,setAssignmentOperationId]=useState(initialContext?.operationId||"");
+ const [assignmentOperatorId,setAssignmentOperatorId]=useState("");
+ const [assignmentShiftCode,setAssignmentShiftCode]=useState("A");
+ const [assignmentShiftName,setAssignmentShiftName]=useState("Day Shift");
+ const [assignmentPlannedStart,setAssignmentPlannedStart]=useState("");
+ const [assignmentPlannedEnd,setAssignmentPlannedEnd]=useState("");
+ const [assignmentTargetQuantity,setAssignmentTargetQuantity]=useState("");
+ const [assignmentNotes,setAssignmentNotes]=useState("");
  const toggleSet=(setter:(next:string[]|((previous:string[])=>string[]))=>void,value:string)=>setter(previous=>previous.includes(value)?previous.filter(item=>item!==value):[...previous,value]);
  const clearFilters=()=>{setSearch("");setCompanyFilters([]);setPoFilters([]);setComponentFilters([]);setJobStatusFilters([]);};
  useEffect(()=>{
@@ -34,6 +51,9 @@ export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule,i
   setPoFilters(contextPoId?[contextPoId]:[]);
   setComponentFilters(contextComponentId?[contextComponentId]:[]);
   setJobStatusFilters([]);
+  const contextLine=initialContext?.poId&&initialContext?.poLineId?rows.find(row=>row.po.id===initialContext.poId&&row.line.id===initialContext.poLineId):undefined;
+  if(contextLine)setAssignmentPoLineKey(contextLine.po.id+"::"+contextLine.line.id);
+  if(initialContext?.operationId)setAssignmentOperationId(initialContext.operationId);
  },[initialContext?.companyId,initialContext?.poId,initialContext?.poLineId,initialContext?.componentId,initialContext?.operationId]);
 
  const rows=useMemo(()=>pos.flatMap(po=>po.lines.filter(line=>!line.deletedAt).map(line=>({po,line,company:companies.find(c=>c.id===po.companyId),component:components.find(c=>c.id===line.componentId),operations:ops.filter(op=>op.poId===po.id&&op.poLineId===line.id)}))),[pos,companies,components,ops]);
