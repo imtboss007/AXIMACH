@@ -36,3 +36,23 @@ test("completed maintenance history does not block current availability",()=>{
  assert.equal(result.status,"Available");
  assert.equal(result.blocksProduction,false);
 });
+test("an in-progress repair remains blocking after its scheduled end until the work order is closed",()=>{
+ const repair={id:"wo-live",machineId:"m1",status:"In progress",actualStart:"2026-11-26T12:00:00.000Z",scheduledStart:"2026-11-26T12:00:00.000Z",scheduledEnd:"2026-11-26T14:00:00.000Z"};
+ const operation={...operations[0],id:"op-after-repair",plannedStart:"2026-11-26T16:00:00.000Z",plannedEnd:"2026-11-26T17:00:00.000Z"};
+ assert.equal(validateMachineSchedule(operation,[],"",[repair],[]).reason,"machine-maintenance-conflict");
+ assert.equal(validateMachineMaintenanceWindow("m1","2026-11-26T16:00:00.000Z","2026-11-26T17:00:00.000Z",[],[repair],[]).reason,"maintenance-conflict");
+});
+test("an in-progress or waiting-for-parts work order without a schedule fails closed",()=>{
+ const repair={id:"wo-unscheduled",machineId:"m1",status:"Waiting parts"};
+ const operation={...operations[0],id:"op-unscheduled-repair",plannedStart:"2026-11-26T16:00:00.000Z",plannedEnd:"2026-11-26T17:00:00.000Z"};
+ assert.equal(validateMachineSchedule(operation,[],"",[repair],[]).reason,"machine-maintenance-conflict");
+ assert.equal(validateMachineMaintenanceWindow("m1","2026-11-26T16:00:00.000Z","2026-11-26T17:00:00.000Z",[],[repair],[]).reason,"maintenance-conflict");
+});
+test("critical maintenance work takes precedence over high priority in availability details",()=>{
+ const orders=[
+  {id:"wo-high",machineId:"m1",status:"In progress",priority:"High",actualStart:"2026-11-26T12:00:00.000Z"},
+  {id:"wo-critical",machineId:"m1",status:"In progress",priority:"Critical",actualStart:"2026-11-26T12:30:00.000Z"}
+ ];
+ const result=getMachineAvailability(machine,orders,[],"2026-11-26T16:30:00.000Z");
+ assert.equal(result.activeWorkOrder.id,"wo-critical");
+});
