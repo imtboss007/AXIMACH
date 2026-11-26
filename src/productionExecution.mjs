@@ -40,13 +40,14 @@ export function validateProductionAssignment(candidate,context={}){
   return fail("po-line-operation-mismatch");
  if(operation.executionType==="Outsourced"||!operation.machineId||operation.machineId!==machine.id)
   return fail("internal-machine-assignment-required");
- if(machine.status==="Retired"||machine.status==="Breakdown"||machine.status==="Under maintenance"||machine.status==="Planned maintenance")
+ const active=ACTIVE_ASSIGNMENT_STATUSES.has(candidate.status||"Planned");
+ if(active&&(machine.status==="Retired"||machine.status==="Breakdown"||machine.status==="Under maintenance"||machine.status==="Planned maintenance"))
   return fail("machine-unavailable");
- if(operator.status!=="Active")return fail("operator-inactive");
- if(ACTIVE_ASSIGNMENT_STATUSES.has(candidate.status||"Planned")&&["Complete","Rejected"].includes(operation.status))return fail("operation-not-open");
- if(!hasCapability(operator.processDefinitionIds,operation.processDefinitionId))
+ if(active&&operator.status!=="Active")return fail("operator-inactive");
+ if(active&&["Complete","Rejected"].includes(operation.status))return fail("operation-not-open");
+ if(active&&!hasCapability(operator.processDefinitionIds,operation.processDefinitionId))
   return fail("operator-process-capability-mismatch");
- if(!hasCapability(operator.machineTypeCapabilities,machine.machineType))
+ if(active&&!hasCapability(operator.machineTypeCapabilities,machine.machineType))
   return fail("operator-machine-capability-mismatch");
  if(typeof candidate.shiftCode!=="string"||!candidate.shiftCode.trim()||
     typeof candidate.shiftName!=="string"||!candidate.shiftName.trim())
@@ -66,7 +67,6 @@ export function validateProductionAssignment(candidate,context={}){
   const actual=dateRange(candidate.actualStart,candidate.actualEnd);
   if(!actual)return fail("actual-completion-window-required");
  }
- if(candidate.actualStart&&Date.parse(candidate.actualStart)>window.end)return fail("actual-start-after-planned-window");
  if(candidate.actualEnd&&(!candidate.actualStart||!Number.isFinite(Date.parse(candidate.actualEnd))||Date.parse(candidate.actualEnd)<=Date.parse(candidate.actualStart)))
   return fail("invalid-actual-window");
  const assignments=Array.isArray(context.assignments)?context.assignments:[];
