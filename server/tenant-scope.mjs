@@ -552,6 +552,91 @@ export function validateManufacturingWrite(currentData, incoming, user) {
    (!capabilities.length || Boolean(operation.processDefinitionId && capabilities.includes(operation.processDefinitionId))) &&
    machineScheduleAllowed(operation) && machineMaintenanceScheduleAllowed(operation));
  };
+ const allProductionOperators=combinedById("productionOperators");
+ const allProductionAssignments=combinedById("productionAssignments");
+ const allOperationsForExecution=combinedById("operations");
+ const productionOperatorAllowed=row=>{
+  const duplicate=[...allProductionOperators.values()].some(other=>other.id!==row.id&&!other.deletedAt&&
+   other.companyId===row.companyId&&other.factoryId===row.factoryId&&
+   String(other.employeeCode||"").trim().toLowerCase()===String(row.employeeCode||"").trim().toLowerCase());
+  return Boolean(companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&factoryById.get(row.factoryId)?.companyId===row.companyId&&
+   typeof row.employeeCode==="string"&&row.employeeCode.trim().length>0&&row.employeeCode.length<=80&&!duplicate&&
+   typeof row.displayName==="string"&&row.displayName.trim().length>0&&row.displayName.length<=180&&
+   typeof row.role==="string"&&row.role.trim().length>0&&row.role.length<=100&&
+   ["Active","Inactive"].includes(row.status)&&
+   Array.isArray(row.processDefinitionIds)&&row.processDefinitionIds.length<=100&&row.processDefinitionIds.every(id=>processIds.has(id))&&
+   Array.isArray(row.machineTypeCapabilities)&&row.machineTypeCapabilities.length<=40&&row.machineTypeCapabilities.every(value=>typeof value==="string"&&value.trim().length>0&&value.length<=120)&&
+   typeof row.notes==="string"&&row.notes.length<=4000);
+ };
+ const productionAssignmentAllowed=row=>{
+  const po=allowedPOById.get(row.poId);
+  const line=po&&rows(po,"lines").find(item=>item.id===row.poLineId&&!item.deletedAt);
+  const operation=allOperationsForExecution.get(row.operationId);
+  const machine=machineById.get(row.machineId);
+  const operator=allProductionOperators.get(row.operatorId);
+  const active=["Planned","Assigned","Running"].includes(row.status);
+  const statuses=["Planned","Assigned","Running","Completed","Cancelled"];
+  const range=timeRange(row.plannedStart,row.plannedEnd);
+  if(!po||!line||!operation||!machine||!operator||!range)return false;
+  if(!companyIds.has(row.companyId)||!factoryAllowed(row.factoryId)||
+     po.companyId!==row.companyId||po.factoryId!==row.factoryId||
+     machine.companyId!==row.companyId||machine.factoryId!==row.factoryId||
+     operator.companyId!==row.companyId||operator.factoryId!==row.factoryId||
+     line.componentId!==row.componentId||operation.poId!==po.id||operation.poLineId!==line.id||
+     operation.componentId!==row.componentId||operation.executionType==="Outsourced"||operation.machineId!==machine.id||
+     !statuses.includes(row.status)||typeof row.shiftCode!=="string"||!row.shiftCode.trim()||row.shiftCode.length>40||
+     typeof row.shiftName!=="string"||!row.shiftName.trim()||row.shiftName.length>120||
+     !Number.isSafeInteger(Number(row.targetQuantity))||Number(row.targetQuantity)<=0||
+     Number(row.targetQuantity)>Number(operation.quantity)||typeof row.operatorCode!=="string"||row.operatorCode.length>80||
+     typeof row.operatorName!=="string"||row.operatorName.length>180||typeof row.notes!=="string"||row.notes.length>4000||
+     !productionOperatorAllowed(operator))return false;
+  const operationHasWindow=Boolean(operation.plannedStart||operation.plannedEnd);
+  if(operationHasWindow){
+   const operationWindow=timeRange(operation.plannedStart,operation.plannedEnd);
+   if(!operationWindow||range.start<operationWindow.start||range.end>operationWindow.end)return false;
+  }
+  if(row.status==="Running"&&!Number.isFinite(Date.parse(row.actualStart||"")))return false;
+  if(row.status==="Completed"&&!timeRange(row.actualStart,row.actualEnd))return false;
+  if(row.actualStart&&!Number.isFinite(Date.parse(row.actualStart)))return false;
+  if(row.actualEnd&&(!row.actualStart||!timeRange(row.actualStart,row.actualEnd)))return false;
+  if(active){
+   if(operator.status!=="Active"||machine.deletedAt||["Retired","Breakdown","Under maintenance","Planned maintenance"].includes(machine.status))return false;
+   const machineCapabilities=Array.isArray(machine.processDefinitionIds)?machine.processDefinitionIds:[];
+   const operatorProcesses=Array.isArray(operator.processDefinitionIds)?operator.processDefinitionIds:[];
+   const operatorMachineTypes=Array.isArray(operator.machineTypeCapabilities)?operator.machineTypeCapabilities:[];
+   if(machineCapabilities.length&&(!operation.processDefinitionId||!machineCapabilities.includes(operation.processDefinitionId)))return false;
+   if(operatorProcesses.length&&(!operation.processDefinitionId||!operatorProcesses.includes(operation.processDefinitionId)))return false;
+   if(operatorMachineTypes.length&&!operatorMachineTypes.includes(machine.machineType))return false;
+   for(const other of allProductionAssignments.values()){
+    if(!other||other.id===row.id||other.deletedAt||!["Planned","Assigned","Running"].includes(other.status))continue;
+    const otherRange=timeRange(other.plannedStart,other.plannedEnd);
+    if(!otherRange||!overlaps(range,otherRange))continue;
+    if(other.operatorId===row.operatorId)return false;
+    if(other.machineId===row.machineId&&other.operationId!==row.operationId)return false;
+   }
+   const allocated=[...allProductionAssignments.values()].filter(other=>
+    other&&other.id!==row.id&&!other.deletedAt&&other.operationId===row.operationId&&other.status!=="Cancelled"
+   ).reduce((sum,other)=>sum+Math.max(0,Number(other.targetQuantity)||0),0);
+   if(allocated+Number(row.targetQuantity)>Number(operation.quantity))return false;
+   for(const order of [...rows(currentData,"maintenanceWorkOrders"),...rows(incoming,"maintenanceWorkOrders")]){
+    if(!order||order.machineId!==machine.id||order.deletedAt||!["Planned","In progress","Waiting parts"].includes(order.status))continue;
+    const scheduled=timeRange(order.scheduledStart,order.scheduledEnd)||
+     (["In progress","Waiting parts"].includes(order.status)&&order.actualStart?{start:Date.parse(order.actualStart),end:Number.POSITIVE_INFINITY}:null);
+    if(scheduled&&Number.isFinite(scheduled.start)&&overlaps(range,scheduled))return false;
+   }
+   for(const event of [...rows(currentData,"machineDowntime"),...rows(incoming,"machineDowntime")]){
+    if(!event||event.machineId!==machine.id||event.deletedAt||!event.startedAt)continue;
+    const start=Date.parse(event.startedAt),end=event.endedAt?Date.parse(event.endedAt):Number.POSITIVE_INFINITY;
+    if(Number.isFinite(start)&&(!event.endedAt||Number.isFinite(end))&&overlaps(range,{start,end}))return false;
+   }
+   for(const other of allOperationsForExecution.values()){
+    if(!other||other.id===operation.id||other.machineId!==machine.id||other.deletedAt||other.executionType==="Outsourced"||["Complete","Rejected"].includes(other.status))continue;
+    const otherRange=timeRange(other.plannedStart,other.plannedEnd);
+    if(otherRange&&overlaps(range,otherRange))return false;
+   }
+  }
+  return true;
+ };
  const transportRouteIds = access.transportRouteIds;
  const scopeIds = access.entityIds;
  const safeId = (collection,row) => {
