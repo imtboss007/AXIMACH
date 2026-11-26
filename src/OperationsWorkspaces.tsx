@@ -116,6 +116,75 @@ export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule,i
   onNotice((finished?"Finished ":"Reopened ")+selectedVisibleJobs.length+" selected PO component job(s). Operation history remains unchanged.");
   setSelectedJobKeys([]);
  };
+ const saveProductionOperator=()=>{
+  const factory=factories.find(row=>row.id===operatorFactoryId&&!row.deletedAt);
+  if(!operatorCompanyId||!factory||factory.companyId!==operatorCompanyId||!operatorDraft.employeeCode.trim()||!operatorDraft.displayName.trim()||!operatorDraft.role.trim()){
+   onNotice("Select the operator company and factory, then enter employee code, name and role.");return;
+  }
+  if(operators.some(row=>row.companyId===operatorCompanyId&&row.factoryId===operatorFactoryId&&row.employeeCode.trim().toLowerCase()===operatorDraft.employeeCode.trim().toLowerCase())){
+   onNotice("This employee code is already registered in the selected company/factory.");return;
+  }
+  const stamp=nowIso();
+  const record:ProductionOperatorRecord={id:makeId("production-operator"),companyId:operatorCompanyId,factoryId:operatorFactoryId,
+   employeeCode:operatorDraft.employeeCode.trim(),displayName:operatorDraft.displayName.trim(),role:operatorDraft.role.trim(),
+   processDefinitionIds:[...new Set(operatorDraft.processDefinitionIds)],machineTypeCapabilities:[...new Set(operatorDraft.machineTypeCapabilities)],
+   status:"Active",notes:operatorDraft.notes.trim(),createdAt:stamp,updatedAt:stamp};
+  update(current=>({...current,productionOperators:[...(current.productionOperators||[]),record]}));
+  setOperatorDraft({employeeCode:"",displayName:"",role:"",processDefinitionIds:[],machineTypeCapabilities:[],notes:""});
+  setShowOperatorForm(false);onNotice("Operator "+record.employeeCode+" registered in "+factory.name+".");
+ };
+ const saveProductionAssignment=()=>{
+  if(!assignmentLine||!assignmentOperation||!assignmentMachine||!assignmentOperatorId||!assignmentShiftCode.trim()||!assignmentShiftName.trim()||
+     !assignmentPlannedStart||!assignmentPlannedEnd||!Number.isSafeInteger(Number(assignmentTargetQuantity))||Number(assignmentTargetQuantity)<=0){
+   onNotice("Select a PO line, internal operation, eligible operator, shift, planned time window and positive target quantity.");return;
+  }
+  let error="",created:ProductionAssignmentRecord|undefined;
+  update(current=>{
+   const po=current.purchaseOrders.find(row=>row.id===assignmentLine.po.id&&!row.deletedAt);
+   const line=po?.lines.find(row=>row.id===assignmentLine.line.id&&!row.deletedAt);
+   const component=current.components.find(row=>row.id===line?.componentId&&!row.deletedAt);
+   const operation=current.operations.find(row=>row.id===assignmentOperation.id&&!row.deletedAt);
+   const machine=current.machines.find(row=>row.id===assignmentMachine.id&&!row.deletedAt);
+   const operator=(current.productionOperators||[]).find(row=>row.id===assignmentOperatorId&&!row.deletedAt);
+   if(!po||!line||!component||!operation||!machine||!operator){error="A selected PO, component, operation, machine or operator record changed. Refresh the selections.";return current;}
+   const stamp=nowIso();
+   const candidate:ProductionAssignmentRecord={id:makeId("production-assignment"),companyId:po.companyId,factoryId:po.factoryId,
+    poId:po.id,poLineId:line.id,componentId:component.id,operationId:operation.id,machineId:machine.id,
+    operatorId:operator.id,operatorCode:operator.employeeCode,operatorName:operator.displayName,shiftCode:assignmentShiftCode.trim(),
+    shiftName:assignmentShiftName.trim(),plannedStart:new Date(assignmentPlannedStart).toISOString(),plannedEnd:new Date(assignmentPlannedEnd).toISOString(),
+    actualStart:"",actualEnd:"",targetQuantity:Number(assignmentTargetQuantity),status:"Assigned",notes:assignmentNotes.trim(),createdAt:stamp,updatedAt:stamp};
+   const check=validateProductionAssignment(candidate,{purchaseOrders:current.purchaseOrders,components:current.components,
+    operations:current.operations,machines:current.machines,operators:current.productionOperators||[],assignments:current.productionAssignments||[],
+    maintenanceWorkOrders:current.maintenanceWorkOrders||[],machineDowntime:current.machineDowntime||[]});
+   if(!check.ok){error="Assignment rejected: "+check.reason.replace(/-/g," ")+". Correct the schedule, operator, machine or target allocation.";return current;}
+   created=candidate;return {...current,productionAssignments:[...(current.productionAssignments||[]),candidate]};
+  });
+  if(error){onNotice(error);return;}
+  setAssignmentOperatorId("");setAssignmentPlannedStart("");setAssignmentPlannedEnd("");setAssignmentTargetQuantity("");setAssignmentNotes("");
+  onNotice("Shift assignment "+(created?.shiftCode||"")+" saved for "+assignmentOperation.name+". Operation production totals remain authoritative.");
+ };
+ const changeProductionAssignmentStatus=(assignment:ProductionAssignmentRecord,status:ProductionAssignmentStatus)=>{
+  let error="";
+  const stamp=nowIso();
+  update(current=>{
+   const prior=(current.productionAssignments||[]).find(row=>row.id===assignment.id&&!row.deletedAt);
+   if(!prior){error="Assignment record no longer exists.";return current;}
+   if(status==="Running"&&!["Assigned","Planned"].includes(prior.status)){error="Only a Planned or Assigned slot can be started.";return current;}
+   if(status==="Completed"&&(prior.status!=="Running"||!prior.actualStart)){error="Start the assignment first, so actual start time is recorded.";return current;}
+   if(status==="Cancelled"&&["Completed","Cancelled"].includes(prior.status)){error="A completed/cancelled assignment cannot be cancelled again.";return current;}
+   const updated:ProductionAssignmentRecord={...prior,status,
+    actualStart:status==="Running"?(prior.actualStart||stamp):prior.actualStart,
+    actualEnd:status==="Completed"?stamp:prior.actualEnd,updatedAt:stamp};
+   if(status==="Completed"&&Date.parse(updated.actualEnd)<=Date.parse(updated.actualStart)){error="Actual completion time must be later than actual start.";return current;}
+   const check=validateProductionAssignment(updated,{purchaseOrders:current.purchaseOrders,components:current.components,
+    operations:current.operations,machines:current.machines,operators:current.productionOperators||[],assignments:current.productionAssignments||[],
+    maintenanceWorkOrders:current.maintenanceWorkOrders||[],machineDowntime:current.machineDowntime||[],editingId:prior.id});
+   if(!check.ok){error="Status change rejected: "+check.reason.replace(/-/g," ")+". Check machine and maintenance availability.";return current;}
+   return {...current,productionAssignments:(current.productionAssignments||[]).map(row=>row.id===prior.id?updated:row)};
+  });
+  if(error){onNotice(error);return;}
+  onNotice("Production assignment marked "+status+". Production quantities stay on the operation record.");
+ };
  const setJob=(poId:string,lineId:string,finished:boolean)=>{
   const stamp=nowIso();const po=pos.find(x=>x.id===poId);const line=po?.lines.find(x=>x.id===lineId);if(!po||!line)return;
   if(finished){const incomplete=ops.filter(op=>op.poId===poId&&op.poLineId===lineId&&op.status!=="Complete");if(incomplete.length&&!window.confirm(incomplete.length+" process operation(s) are not Complete. Finish the PO-line job anyway? Operation records will remain unchanged."))return;}
