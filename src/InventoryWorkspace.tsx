@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowRight, Boxes, Check, ClipboardList, Factory, FileText, Package, Plus, Search, ShieldCheck, Trash2, Truck, Users, Warehouse, X } from "lucide-react";
-import { activeRows, makeId, nowIso, useManufacturingData, type BomLineRecord, type InventoryTransactionRecord, type MaterialProcessLinkRecord, type MaterialRecord, type StockTransactionKind } from "./manufacturingData";
+import { activeRows, makeId, nowIso, useManufacturingData, type BomLineRecord, type InventoryTransactionRecord, type MaterialProcessLinkRecord, type MaterialConsumptionRecord, type MaterialRecord, type StockTransactionKind } from "./manufacturingData";
 import { getFinalProductionOperation, getRequiredRouteOperations } from "./productionRouteMetrics.mjs";
-import { buildBomMaterialIssuePlan, getInventoryStockBalance } from "./inventoryLedger.mjs";
+import { buildBomMaterialIssuePlan, buildMaterialConsumptionPlan, getInventoryStockBalance, validateMaterialConsumptionQuantities } from "./inventoryLedger.mjs";
 import SearchablePicker from "./SearchablePicker";
 import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
 
 type InventoryNavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string; materialId?:string; subtab?:string; searchText?:string };
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: InventoryNavigationContext) => void; initialContext?: InventoryNavigationContext };
-type Tab = "materials" | "bom" | "stock" | "process-links";
+type Tab = "materials" | "bom" | "stock" | "consumption" | "process-links";
 type MaterialDraft = Omit<MaterialRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
 type BomDraft = Omit<BomLineRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
 type BomIssuePreviewRow = { material: MaterialRecord; bomLineIds: string[]; required: number; issued: number; pending: number; available: number; shortage: number };
@@ -70,8 +70,9 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const orders = activeRows(data.purchaseOrders);
   const vendors = activeRows(data.vendors);
   const inventoryTransactions = activeRows(data.inventoryTransactions);
+  const materialConsumptions = activeRows(data.materialConsumptions || []);
   const operations = activeRows(data.operations);
-  const [tab, setTab] = useState<Tab>(() => initialContext?.subtab === "bom" || initialContext?.subtab === "stock" || initialContext?.subtab === "process-links" ? initialContext.subtab : "materials");
+  const [tab, setTab] = useState<Tab>(() => initialContext?.subtab === "bom" || initialContext?.subtab === "stock" || initialContext?.subtab === "consumption" || initialContext?.subtab === "process-links" ? initialContext.subtab : "materials");
   const [materialLinkPoLineKey, setMaterialLinkPoLineKey] = useState(() => initialContext?.poId && initialContext?.poLineId ? initialContext.poId+"::"+initialContext.poLineId : "");
   const [materialLinkBomLineId, setMaterialLinkBomLineId] = useState("");
   const [materialLinkOperationId, setMaterialLinkOperationId] = useState(initialContext?.operationId || "");
@@ -105,12 +106,25 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const [poLineKey, setPoLineKey] = useState("");
   const [operationId, setOperationId] = useState("");
   const [vendorId, setVendorId] = useState("");
+  const [consumptionPoLineKey,setConsumptionPoLineKey]=useState(()=>initialContext?.poId&&initialContext?.poLineId?initialContext.poId+"::"+initialContext.poLineId:"");
+  const [consumptionOperationId,setConsumptionOperationId]=useState(initialContext?.operationId||"");
+  const [consumptionBomLineId,setConsumptionBomLineId]=useState("");
+  const [consumptionQuantity,setConsumptionQuantity]=useState("");
+  const [consumptionScrapQuantity,setConsumptionScrapQuantity]=useState("0");
+  const [consumptionReturnQuantity,setConsumptionReturnQuantity]=useState("0");
+  const [consumptionDate,setConsumptionDate]=useState(dateToday());
+  const [consumptionReference,setConsumptionReference]=useState("");
+  const [consumptionRecordedBy,setConsumptionRecordedBy]=useState("");
+  const [consumptionNotes,setConsumptionNotes]=useState("");
   useEffect(() => {
     // Hydrate every filter from the incoming record context, including the
     // empty case, so a new module visit cannot inherit a stale component/PO.
     setMaterialLinkPoLineKey(initialContext?.poId && initialContext?.poLineId ? initialContext.poId+"::"+initialContext.poLineId : "");
     setMaterialLinkOperationId(initialContext?.operationId || "");
-    setTab(initialContext?.subtab === "bom" || initialContext?.subtab === "stock" || initialContext?.subtab === "process-links" ? initialContext.subtab : "materials");
+    setTab(initialContext?.subtab === "bom" || initialContext?.subtab === "stock" || initialContext?.subtab === "consumption" || initialContext?.subtab === "process-links" ? initialContext.subtab : "materials");
+    setConsumptionPoLineKey(initialContext?.poId&&initialContext?.poLineId?initialContext.poId+"::"+initialContext.poLineId:"");
+    setConsumptionOperationId(initialContext?.operationId||"");
+    setConsumptionBomLineId("");setConsumptionQuantity("");setConsumptionScrapQuantity("0");setConsumptionReturnQuantity("0");setConsumptionReference("");setConsumptionRecordedBy("");setConsumptionNotes("");setConsumptionDate(dateToday());
     setSearch(initialContext?.searchText || materials.find(row=>row.id===initialContext?.materialId)?.code || "");
     setDirectoryCompanyId(initialContext?.companyId || "");
     setDirectoryPoId(initialContext?.poId || "");
@@ -196,6 +210,42 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     onNotice("Material-to-process link archived. No BOM, stock or process-operation record was deleted.");
   };
   const bomIssueOperations = bomIssueSelection ? operations.filter(op => op.poId === bomIssueSelection.po.id && op.poLineId === bomIssueSelection.line.id && !op.deletedAt) : [];
+  const consumptionLineOptions = bomIssuePoLineOptions.filter(row=>
+    (!directoryCompanyId||row.po.companyId===directoryCompanyId)&&
+    (!directoryPoId||row.po.id===directoryPoId)&&
+    (!directoryComponentId||row.line.componentId===directoryComponentId)
+  );
+  const consumptionSelection = consumptionLineOptions.find(row=>row.id===consumptionPoLineKey);
+  const consumptionBomOptions = consumptionSelection?.component
+    ? bomLines.filter(row=>row.componentId===consumptionSelection.component!.id&&
+      (!row.revision||row.revision===consumptionSelection.component!.revision)&&
+      (!consumptionSelection.line.partId||!row.partId||row.partId===consumptionSelection.line.partId))
+    : [];
+  const consumptionOperationOptions = consumptionSelection
+    ? operations.filter(op=>op.poId===consumptionSelection.po.id&&op.poLineId===consumptionSelection.line.id&&op.componentId===consumptionSelection.line.componentId&&!op.deletedAt)
+    : [];
+  const consumptionBomLine = consumptionBomOptions.find(row=>row.id===consumptionBomLineId);
+  const consumptionMaterial = materials.find(row=>row.id===consumptionBomLine?.materialId&&!row.deletedAt);
+  const consumptionOperation = consumptionOperationOptions.find(row=>row.id===consumptionOperationId);
+  const consumptionPlan = useMemo(()=>(
+    consumptionSelection?.component&&consumptionBomLine&&consumptionMaterial&&consumptionOperation
+      ? buildMaterialConsumptionPlan({
+          po:consumptionSelection.po,line:consumptionSelection.line,component:consumptionSelection.component,
+          operation:consumptionOperation,bomLine:consumptionBomLine,material:consumptionMaterial,
+          materialProcessLinks,inventoryTransactions,materialConsumptions
+        })
+      : null
+  ),[consumptionPoLineKey,consumptionOperationId,consumptionBomLineId,consumptionSelection,consumptionBomLine,consumptionMaterial,consumptionOperation,materialProcessLinks,inventoryTransactions,materialConsumptions]);
+  const visibleMaterialConsumptions = materialConsumptions.filter(row=>{
+    const material=materials.find(item=>item.id===row.materialId);
+    const po=orders.find(item=>item.id===row.poId);
+    const component=components.find(item=>item.id===row.componentId);
+    const operation=operations.find(item=>item.id===row.operationId);
+    const query=[row.reference,row.recordedBy,row.notes,row.materialId,row.bomLineId,material?.code,material?.name,po?.number,component?.partNumber,operation?.name].join(" ").toLowerCase();
+    return (!directoryCompanyId||row.companyId===directoryCompanyId)&&(!directoryPoId||row.poId===directoryPoId)&&
+      (!directoryComponentId||row.componentId===directoryComponentId)&&(!search.trim()||query.includes(search.toLowerCase().trim()));
+  }).slice().sort((a,b)=>b.occurredAt.localeCompare(a.occurredAt)||b.createdAt.localeCompare(a.createdAt));
+
   const bomIssuePreview = useMemo<BomIssuePreviewRow[]>(() => {
     if (!bomIssueSelection?.component) return [];
     return buildBomMaterialIssuePlan({
