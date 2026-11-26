@@ -14,3 +14,24 @@ export function buildBomMaterialIssuePlan(input:{
  bomLines:BomLike[];materials:MaterialRecord[];transactions:InventoryTransactionLike[];
  po:PurchaseOrderLike;line:PurchaseOrderLineLike;component:ComponentLike;
 }):Array<{material?:MaterialRecord;materialId:string;bomLineIds:string[];required:number;issued:number;pending:number;available:number;shortage:number}>;
+
+type OperationLike={id:string;poId:string;poLineId:string;componentId:string};
+type MaterialProcessLinkLike={
+ id:string;companyId:string;poId:string;poLineId:string;componentId:string;bomLineId:string;
+ materialId:string;operationId:string;quantityPerPart:number;flowType:"Material input"|"Consumable"|"WIP transfer"|"Output";deletedAt?:string;
+};
+type MaterialConsumptionLike={
+ id:string;companyId:string;factoryId:string;poId:string;poLineId:string;componentId:string;
+ bomLineId:string;materialId:string;operationId:string;consumedQuantity:number;
+ scrapQuantity:number;returnedQuantity:number;deletedAt?:string;
+};
+export function buildMaterialConsumptionPlan(input:{
+ po:PurchaseOrderLike;line:PurchaseOrderLineLike;component:ComponentLike;operation:OperationLike;
+ bomLine:BomLike;material:MaterialRecord;materialProcessLinks?:MaterialProcessLinkLike[];
+ inventoryTransactions?:InventoryTransactionLike[];materialConsumptions?:MaterialConsumptionLike[];
+}):{
+ plannedQuantity:number;issuedQuantityAtRecord:number;availableToReconcile:number;
+ directIssued:number;unassignedIssued:number;availableDirectForOperation:number;availableSharedPool:number;
+ priorConsumed:number;priorScrap:number;priorReturned:number;variance:number;materialProcessLinkIds:string[];unit:string;
+}|null;
+export function validateMaterialConsumptionQuantities(plan:ReturnType<typeof buildMaterialConsumptionPlan>,consumedValue:number|string,scrapValue:number|string,returnedValue:number|string):{ok:boolean;reason:string};
