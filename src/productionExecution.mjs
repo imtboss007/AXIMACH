@@ -25,6 +25,7 @@ export function getEligibleProductionOperators(operators=[],scope={}){
 export function validateProductionAssignment(candidate,context={}){
  const fail=reason=>({ok:false,reason});
  if(!candidate||typeof candidate!=="object")return fail("invalid-assignment");
+ if(!["Planned","Assigned","Running","Completed","Cancelled"].includes(candidate.status))return fail("invalid-assignment-status");
  const po=(context.purchaseOrders||[]).find(row=>row?.id===candidate.poId&&!row.deletedAt);
  const line=po?.lines?.find(row=>row?.id===candidate.poLineId&&!row.deletedAt);
  const component=(context.components||[]).find(row=>row?.id===candidate.componentId&&!row.deletedAt);
@@ -43,6 +44,7 @@ export function validateProductionAssignment(candidate,context={}){
  const active=ACTIVE_ASSIGNMENT_STATUSES.has(candidate.status||"Planned");
  if(active&&(machine.status==="Retired"||machine.status==="Breakdown"||machine.status==="Under maintenance"||machine.status==="Planned maintenance"))
   return fail("machine-unavailable");
+ if(candidate.operatorCode!==operator.employeeCode||candidate.operatorName!==operator.displayName)return fail("operator-snapshot-mismatch");
  if(active&&operator.status!=="Active")return fail("operator-inactive");
  if(active&&["Complete","Rejected"].includes(operation.status))return fail("operation-not-open");
  if(active&&!hasCapability(operator.processDefinitionIds,operation.processDefinitionId))
