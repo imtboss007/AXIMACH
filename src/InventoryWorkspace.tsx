@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowRight, Boxes, Check, ClipboardList, Factory, FileText, Package, Plus, Search, ShieldCheck, Trash2, Truck, Users, Warehouse, X } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type BomLineRecord, type InventoryTransactionRecord, type MaterialProcessLinkRecord, type MaterialRecord, type StockTransactionKind } from "./manufacturingData";
 import { getFinalProductionOperation, getRequiredRouteOperations } from "./productionRouteMetrics.mjs";
+import { buildBomMaterialIssuePlan, getInventoryStockBalance } from "./inventoryLedger.mjs";
 import SearchablePicker from "./SearchablePicker";
 import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
 
@@ -197,28 +198,15 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const bomIssueOperations = bomIssueSelection ? operations.filter(op => op.poId === bomIssueSelection.po.id && op.poLineId === bomIssueSelection.line.id && !op.deletedAt) : [];
   const bomIssuePreview = useMemo<BomIssuePreviewRow[]>(() => {
     if (!bomIssueSelection?.component) return [];
-    const eligibleBom = bomLines.filter(row => row.componentId === bomIssueSelection.component!.id && (!row.revision || row.revision === bomIssueSelection.component!.revision) && (!bomIssueSelection.line.partId || !row.partId || row.partId === bomIssueSelection.line.partId));
-    const totals = new Map<string, { required: number; bomLineIds: string[] }>();
-    for (const row of eligibleBom) {
-      const prior = totals.get(row.materialId) || { required: 0, bomLineIds: [] };
-      prior.required += row.quantityPerPart * (1 + row.scrapPercent / 100) * bomIssueSelection.line.quantity;
-      prior.bomLineIds.push(row.id);
-      totals.set(row.materialId, prior);
-    }
-    return [...totals.entries()].map(([materialId, total]) => {
-      const material = materials.find(row => row.id === materialId);
-      if (!material) return null;
-      const issued = inventoryTransactions.filter(row => row.itemType === "material" && row.itemId === materialId && row.poId === bomIssueSelection.po.id && row.poLineId === bomIssueSelection.line.id)
-        .reduce((sum, row) => sum + (row.transactionType === "Issue to production" && row.direction === "out" ? row.quantity : row.transactionType === "Return" && row.direction === "in" ? -row.quantity : 0), 0);
-      const pending = Math.max(0, total.required - Math.max(0, issued));
-      const available = stockBalance("material", materialId, { companyId: bomIssueSelection.po.companyId, factoryId: bomIssueSelection.po.factoryId });
-      return { material, bomLineIds: total.bomLineIds, required: total.required, issued: Math.max(0, issued), pending, available, shortage: Math.max(0, pending - available) };
-    }).filter((row): row is BomIssuePreviewRow => Boolean(row));
-  }, [bomIssuePoLineKey, bomIssueSelection, bomLines, materials, inventoryTransactions]);
+    return buildBomMaterialIssuePlan({
+      bomLines,materials,transactions:inventoryTransactions,
+      po:bomIssueSelection.po,line:bomIssueSelection.line,component:bomIssueSelection.component
+    }).filter((row):row is BomIssuePreviewRow=>Boolean(row.material));
+  }, [bomIssuePoLineKey,bomIssueSelection,bomLines,materials,inventoryTransactions]);
   const operationOptions = operations.filter(op => !op.deletedAt && (!selectedPoLine || (op.poId === selectedPoLine.po.id && op.poLineId === selectedPoLine.line.id)));
   const itemOptions = itemType === "material" ? materials.map(m => ({ id: m.id, label: m.code + " · " + m.name + " · " + m.grade })) : components.map(c => ({ id: c.id, label: c.partNumber + " · " + c.name + " · Rev " + (c.revision || "—") }));
   const selectedItem = itemType === "material" ? materials.find(m => m.id === itemId) : components.find(c => c.id === itemId);
-  const stockBalance = (type: "material" | "component", id: string, scope: { companyId?: string; factoryId?: string } = { companyId, factoryId }) => inventoryTransactions.reduce((total, row) => row.itemType === type && row.itemId === id && (!scope.companyId || row.companyId === scope.companyId) && (!scope.factoryId || row.factoryId === scope.factoryId) ? total + (row.direction === "in" ? row.quantity : -row.quantity) : total, 0);
+  const stockBalance = (type: "material" | "component", id: string, scope: { companyId?: string; factoryId?: string } = { companyId, factoryId }) => getInventoryStockBalance(inventoryTransactions,type,id,scope);
   const visibleMaterials = useMemo(() => materials.filter(m => {
     const query = search.toLowerCase().trim();
     const textMatch = !query || (m.code + " " + m.name + " " + m.grade + " " + m.materialType + " " + m.shapeType + " " + m.specification + " " + m.notes + " " + Object.entries(m.dimensions||{}).map(([key,value])=>key+" "+value).join(" ")).toLowerCase().includes(query);
@@ -360,40 +348,31 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     if (!pendingRows.length) { onNotice("There are no remaining BOM material requirements to issue for this PO component line."); return; }
     const shortages = pendingRows.filter(row => row.shortage > 0);
     if (shortages.length) {
-      onNotice("No material was issued. Insufficient stock: " + shortages.map(row => row.material.code + " needs " + row.pending.toLocaleString("en-IN") + " " + row.material.unit + ", available " + row.available.toLocaleString("en-IN") + " " + row.material.unit).join("; ") + ". Receive/adjust stock first.");
+      onNotice("No material was issued. Insufficient stock in the selected factory: " + shortages.map(row => row.material.code + " needs " + row.pending.toLocaleString("en-IN") + " " + row.material.unit + ", available " + Math.max(0,row.available).toLocaleString("en-IN") + " " + row.material.unit).join("; ") + ". Receive or adjust stock in that factory first.");
       return;
     }
     const issueTotal = pendingRows.reduce((sum, row) => sum + row.pending, 0);
-    if (!window.confirm("Issue all remaining BOM material requirements for " + bomIssueSelection.po.number + " / " + bomIssueSelection.component.partNumber + "?\n" + pendingRows.length + " material line(s), total " + issueTotal.toLocaleString("en-IN") + " material units. This creates append-only stock transactions and will not issue any partial line if stock is short.")) return;
+    if (!window.confirm("Issue all remaining BOM material requirements for " + bomIssueSelection.po.number + " / " + bomIssueSelection.component.partNumber + "?\n" + pendingRows.length + " material line(s), total " + issueTotal.toLocaleString("en-IN") + " material units. Only stock owned by " + (companies.find(row=>row.id===bomIssueSelection.po.companyId)?.name||"the selected company") + " at " + (factories.find(row=>row.id===bomIssueSelection.po.factoryId)?.name||"the selected factory") + " is eligible. This creates append-only stock transactions and will not partially issue a short kit.")) return;
     let result: { posted: number; shortage: string[] } = { posted: 0, shortage: [] };
     update(current => {
       const po = current.purchaseOrders.find(row => row.id === bomIssueSelection.po.id);
       const line = po?.lines.find(row => row.id === bomIssueSelection.line.id && !row.deletedAt);
       const component = current.components.find(row => row.id === line?.componentId);
-      if (!po || !line || !component) { result = { posted: 0, shortage: ["The PO component line or Component Master record changed; refresh and select it again."] }; return current; }
+      if (!po || !line || !component || !po.companyId || !po.factoryId) { result = { posted: 0, shortage: ["The PO component line, owning company/factory or Component Master record changed; refresh and select it again."] }; return current; }
       if (bomIssueOperationId && !current.operations.some(op => op.id === bomIssueOperationId && op.poId === po.id && op.poLineId === line.id && !op.deletedAt)) { result = { posted: 0, shortage: ["The selected process operation is no longer active on this PO component line. No material was issued."] }; return current; }
-      const eligibleBom = current.bomLines.filter(row => row.componentId === component.id && !row.deletedAt && (!row.revision || row.revision === component.revision) && (!line.partId || !row.partId || row.partId === line.partId));
-      const totals = new Map<string, { required: number; bomLineIds: string[] }>();
-      for (const bom of eligibleBom) {
-        const prior = totals.get(bom.materialId) || { required: 0, bomLineIds: [] };
-        prior.required += bom.quantityPerPart * (1 + bom.scrapPercent / 100) * line.quantity;
-        prior.bomLineIds.push(bom.id);
-        totals.set(bom.materialId, prior);
-      }
-      const plan = [...totals.entries()].map(([materialId, total]) => {
-        const material = current.materials.find(row => row.id === materialId && !row.deletedAt);
-        const issued = current.inventoryTransactions.filter(row => row.itemType === "material" && row.itemId === materialId && row.poId === po.id && row.poLineId === line.id)
-          .reduce((sum, row) => sum + (row.transactionType === "Issue to production" && row.direction === "out" ? row.quantity : row.transactionType === "Return" && row.direction === "in" ? -row.quantity : 0), 0);
-        const available = current.inventoryTransactions.reduce((sum, row) => row.itemType === "material" && row.itemId === materialId ? sum + (row.direction === "in" ? row.quantity : -row.quantity) : sum, 0);
-        return { material, materialId, bomLineIds: total.bomLineIds, pending: Math.max(0, total.required - Math.max(0, issued)), available };
-      }).filter(row => row.pending > 0);
+      const plan = buildBomMaterialIssuePlan({
+        bomLines:current.bomLines,materials:current.materials,transactions:current.inventoryTransactions,
+        po,line,component
+      });
       const missing = plan.filter(row => !row.material);
       if (missing.length) { result = { posted: 0, shortage: missing.map(row => "Missing material " + row.materialId) }; return current; }
-      const short = plan.filter(row => row.available + 1e-9 < row.pending);
-      if (short.length) { result = { posted: 0, shortage: short.map(row => row.material!.code + " needs " + row.pending.toLocaleString("en-IN") + " " + row.material!.unit + ", available " + row.available.toLocaleString("en-IN") + " " + row.material!.unit) }; return current; }
+      const pendingPlan = plan.filter(row => row.pending > 0);
+      if (!pendingPlan.length) { result = { posted: 0, shortage: ["No remaining BOM material requirements exist for this PO line."] }; return current; }
+      const short = pendingPlan.filter(row => row.shortage > 0);
+      if (short.length) { result = { posted: 0, shortage: short.map(row => row.material!.code + " needs " + row.pending.toLocaleString("en-IN") + " " + row.material!.unit + ", available " + Math.max(0,row.available).toLocaleString("en-IN") + " " + row.material!.unit + " in the selected factory") }; return current; }
       const stamp = nowIso();
       const reference = "BOM ISSUE · " + po.number + " · " + component.partNumber;
-      const transactions: InventoryTransactionRecord[] = plan.map(row => ({
+      const transactions: InventoryTransactionRecord[] = pendingPlan.map(row => ({
         id: makeId("stock"), itemType: "material", itemId: row.materialId, transactionType: "Issue to production", direction: "out", quantity: row.pending,
         occurredAt: dateToday(), reference, notes: "Automated BOM issue. PO line quantity: " + line.quantity + "; component revision: " + (component.revision || "—") + "; BOM line IDs: " + row.bomLineIds.join(", ") + ". Remaining requirement after prior issues/returns.",
         companyId: po.companyId, factoryId: po.factoryId, poId: po.id, poLineId: line.id, operationId: bomIssueOperationId || "", vendorId: "", reversalOfId: "", createdAt: stamp, createdBy: "AXIMACH BOM issue workflow"
@@ -402,19 +381,21 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
       return { ...current, inventoryTransactions: [...current.inventoryTransactions, ...transactions] };
     });
     if (result.shortage.length) onNotice("No material was issued. " + result.shortage.join("; ") + ".");
-    else onNotice(result.posted + " BOM material issue transaction(s) posted to the stock ledger for " + bomIssueSelection.po.number + " / " + bomIssueSelection.component.partNumber + ". Quantities were based on PO quantity, BOM per-part quantity, scrap allowance, previous issues and returns.");
+    else onNotice(result.posted + " BOM material issue transaction(s) posted to the stock ledger for " + bomIssueSelection.po.number + " / " + bomIssueSelection.component.partNumber + ". Quantities were rechecked atomically against this PO's company and factory, BOM per-part quantity, scrap allowance, previous issues and returns.");
   };
   const postTransaction = () => {
     if (!itemId || !selectedItem) { onNotice("Select the material or component that physically moved."); return; }
     const q = Number(quantity);
     if (!Number.isFinite(q) || q <= 0) { onNotice("Enter a positive finite quantity for the stock movement."); return; }
     if (!occurredAt) { onNotice("Enter the date of the physical stock movement."); return; }
+    if (!companyId || !factoryId) { onNotice("Every stock movement must be assigned to an owning company and factory. Select both before posting."); return; }
     if (!reference.trim()) { onNotice("Enter a source reference, challan, issue slip, adjustment note or other movement reference."); return; }
     const requiredDirection = fixedStockDirections[transactionType];
     if (requiredDirection && direction !== requiredDirection) { onNotice(transactionType + " must be posted as stock " + requiredDirection + "."); return; }
-    if (factoryId && !factories.some(factory => factory.id === factoryId && (!companyId || factory.companyId === companyId))) { onNotice("The selected factory is no longer active under the selected company."); return; }
+    if (!factories.some(factory => factory.id === factoryId && factory.companyId === companyId)) { onNotice("The selected factory is no longer active under the selected company."); return; }
+    if (selectedPoLine && (selectedPoLine.po.companyId !== companyId || selectedPoLine.po.factoryId !== factoryId)) { onNotice("The stock movement company and factory must exactly match the selected PO line."); return; }
     if (vendorId && !vendors.some(vendor => vendor.id === vendorId)) { onNotice("The selected stock vendor is missing or archived."); return; }
-    if (operationId && !operations.some(op => op.id === operationId && (!selectedPoLine || (op.poId === selectedPoLine.po.id && op.poLineId === selectedPoLine.line.id)))) { onNotice("The selected operation does not belong to the chosen PO line or is no longer active."); return; }
+    if (operationId) { const linkedOperation = operations.find(op => op.id === operationId && !op.deletedAt); const linkedPO = linkedOperation ? orders.find(po => po.id === linkedOperation.poId) : undefined; if (!linkedOperation || !linkedPO || linkedPO.companyId !== companyId || linkedPO.factoryId !== factoryId || (selectedPoLine && (linkedOperation.poId !== selectedPoLine.po.id || linkedOperation.poLineId !== selectedPoLine.line.id))) { onNotice("The selected operation must belong to the selected company/factory and, when supplied, the exact PO line."); return; } }
     if (selectedPoLine && selectedPoLine.line.componentId && itemType === "component" && selectedPoLine.line.componentId !== itemId) { onNotice("The selected component stock item does not match the chosen PO line. Choose the matching part number."); return; }
     if (transactionType === "Finished goods receipt" || transactionType === "Dispatch") {
       if (itemType !== "component" || !selectedPoLine) { onNotice("Finished-goods receipt and dispatch require the exact component item and PO line."); return; }
@@ -447,7 +428,8 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
         if (q > lineFinishedBalance) { onNotice("Dispatch quantity exceeds available company/factory component stock. Available: " + lineFinishedBalance + "."); return; }
       }
     }
-    const currentBalance = stockBalance(itemType, itemId);
+    const currentBalance = stockBalance(itemType, itemId, { companyId, factoryId });
+    if (direction === "out" && transactionType !== "Adjustment" && currentBalance + 1e-9 < q) { onNotice("Insufficient stock in the selected company/factory. Available: " + Math.max(0,currentBalance).toLocaleString("en-IN") + "; requested: " + q.toLocaleString("en-IN") + ". No movement was posted. Record the missing receipt or use a documented adjustment only when correcting the ledger."); return; }
     const nextBalance = currentBalance + (direction === "in" ? q : -q);
     if (direction === "out" && nextBalance < 0 && (transactionType === "Finished goods receipt" || transactionType === "Dispatch")) { onNotice("Finished-goods dispatch cannot create a negative stock balance."); return; }
     if (direction === "out" && nextBalance < 0 && !window.confirm("This issue will make the calculated balance negative (" + nextBalance.toLocaleString("en-IN") + "). Post anyway? Check the opening balance/receipts first.")) return;
