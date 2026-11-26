@@ -1,5 +1,5 @@
 const ARRAY_FIELDS = Object.freeze([
- "companies","customers","prospects","factories","machines","toolingAssets","fixtureAssets","resourceUsageEvents","maintenancePlans","maintenanceWorkOrders","machineDowntime","purchaseOrders","components","vendors","operations","quotations","materials",
+ "companies","customers","prospects","factories","machines","toolingAssets","fixtureAssets","resourceUsageEvents","maintenancePlans","maintenanceWorkOrders","machineDowntime","purchaseOrders","components","vendors","productionOperators","productionAssignments","operations","quotations","materials",
  "componentParts","materialCostEntries","bomLines","materialProcessLinks","materialConsumptions","inventoryTransactions",
  "contactProfiles","processDefinitions","plannedCosts","transportRoutes","transportLegs",
  "paymentTransactions","inspectionMeasurements","supplierInvoices","supplierPayments","supplierFinanceApprovals","supplierPaymentAllocations","routeRelationships","followUpAssignments"
@@ -198,6 +198,28 @@ function resolveAccess(data, user) {
   ...fixtureAssets.flatMap(asset=>Array.isArray(asset.processDefinitionIds)?asset.processDefinitionIds:[])
  ]);
  const processDefinitions = rows(data,"processDefinitions").filter(row => processDefinitionIds.has(row.id)).map(row => ({...row,vendorIds:(Array.isArray(row.vendorIds)?row.vendorIds:[]).filter(id=>vendorIds.has(id))}));
+ const productionOperators=rows(data,"productionOperators").filter(row=>
+  companyAllowed(row.companyId)&&factoryAllowed(row.factoryId)&&factoryById.get(row.factoryId)?.companyId===row.companyId&&
+  Array.isArray(row.processDefinitionIds)&&row.processDefinitionIds.every(id=>processDefinitionIds.has(id))&&
+  Array.isArray(row.machineTypeCapabilities)&&row.machineTypeCapabilities.every(value=>typeof value==="string"&&value.trim().length<=120)
+ );
+ const productionOperatorIds=ids(productionOperators);
+ const productionAssignments=rows(data,"productionAssignments").filter(row=>{
+  const po=purchaseOrdersById.get(row.poId);
+  const line=po&&rows(po,"lines").find(item=>item.id===row.poLineId&&!item.deletedAt);
+  const operation=operations.find(item=>item.id===row.operationId&&!item.deletedAt);
+  const machine=machineById.get(row.machineId);
+  const operator=productionOperators.find(item=>item.id===row.operatorId);
+  const start=Date.parse(row.plannedStart||""),end=Date.parse(row.plannedEnd||"");
+  return Boolean(po&&line&&operation&&machine&&operator&&
+   companyAllowed(row.companyId)&&factoryAllowed(row.factoryId)&&
+   po.companyId===row.companyId&&po.factoryId===row.factoryId&&
+   machine.companyId===row.companyId&&machine.factoryId===row.factoryId&&operation.machineId===machine.id&&
+   operator.companyId===row.companyId&&operator.factoryId===row.factoryId&&
+   line.componentId===row.componentId&&operation.poId===po.id&&operation.poLineId===line.id&&operation.componentId===row.componentId&&
+   operation.executionType!=="Outsourced"&&Number.isFinite(start)&&Number.isFinite(end)&&end>start&&
+   typeof row.shiftCode==="string"&&Boolean(row.shiftCode.trim())&&typeof row.shiftName==="string"&&Boolean(row.shiftName.trim()));
+ });
  const transportRouteIds = ids(transportLegs.map(row => ({id:row.routeId})).filter(row => row.id));
  const transportRoutes = rows(data,"transportRoutes").filter(row => transportRouteIds.has(row.id) && vendorIds.has(row.vendorId));
  const companies = rows(data,"companies").filter(row => companyAllowed(row.id));
@@ -236,7 +258,7 @@ function resolveAccess(data, user) {
   ...ids(paymentTransactions),...ids(inspectionMeasurements),...ids(materialProcessLinks),
   ...ids(inventoryTransactions),...ids(componentParts),...ids(bomLines),...ids(materialCostEntries),...ids(materialConsumptions),
   ...ids(contactProfiles),...ids(supplierInvoices),...ids(supplierPayments),...ids(supplierFinanceApprovals),...ids(supplierPaymentAllocations),
-  ...ids(vendors),...ids(materials),...ids(processDefinitions),...ids(transportRoutes)
+  ...ids(vendors),...ids(productionOperators),...ids(productionAssignments),...ids(materials),...ids(processDefinitions),...ids(transportRoutes)
  ]);
  const contactProfileIds = ids(contactProfiles);
  const followUpAssignments = rows(data,"followUpAssignments").filter(row =>
@@ -245,7 +267,7 @@ function resolveAccess(data, user) {
  return {
   companyIds, factoryIds, purchaseOrderIds, lineIds, componentIds, operationIds, vendorIds, vendorOwners,
   materialIds, processDefinitionIds, transportRouteIds, entityIds,
-  companies,customers,prospects,factories,machines,toolingAssets,fixtureAssets,resourceUsageEvents,maintenancePlans,maintenanceWorkOrders,machineDowntime,purchaseOrders,components,operations,quotations,transportLegs,routeRelationships,
+  companies,customers,prospects,factories,machines,toolingAssets,fixtureAssets,resourceUsageEvents,maintenancePlans,maintenanceWorkOrders,machineDowntime,purchaseOrders,components,productionOperators,productionAssignments,operations,quotations,transportLegs,routeRelationships,
   paymentTransactions,inspectionMeasurements,materialProcessLinks,materialConsumptions,inventoryTransactions,
   componentParts,bomLines,materialCostEntries,materials,vendors,processDefinitions,transportRoutes,
   plannedCosts,contactProfiles,supplierInvoices,supplierPayments,supplierFinanceApprovals,supplierPaymentAllocations,followUpAssignments
