@@ -588,8 +588,9 @@ export function validateManufacturingWrite(currentData, incoming, user) {
      typeof row.shiftName!=="string"||!row.shiftName.trim()||row.shiftName.length>120||
      !Number.isSafeInteger(Number(row.targetQuantity))||Number(row.targetQuantity)<=0||
      Number(row.targetQuantity)>Number(operation.quantity)||typeof row.operatorCode!=="string"||row.operatorCode.length>80||
-     typeof row.operatorName!=="string"||row.operatorName.length>180||typeof row.notes!=="string"||row.notes.length>4000||
-     !productionOperatorAllowed(operator))return false;
+     typeof row.operatorName!=="string"||row.operatorName.length>180||row.operatorCode!==operator.employeeCode||row.operatorName!==operator.displayName||typeof row.notes!=="string"||row.notes.length>4000||
+     !productionOperatorAllowed(operator)||
+     (operation.processDefinitionId&&!processIds.has(operation.processDefinitionId)))return false;
   const operationHasWindow=Boolean(operation.plannedStart||operation.plannedEnd);
   if(operationHasWindow){
    const operationWindow=timeRange(operation.plannedStart,operation.plannedEnd);
@@ -600,7 +601,7 @@ export function validateManufacturingWrite(currentData, incoming, user) {
   if(row.actualStart&&!Number.isFinite(Date.parse(row.actualStart)))return false;
   if(row.actualEnd&&(!row.actualStart||!timeRange(row.actualStart,row.actualEnd)))return false;
   if(active){
-   if(operator.status!=="Active"||machine.deletedAt||["Retired","Breakdown","Under maintenance","Planned maintenance"].includes(machine.status))return false;
+   if(operator.status!=="Active"||machine.deletedAt||["Retired","Breakdown","Under maintenance","Planned maintenance"].includes(machine.status)||["Complete","Rejected"].includes(operation.status))return false;
    const machineCapabilities=Array.isArray(machine.processDefinitionIds)?machine.processDefinitionIds:[];
    const operatorProcesses=Array.isArray(operator.processDefinitionIds)?operator.processDefinitionIds:[];
    const operatorMachineTypes=Array.isArray(operator.machineTypeCapabilities)?operator.machineTypeCapabilities:[];
