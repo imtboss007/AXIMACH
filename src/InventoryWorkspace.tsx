@@ -201,7 +201,10 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     return buildBomMaterialIssuePlan({
       bomLines,materials,transactions:inventoryTransactions,
       po:bomIssueSelection.po,line:bomIssueSelection.line,component:bomIssueSelection.component
-    }).filter((row):row is BomIssuePreviewRow=>Boolean(row.material));
+    }).flatMap(row => row.material ? [{
+      material:row.material,bomLineIds:row.bomLineIds,required:row.required,
+      issued:row.issued,pending:row.pending,available:row.available,shortage:row.shortage
+    }] : []);
   }, [bomIssuePoLineKey,bomIssueSelection,bomLines,materials,inventoryTransactions]);
   const operationOptions = operations.filter(op => !op.deletedAt && (!selectedPoLine || (op.poId === selectedPoLine.po.id && op.poLineId === selectedPoLine.line.id)));
   const itemOptions = itemType === "material" ? materials.map(m => ({ id: m.id, label: m.code + " · " + m.name + " · " + m.grade })) : components.map(c => ({ id: c.id, label: c.partNumber + " · " + c.name + " · Rev " + (c.revision || "—") }));
