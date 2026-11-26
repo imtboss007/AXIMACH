@@ -133,10 +133,12 @@ test("Material Directory BOM, part and material-process actions enforce exact pa
   assert.ok(inventory.includes('className="material-directory-filter-bar"'));
 });
 
-test("BOM issue preview and ledger posting include component-wide and selected-part BOM rows only", () => {
+test("BOM issue preview and ledger posting share component-wide and selected-part BOM filtering", () => {
   const inventory = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(inventory.includes('!bomIssueSelection.line.partId || !row.partId || row.partId === bomIssueSelection.line.partId'));
-  assert.ok(inventory.includes('!line.partId || !row.partId || row.partId === line.partId'));
+  const ledger = readFileSync(new URL("../src/inventoryLedger.mjs", import.meta.url), "utf8");
+  assert.ok(inventory.includes("buildBomMaterialIssuePlan({"));
+  assert.ok(ledger.includes("(!line.partId||!row.partId||row.partId===line.partId)"));
+  assert.ok(ledger.includes("row.componentId===component.id"));
 });
 
 test("Process Map is scoped to the exact selected PO line and its part material allocations", () => {
