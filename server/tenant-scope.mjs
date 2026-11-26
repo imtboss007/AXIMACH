@@ -789,6 +789,8 @@ export function validateManufacturingWrite(currentData, incoming, user) {
     }
     case "purchaseOrders": allowed=Boolean(poAllowed(row)); break;
     case "components": allowed=(row.companyId && companyIds.has(row.companyId)) || currentVisibleComponents.has(row.id); break;
+    case "productionOperators": allowed=productionOperatorAllowed(row); break;
+    case "productionAssignments": allowed=productionAssignmentAllowed(row); break;
     case "operations": allowed=allowedPOIds.has(row.poId) && lines.has(row.poLineId) && componentIds.has(row.componentId) && (!row.vendorId || vendorIds.has(row.vendorId)) && (!row.transportVendorId || vendorIds.has(row.transportVendorId)) && (!row.processDefinitionId || processIds.has(row.processDefinitionId)) && (!row.transportRouteId || transportRouteIds.has(row.transportRouteId)) && machineAssignmentAllowed(row) && resourceAssignmentsAllowed(row); break;
     case "quotations": case "transportLegs": case "paymentTransactions": case "inspectionMeasurements":
      allowed=allowedChild(row,allowedPOById,{purchaseOrderIds:allowedPOIds,lineIds:lines,componentIds,operationIds},
