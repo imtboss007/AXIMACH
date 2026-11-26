@@ -340,6 +340,41 @@ export function validateManufacturingWrite(currentData, incoming, user) {
   Number.isFinite(Date.parse(value+"T00:00:00.000Z"))&&new Date(value+"T00:00:00.000Z").toISOString().slice(0,10)===value;
 
  const materialIds = access.materialIds;
+ const allMaterialConsumptions=combinedById("materialConsumptions");
+ const allBomLines=combinedById("bomLines");
+ const allMaterialProcessLinks=combinedById("materialProcessLinks");
+ const allOperations=combinedById("operations");
+ const materialConsumptionAllowed = row => {
+  const po=allowedPOById.get(row.poId);
+  const line=po&&rows(po,"lines").find(item=>item.id===row.poLineId&&!item.deletedAt);
+  const componentId=row.componentId;
+  const operation=allOperations.get(row.operationId);
+  const bom=allBomLines.get(row.bomLineId);
+  const consumed=Number(row.consumedQuantity),scrap=Number(row.scrapQuantity),returned=Number(row.returnedQuantity);
+  const planned=Number(row.plannedQuantity),issued=Number(row.issuedQuantityAtRecord);
+  const processLinks=Array.isArray(row.sourceMaterialProcessLinkIds)?row.sourceMaterialProcessLinkIds:[];
+  const linkedProcesses=processLinks.every(id=>{
+   const link=allMaterialProcessLinks.get(id);
+   return Boolean(link&&!link.deletedAt&&link.companyId===row.companyId&&link.poId===row.poId&&
+    link.poLineId===row.poLineId&&link.componentId===componentId&&link.bomLineId===row.bomLineId&&
+    link.materialId===row.materialId&&link.operationId===row.operationId);
+  });
+  return Boolean(po&&line&&operation&&bom&&companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&
+   po.companyId===row.companyId&&po.factoryId===row.factoryId&&line.componentId===componentId&&
+   componentIds.has(componentId)&&materialIds.has(row.materialId)&&bom.componentId===componentId&&
+   bom.materialId===row.materialId&&(!row.partId||!line.partId||row.partId===line.partId)&&
+   (!bom.partId||!row.partId||bom.partId===row.partId)&&operationIds.has(row.operationId)&&
+   operation.poId===row.poId&&operation.poLineId===row.poLineId&&operation.componentId===componentId&&
+   typeof row.unit==="string"&&Boolean(row.unit.trim())&&Number.isFinite(planned)&&planned>0&&
+   Number.isFinite(issued)&&issued>=0&&Number.isFinite(consumed)&&consumed>=0&&
+   Number.isFinite(scrap)&&scrap>=0&&scrap<=consumed+1e-9&&
+   Number.isFinite(returned)&&returned>=0&&consumed+returned<=issued+1e-9&&consumed+returned>0&&
+   typeof row.occurredAt==="string"&&Number.isFinite(Date.parse(row.occurredAt))&&
+   typeof row.reference==="string"&&Boolean(row.reference.trim())&&row.reference.length<=180&&
+   typeof row.recordedBy==="string"&&row.recordedBy.length<=180&&
+   typeof row.notes==="string"&&row.notes.length<=4000&&linkedProcesses);
+ };
+ const validMaterialConsumptionIds=new Set([...allMaterialConsumptions.values()].filter(materialConsumptionAllowed).map(row=>row.id));
  const processIds = new Set([
   ...access.processDefinitionIds,
   ...rows(currentData,"processDefinitions").map(row=>row.id).filter(Boolean),
@@ -659,10 +694,20 @@ export function validateManufacturingWrite(currentData, incoming, user) {
     case "materialProcessLinks":
      allowed=companyIds.has(row.companyId) && allowedChild(row,allowedPOById,{purchaseOrderIds:allowedPOIds,lineIds:lines,componentIds,operationIds},{requireOperation:true}) &&
        materialIds.has(row.materialId); break;
+    case "materialConsumptions":
+     allowed=materialConsumptionAllowed(row)&&
+      (row.returnedQuantity===0||[...rows(currentData,"inventoryTransactions"),...rows(incoming,"inventoryTransactions")].some(tx=>
+       tx&&tx.id&&!tx.deletedAt&&tx.sourceConsumptionId===row.id&&tx.itemType==="material"&&tx.itemId===row.materialId&&
+       tx.transactionType==="Return"&&tx.direction==="in"&&Number(tx.quantity)===Number(row.returnedQuantity)&&
+       tx.companyId===row.companyId&&tx.factoryId===row.factoryId&&tx.poId===row.poId&&tx.poLineId===row.poLineId&&tx.operationId===row.operationId
+      )); break;
     case "inventoryTransactions":
      allowed=companyIds.has(row.companyId) && factoryAllowed(row.factoryId) &&
        (!row.poId || allowedPOIds.has(row.poId)) && (!row.poLineId || lines.has(row.poLineId)) &&
        (!row.vendorId || vendorIds.has(row.vendorId)) &&
+       (!row.sourceConsumptionId||validMaterialConsumptionIds.has(row.sourceConsumptionId)&&
+        row.itemType==="material"&&row.transactionType==="Return"&&row.direction==="in"&&
+        allMaterialConsumptions.get(row.sourceConsumptionId)?.materialId===row.itemId) &&
        (row.itemType==="component" ? componentIds.has(row.itemId) : materialIds.has(row.itemId)); break;
     case "componentParts": allowed=componentIds.has(row.componentId) && (!row.companyId || companyIds.has(row.companyId)) && (!row.materialId || materialIds.has(row.materialId)) && (Array.isArray(row.materialIds) ? row.materialIds.every(id=>materialIds.has(id)) : true) && (Array.isArray(row.vendorIds) ? row.vendorIds.every(id=>vendorIds.has(id)) : true); break;
     case "materialCostEntries":
