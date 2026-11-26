@@ -395,7 +395,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
       inspectionDueAt:resourceEventDraft.eventType==="Inspection"?resourceEventDraft.inspectionDueAt||undefined:undefined,
       occurredAt:stamp,notes:resourceEventDraft.notes.trim(),createdAt:nowIso(),updatedAt:nowIso()};
     try{
-      const updated=applyResourceUsageEvent(resource,event);
+      const updated=applyResourceUsageEvent(resource,event,resourceUsageEvents);
       update(current=>({...current,
         [resourceEventDraft.resourceType==="tooling"?"toolingAssets":"fixtureAssets"]:(resourceEventDraft.resourceType==="tooling"?current.toolingAssets:current.fixtureAssets).map(row=>row.id===resource.id?updated:row),
         resourceUsageEvents:[...(current.resourceUsageEvents||[]),event]
