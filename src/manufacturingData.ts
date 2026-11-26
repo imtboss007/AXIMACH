@@ -273,18 +273,33 @@ export type MaterialProcessLinkRecord = {
   flowType: "Material input" | "Consumable" | "WIP transfer" | "Output";
   placement: "before" | "after"; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
+/**
+ * Actual material reconciliation for one BOM material at one PO-line operation.
+ * consumedQuantity is gross material consumed and includes scrapQuantity as a subset.
+ * returnedQuantity is physically returned to stock by a linked inventory Return row;
+ * it is not deducted from on-hand stock a second time.
+ */
+export type MaterialConsumptionRecord = {
+  id:string; companyId:string; factoryId:string; poId:string; poLineId:string; componentId:string;
+  partId?:string; bomLineId:string; materialId:string; operationId:string; unit:string;
+  plannedQuantity:number; issuedQuantityAtRecord:number;
+  consumedQuantity:number; scrapQuantity:number; returnedQuantity:number;
+  sourceMaterialProcessLinkIds?:string[];
+  occurredAt:string; reference:string; recordedBy:string; notes:string;
+  createdAt:string; updatedAt:string; deletedAt?:string;
+};
 export type StockTransactionKind = "Opening balance" | "Receipt" | "Issue to production" | "WIP transfer" | "Return" | "Rejected" | "Scrap" | "Finished goods receipt" | "Dispatch" | "Adjustment";
 export type InventoryTransactionRecord = {
   id: string; itemType: "material" | "component"; itemId: string; transactionType: StockTransactionKind;
   direction: "in" | "out"; quantity: number; occurredAt: string; reference: string; notes: string;
   companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string; vendorId: string;
-  reversalOfId: string; createdAt: string; createdBy: string; updatedAt?: string; deletedAt?: string;
+  reversalOfId: string; sourceConsumptionId?:string; createdAt: string; createdBy: string; updatedAt?: string; deletedAt?: string;
 };
 export type ManufacturingData = {
   updatedAt: string;
   companies: CompanyRecord[]; customers: CustomerRecord[]; prospects: ProspectRecord[]; factories: FactoryRecord[]; machines: MachineRecord[]; toolingAssets:ToolingAssetRecord[]; fixtureAssets:FixtureAssetRecord[]; resourceUsageEvents:ResourceUsageEventRecord[]; maintenancePlans: MachineMaintenancePlanRecord[]; maintenanceWorkOrders: MachineMaintenanceWorkOrderRecord[]; machineDowntime: MachineDowntimeRecord[]; purchaseOrders: PurchaseOrderRecord[];
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
-  quotations: QuotationRecord[]; materials: MaterialRecord[]; componentParts: ComponentPartRecord[]; materialCostEntries: MaterialCostEntryRecord[]; bomLines: BomLineRecord[]; materialProcessLinks: MaterialProcessLinkRecord[];
+  quotations: QuotationRecord[]; materials: MaterialRecord[]; componentParts: ComponentPartRecord[]; materialCostEntries: MaterialCostEntryRecord[]; bomLines: BomLineRecord[]; materialProcessLinks: MaterialProcessLinkRecord[]; materialConsumptions:MaterialConsumptionRecord[];
   inventoryTransactions: InventoryTransactionRecord[];
   contactProfiles: ContactProfileRecord[]; processDefinitions: ProcessDefinitionRecord[]; plannedCosts: PlannedCostEntry[];
   transportRoutes: TransportRouteRecord[]; transportLegs: ComponentTransportLegRecord[];
@@ -303,7 +318,7 @@ export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.
 
 export const emptyManufacturingData = (): ManufacturingData => ({
   updatedAt: "", companies: [], customers: [], prospects: [], factories: [], machines: [], toolingAssets: [], fixtureAssets: [], resourceUsageEvents: [], maintenancePlans: [], maintenanceWorkOrders: [], machineDowntime: [], purchaseOrders: [], components: [], vendors: [],
-  operations: [], quotations: [], materials: [], componentParts: [], materialCostEntries: [], bomLines: [], materialProcessLinks: [], inventoryTransactions: [],
+  operations: [], quotations: [], materials: [], componentParts: [], materialCostEntries: [], bomLines: [], materialProcessLinks: [], materialConsumptions:[], inventoryTransactions: [],
   contactProfiles: [], processDefinitions: [], plannedCosts: [], transportRoutes: [], transportLegs: [], paymentTransactions: [], inspectionMeasurements: [],
   supplierInvoices: [], supplierPayments: [], supplierFinanceApprovals: [], supplierPaymentAllocations: [],
   routeRelationships: [], followUpAssignments: []
@@ -362,6 +377,7 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     materialCostEntries: Array.isArray(value?.materialCostEntries) ? value.materialCostEntries : empty.materialCostEntries,
     bomLines: Array.isArray(value?.bomLines) ? value.bomLines : empty.bomLines,
     materialProcessLinks: Array.isArray(value?.materialProcessLinks) ? value.materialProcessLinks : empty.materialProcessLinks,
+    materialConsumptions: Array.isArray(value?.materialConsumptions) ? value.materialConsumptions : empty.materialConsumptions,
     inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions,
     contactProfiles: Array.isArray(value?.contactProfiles) ? value.contactProfiles : empty.contactProfiles,
     processDefinitions: Array.isArray(value?.processDefinitions) ? value.processDefinitions : empty.processDefinitions,
@@ -480,6 +496,7 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     materialCostEntries: mergeRows(local.materialCostEntries, remote.materialCostEntries),
     bomLines: mergeRows(local.bomLines, remote.bomLines),
     materialProcessLinks: mergeRows(local.materialProcessLinks, remote.materialProcessLinks),
+    materialConsumptions: mergeRows(local.materialConsumptions, remote.materialConsumptions),
     inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions),
     contactProfiles: mergeRows(local.contactProfiles, remote.contactProfiles),
     processDefinitions: mergeRows(local.processDefinitions, remote.processDefinitions),
@@ -714,6 +731,7 @@ export function removeLegacyDemoData() {
       materialCostEntries:archiveRows(canonical.materialCostEntries),
       bomLines:archiveRows(canonical.bomLines),
       materialProcessLinks:archiveRows(canonical.materialProcessLinks),
+      materialConsumptions:archiveRows(canonical.materialConsumptions),
       inventoryTransactions:archiveRows(canonical.inventoryTransactions),
       contactProfiles:archiveRows(canonical.contactProfiles),
       processDefinitions:archiveRows(canonical.processDefinitions),
