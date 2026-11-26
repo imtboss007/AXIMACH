@@ -284,8 +284,8 @@ export default function MachineMaintenanceWorkspace({machines,plans,workOrders,d
         <label>Scheduled start<input type="datetime-local" value={localDateTime(workDraft.scheduledStart)} onChange={event=>setWorkDraft({...workDraft,scheduledStart:event.target.value})}/></label>
         <label>Scheduled end<input type="datetime-local" value={localDateTime(workDraft.scheduledEnd)} onChange={event=>setWorkDraft({...workDraft,scheduledEnd:event.target.value})}/></label>
         <label>Technician / owner<input value={workDraft.technician} onChange={event=>setWorkDraft({...workDraft,technician:event.target.value})}/></label>
-        <label>Actual start<input type="datetime-local" value={localDateTime(workDraft.actualStart)} onChange={event=>setWorkDraft({...workDraft,actualStart:event.target.value})}/></label>
-        <label>Actual end<input type="datetime-local" value={localDateTime(workDraft.actualEnd)} onChange={event=>setWorkDraft({...workDraft,actualEnd:event.target.value})}/></label>
+        <label>Actual start<input type="datetime-local" value={localDateTime(workDraft.actualStart||"")} onChange={event=>setWorkDraft({...workDraft,actualStart:event.target.value})}/></label>
+        <label>Actual end<input type="datetime-local" value={localDateTime(workDraft.actualEnd||"")} onChange={event=>setWorkDraft({...workDraft,actualEnd:event.target.value})}/></label>
         <label>Estimated cost (₹)<input type="number" min="0" step="0.01" value={workDraft.estimatedCost} onChange={event=>setWorkDraft({...workDraft,estimatedCost:Number(event.target.value)||0})}/></label>
         <label>Actual cost (₹)<input type="number" min="0" step="0.01" value={workDraft.actualCost} onChange={event=>setWorkDraft({...workDraft,actualCost:Number(event.target.value)||0})}/></label>
         <label className="module-form-wide">Symptom / reported issue<textarea rows={2} value={workDraft.symptom} onChange={event=>setWorkDraft({...workDraft,symptom:event.target.value})}/></label>
