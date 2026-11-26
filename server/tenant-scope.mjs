@@ -1,6 +1,6 @@
 const ARRAY_FIELDS = Object.freeze([
  "companies","customers","prospects","factories","machines","toolingAssets","fixtureAssets","resourceUsageEvents","maintenancePlans","maintenanceWorkOrders","machineDowntime","purchaseOrders","components","vendors","operations","quotations","materials",
- "componentParts","materialCostEntries","bomLines","materialProcessLinks","inventoryTransactions",
+ "componentParts","materialCostEntries","bomLines","materialProcessLinks","materialConsumptions","inventoryTransactions",
  "contactProfiles","processDefinitions","plannedCosts","transportRoutes","transportLegs",
  "paymentTransactions","inspectionMeasurements","supplierInvoices","supplierPayments","supplierFinanceApprovals","supplierPaymentAllocations","routeRelationships","followUpAssignments"
 ]);
@@ -181,6 +181,15 @@ function resolveAccess(data, user) {
   ...inventoryTransactions.filter(row => row.itemType === "material").map(row => row.itemId)
  ]);
  const materials = rows(data,"materials").filter(row => materialIds.has(row.id)).map(row => ({...row,preferredVendorId:vendorIds.has(row.preferredVendorId)?row.preferredVendorId:""}));
+ const materialConsumptions = rows(data,"materialConsumptions").filter(row => {
+  const po=purchaseOrdersById.get(row.poId);
+  const line=po&&rows(po,"lines").find(item=>item.id===row.poLineId&&!item.deletedAt);
+  const operation=operations.find(item=>item.id===row.operationId&&item.poId===row.poId&&item.poLineId===row.poLineId&&item.componentId===row.componentId);
+  const bom=bomLines.find(item=>item.id===row.bomLineId&&item.componentId===row.componentId&&item.materialId===row.materialId);
+  return Boolean(po&&line&&operation&&bom&&companyAllowed(row.companyId)&&factoryAllowed(row.factoryId)&&
+   po.companyId===row.companyId&&po.factoryId===row.factoryId&&line.componentId===row.componentId&&
+   componentIds.has(row.componentId)&&materialIds.has(row.materialId)&&(!row.partId||!bom.partId||row.partId===bom.partId));
+ });
  const vendors = rows(data,"vendors").filter(row => vendorIds.has(row.id));
  const processDefinitionIds = new Set([
   ...ids(operations.map(row => ({id:row.processDefinitionId})).filter(row => row.id)),
@@ -225,7 +234,7 @@ function resolveAccess(data, user) {
   ...ids(companies),...ids(customers),...ids(prospects),...ids(factories),...machineIds,...toolingAssetIds,...fixtureAssetIds,...ids(resourceUsageEvents),...ids(maintenancePlans),...ids(maintenanceWorkOrders),...ids(machineDowntime),...purchaseOrderIds,...lineIds,...componentIds,
   ...operationIds,...ids(quotations),...ids(transportLegs),...ids(routeRelationships),
   ...ids(paymentTransactions),...ids(inspectionMeasurements),...ids(materialProcessLinks),
-  ...ids(inventoryTransactions),...ids(componentParts),...ids(bomLines),...ids(materialCostEntries),
+  ...ids(inventoryTransactions),...ids(componentParts),...ids(bomLines),...ids(materialCostEntries),...ids(materialConsumptions),
   ...ids(contactProfiles),...ids(supplierInvoices),...ids(supplierPayments),...ids(supplierFinanceApprovals),...ids(supplierPaymentAllocations),
   ...ids(vendors),...ids(materials),...ids(processDefinitions),...ids(transportRoutes)
  ]);
@@ -237,7 +246,7 @@ function resolveAccess(data, user) {
   companyIds, factoryIds, purchaseOrderIds, lineIds, componentIds, operationIds, vendorIds, vendorOwners,
   materialIds, processDefinitionIds, transportRouteIds, entityIds,
   companies,customers,prospects,factories,machines,toolingAssets,fixtureAssets,resourceUsageEvents,maintenancePlans,maintenanceWorkOrders,machineDowntime,purchaseOrders,components,operations,quotations,transportLegs,routeRelationships,
-  paymentTransactions,inspectionMeasurements,materialProcessLinks,inventoryTransactions,
+  paymentTransactions,inspectionMeasurements,materialProcessLinks,materialConsumptions,inventoryTransactions,
   componentParts,bomLines,materialCostEntries,materials,vendors,processDefinitions,transportRoutes,
   plannedCosts,contactProfiles,supplierInvoices,supplierPayments,supplierFinanceApprovals,supplierPaymentAllocations,followUpAssignments
  };
