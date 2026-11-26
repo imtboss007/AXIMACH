@@ -163,6 +163,14 @@ export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule,i
   setAssignmentOperatorId("");setAssignmentPlannedStart("");setAssignmentPlannedEnd("");setAssignmentTargetQuantity("");setAssignmentNotes("");
   onNotice("Shift assignment "+(created?.shiftCode||"")+" saved for "+assignmentOperation.name+". Operation production totals remain authoritative.");
  };
+ const changeOperatorStatus=(operator:ProductionOperatorRecord,status:"Active"|"Inactive")=>{
+  if(status==="Inactive"&&assignments.some(row=>row.operatorId===operator.id&&["Planned","Assigned","Running"].includes(row.status))){
+   onNotice("This operator has active production assignments. Complete or cancel those shifts before deactivating the operator.");return;
+  }
+  const stamp=nowIso();
+  update(current=>({...current,productionOperators:(current.productionOperators||[]).map(row=>row.id===operator.id?{...row,status,updatedAt:stamp}:row)}));
+  onNotice("Operator "+operator.employeeCode+" marked "+status+". Historical assignments are retained.");
+ };
  const changeProductionAssignmentStatus=(assignment:ProductionAssignmentRecord,status:ProductionAssignmentStatus)=>{
   let error="";
   const stamp=nowIso();
