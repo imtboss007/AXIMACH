@@ -2,6 +2,16 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+test("material consumption collection is normalized, merged and server-synced",()=>{
+  const client=readFileSync(new URL("../src/manufacturingData.ts",import.meta.url),"utf8");
+  const server=readFileSync(new URL("../server/manufacturing-data.mjs",import.meta.url),"utf8");
+  const tenant=readFileSync(new URL("../server/tenant-scope.mjs",import.meta.url),"utf8");
+  assert.ok(client.includes("materialConsumptions:MaterialConsumptionRecord[]"));
+  assert.ok(client.includes("materialConsumptions: mergeRows(local.materialConsumptions, remote.materialConsumptions)"));
+  assert.ok(server.includes('"materialConsumptions"'));
+  assert.ok(tenant.includes('rows(data,"materialConsumptions")'));
+  assert.ok(tenant.includes('case "materialConsumptions"'));
+});
 test("material process link collection is normalized, merged and server-synced", () => {
   const client = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
   const server = readFileSync(new URL("../server/manufacturing-data.mjs", import.meta.url), "utf8");
