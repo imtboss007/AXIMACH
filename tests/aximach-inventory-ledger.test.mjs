@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {getInventoryStockBalance,buildBomMaterialIssuePlan} from "../src/inventoryLedger.mjs";
+import {getInventoryStockBalance,buildBomMaterialIssuePlan,buildMaterialConsumptionPlan,validateMaterialConsumptionQuantities} from "../src/inventoryLedger.mjs";
 
 const transactions=[
  {id:"s1",itemType:"material",itemId:"mat-1",transactionType:"Receipt",direction:"in",quantity:100,companyId:"c1",factoryId:"f1"},
