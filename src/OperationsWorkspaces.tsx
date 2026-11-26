@@ -65,6 +65,35 @@ export function ProductionPlanWorkspace({onBack,onNotice,notice,onSelectModule,i
    &&(!componentFilters.length||componentFilters.includes(row.line.componentId))
    &&(!jobStatusFilters.length||jobStatusFilters.includes(row.line.jobStatus||"In Progress"));
  });
+ const assignmentLineOptions=rows.filter(row=>
+  (!companyFilters.length||companyFilters.includes(row.po.companyId))&&
+  (!poFilters.length||poFilters.includes(row.po.id))&&
+  (!componentFilters.length||componentFilters.includes(row.line.componentId))
+ );
+ const assignmentLine=assignmentLineOptions.find(row=>row.po.id+"::"+row.line.id===assignmentPoLineKey);
+ const assignmentOperationOptions=assignmentLine?assignmentLine.operations.filter(op=>
+  !op.deletedAt&&op.executionType!=="Outsourced"&&Boolean(op.machineId)&&!["Complete","Rejected"].includes(op.status)
+ ):[]; 
+ const assignmentOperation=assignmentOperationOptions.find(op=>op.id===assignmentOperationId);
+ const assignmentMachine=assignmentOperation?machines.find(machine=>machine.id===assignmentOperation.machineId&&!machine.deletedAt):undefined;
+ const eligibleOperators=assignmentLine&&assignmentOperation&&assignmentMachine
+  ?getEligibleProductionOperators(operators,{companyId:assignmentLine.po.companyId,factoryId:assignmentLine.po.factoryId,processDefinitionId:assignmentOperation.processDefinitionId,machineType:assignmentMachine.machineType})
+  :[];
+ const operatorFactoryOptions=factories.filter(factory=>factory.companyId===operatorCompanyId&&!factory.deletedAt);
+ const visibleProductionAssignments=assignments.filter(assignment=>{
+  const operation=ops.find(op=>op.id===assignment.operationId);
+  const po=pos.find(row=>row.id===assignment.poId);
+  const component=components.find(row=>row.id===assignment.componentId);
+  const query=[assignment.shiftCode,assignment.shiftName,assignment.operatorCode,assignment.operatorName,assignment.notes,po?.number,component?.partNumber,operation?.name,assignment.status].join(" ").toLowerCase();
+  return (!companyFilters.length||companyFilters.includes(assignment.companyId))&&
+   (!poFilters.length||poFilters.includes(assignment.poId))&&
+   (!componentFilters.length||componentFilters.includes(assignment.componentId))&&
+   (!search.trim()||query.includes(search.toLowerCase().trim()));
+ }).sort((a,b)=>a.plannedStart.localeCompare(b.plannedStart));
+ const registeredOperators=operators.filter(operator=>
+  (!operatorCompanyId||operator.companyId===operatorCompanyId)&&
+  (!operatorFactoryId||operator.factoryId===operatorFactoryId)
+ ).sort((a,b)=>a.employeeCode.localeCompare(b.employeeCode));
  const visibleJobKeys=filtered.map(row=>row.po.id+":"+row.line.id);
  const selectedVisibleJobs=filtered.filter(row=>selectedJobKeys.includes(row.po.id+":"+row.line.id));
  const processNavigationJob=selectedVisibleJobs.length===1?selectedVisibleJobs[0]:(filtered.length===1?filtered[0]:undefined);
