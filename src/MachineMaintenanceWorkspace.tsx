@@ -68,6 +68,8 @@ export default function MachineMaintenanceWorkspace({machines,plans,workOrders,d
   const [tab,setTab]=useState<"plans"|"workOrders"|"downtime">("plans");
   const [planDraft,setPlanDraft]=useState<PlanDraft>(()=>blankPlan(machines[0]));
   const [workDraft,setWorkDraft]=useState<WorkOrderDraft>(()=>blankWorkOrder(machines[0]));
+  const [editingPlanId,setEditingPlanId]=useState("");
+  const [editingWorkOrderId,setEditingWorkOrderId]=useState("");
   const [downtimeDraft,setDowntimeDraft]=useState<DowntimeDraft>(()=>blankDowntime(machines[0]));
   const [showPlanForm,setShowPlanForm]=useState(false);
   const [showWorkForm,setShowWorkForm]=useState(false);
@@ -98,19 +100,32 @@ export default function MachineMaintenanceWorkspace({machines,plans,workOrders,d
     if(planDraft.estimatedDurationHours<=0||planDraft.estimatedDurationHours>10000){
       onNotice("Estimated maintenance duration must be greater than zero hours.");return;
     }
-    const stamp=nowIso(),record:MachineMaintenancePlanRecord={...planDraft,id:makeId("maintenance-plan"),
+    const stamp=nowIso(),prior=plans.find(row=>row.id===editingPlanId);
+    const record:MachineMaintenancePlanRecord={...planDraft,id:editingPlanId||makeId("maintenance-plan"),
       companyId:machine.companyId,factoryId:machine.factoryId,machineId:machine.id,
       frequencyValue:Number(planDraft.frequencyValue),estimatedDurationHours:Number(planDraft.estimatedDurationHours),
       checklist:planDraft.checklist.map(value=>value.trim()).filter(Boolean),
-      createdAt:stamp,updatedAt:stamp
+      createdAt:prior?.createdAt||stamp,updatedAt:stamp
     };
-    update(current=>({...current,maintenancePlans:[...(current.maintenancePlans||[]),record]}));
-    setPlanDraft(blankPlan(machine));setShowPlanForm(false);
-    onNotice("Preventive maintenance plan saved against "+machine.assetCode+".");
+    update(current=>({...current,maintenancePlans:editingPlanId
+      ?(current.maintenancePlans||[]).map(row=>row.id===editingPlanId?record:row)
+      :[...(current.maintenancePlans||[]),record]}));
+    setPlanDraft(blankPlan(machine));setEditingPlanId("");setShowPlanForm(false);
+    onNotice((editingPlanId?"Preventive maintenance plan updated for ":"Preventive maintenance plan saved against ")+machine.assetCode+".");
+  };
+  const editPlan=(plan:MachineMaintenancePlanRecord)=>{
+    const {id,createdAt,updatedAt,deletedAt,...draft}=plan;
+    setPlanDraft({...blankPlan(machine),...draft,checklist:[...(plan.checklist||[])]});
+    setEditingPlanId(id);setShowPlanForm(true);setTab("plans");
   };
   const createWorkOrder=(plan?:MachineMaintenancePlanRecord)=>{
     setWorkDraft({...blankWorkOrder(machine,plan?.id||""),workType:plan?.maintenanceType==="Lubrication"?"Preventive":plan?.maintenanceType||"Preventive",title:plan?.planName||""});
-    setTab("workOrders");setShowWorkForm(true);
+    setEditingWorkOrderId("");setTab("workOrders");setShowWorkForm(true);
+  };
+  const editWorkOrder=(order:MachineMaintenanceWorkOrderRecord)=>{
+    const {id,createdAt,updatedAt,deletedAt,...draft}=order;
+    setWorkDraft({...blankWorkOrder(machine),...draft});
+    setEditingWorkOrderId(id);setShowWorkForm(true);setTab("workOrders");
   };
   const saveWorkOrder=()=>{
     if(!machine||!workDraft.title.trim()){
@@ -123,22 +138,30 @@ export default function MachineMaintenanceWorkspace({machines,plans,workOrders,d
       onNotice("Enter both the scheduled start and end, or leave both blank for an open work order.");return;
     }
     if(workDraft.scheduledStart&&workDraft.scheduledEnd){
-      const check=validateMachineMaintenanceWindow(machine.id,toIso(workDraft.scheduledStart),toIso(workDraft.scheduledEnd),operations,selectedWorkOrders,selectedDowntime);
+      const check=validateMachineMaintenanceWindow(machine.id,toIso(workDraft.scheduledStart),toIso(workDraft.scheduledEnd),operations,selectedWorkOrders,selectedDowntime,editingWorkOrderId);
       if(!check.ok){
         const label=check.reason==="production-conflict"?"The maintenance window overlaps a production operation.":check.reason==="maintenance-conflict"?"Another active maintenance work order already reserves this machine.":check.reason==="downtime-conflict"?"The machine already has downtime recorded in this interval.":"Enter a valid maintenance interval.";
         onNotice(label+" Choose another window.");return;
       }
     }
-    const stamp=nowIso(),record:MachineMaintenanceWorkOrderRecord={...workDraft,id:makeId("maintenance-wo"),
+    const stamp=nowIso(),prior=workOrders.find(row=>row.id===editingWorkOrderId);
+    const actualStart=workDraft.actualStart?toIso(workDraft.actualStart):workDraft.status==="In progress"?(prior?.actualStart||stamp):workDraft.status==="Completed"?(prior?.actualStart||""):"";
+    const actualEnd=workDraft.actualEnd?toIso(workDraft.actualEnd):workDraft.status==="Completed"?(prior?.actualEnd||stamp):"";
+    if(workDraft.status==="Completed"&&(!actualStart||!actualEnd||Date.parse(actualEnd)<=Date.parse(actualStart))){
+      onNotice("Record an actual maintenance start and an end time later than the start before completing this work order.");return;
+    }
+    const record:MachineMaintenanceWorkOrderRecord={...workDraft,id:editingWorkOrderId||makeId("maintenance-wo"),
       companyId:machine.companyId,factoryId:machine.factoryId,machineId:machine.id,
       reportedAt:workDraft.reportedAt||stamp,scheduledStart:toIso(workDraft.scheduledStart),scheduledEnd:toIso(workDraft.scheduledEnd),
-      actualStart:workDraft.actualStart?toIso(workDraft.actualStart):["In progress","Completed"].includes(workDraft.status)?stamp:"",actualEnd:workDraft.actualEnd?toIso(workDraft.actualEnd):workDraft.status==="Completed"?stamp:"",
+      actualStart,actualEnd,
       estimatedCost:Math.max(0,Number(workDraft.estimatedCost)||0),actualCost:Math.max(0,Number(workDraft.actualCost)||0),
-      createdAt:stamp,updatedAt:stamp
+      createdAt:prior?.createdAt||stamp,updatedAt:stamp
     };
-    update(current=>({...current,maintenanceWorkOrders:[...(current.maintenanceWorkOrders||[]),record]}));
-    setWorkDraft(blankWorkOrder(machine));setShowWorkForm(false);
-    onNotice("Maintenance work order "+record.workOrderNumber+" saved.");
+    update(current=>({...current,maintenanceWorkOrders:editingWorkOrderId
+      ?(current.maintenanceWorkOrders||[]).map(row=>row.id===editingWorkOrderId?record:row)
+      :[...(current.maintenanceWorkOrders||[]),record]}));
+    setWorkDraft(blankWorkOrder(machine));setEditingWorkOrderId("");setShowWorkForm(false);
+    onNotice("Maintenance work order "+record.workOrderNumber+(editingWorkOrderId?" updated.":" saved."));
   };
   const updateWorkOrderStatus=(order:MachineMaintenanceWorkOrderRecord,status:MachineMaintenanceWorkStatus)=>{
     if(status==="Planned"&&(!order.scheduledStart||!order.scheduledEnd)){
@@ -157,6 +180,9 @@ export default function MachineMaintenanceWorkspace({machines,plans,workOrders,d
       actualEnd:status==="Completed"?(order.actualEnd||stamp):status==="Cancelled"?order.actualEnd:"",
       updatedAt:stamp
     };
+    if(status==="Completed"&&!updated.actualStart){
+      onNotice("Edit this work order and record its actual start time before completing it.");return;
+    }
     if(status==="Completed"&&updated.actualStart&&updated.actualEnd&&Date.parse(updated.actualEnd)<=Date.parse(updated.actualStart)){
       onNotice("Work order completion time must be after its recorded start.");return;
     }
@@ -238,15 +264,15 @@ export default function MachineMaintenanceWorkspace({machines,plans,workOrders,d
         <label>Assigned technician / team<input value={planDraft.assignedTo} onChange={event=>setPlanDraft({...planDraft,assignedTo:event.target.value})} placeholder="Maintenance team"/></label>
         <label className="module-form-wide">Checklist · one task per line<textarea value={planDraft.checklist.join("\n")} onChange={event=>setPlanDraft({...planDraft,checklist:event.target.value.split("\n").slice(0,100)})} rows={4} placeholder={"Inspect spindle runout\nCheck lubrication pressure\nVerify safety interlocks"}/></label>
         <label className="module-form-wide">Notes<textarea value={planDraft.notes} onChange={event=>setPlanDraft({...planDraft,notes:event.target.value})} rows={2}/></label>
-        <div className="module-form-actions"><button className="button-primary" onClick={savePlan}><Check size={14}/> Save maintenance plan</button><button className="button-quiet" onClick={()=>setShowPlanForm(false)}>Cancel</button></div>
+        <div className="module-form-actions"><button className="button-primary" onClick={savePlan}><Check size={14}/> {editingPlanId?"Update maintenance plan":"Save maintenance plan"}</button><button className="button-quiet" onClick={()=>{setShowPlanForm(false);setEditingPlanId("");setPlanDraft(blankPlan(machine));}}>Cancel</button></div>
       </div>}
       {selectedPlans.length?<div className="module-record-list">{selectedPlans.map(plan=>{
         const overdue=plan.active&&plan.nextDueAt<new Date().toISOString().slice(0,10);
-        return <article className="module-record-card" key={plan.id}><div className="module-record-mark"><CalendarClock size={18}/></div><div className="module-record-copy"><strong>{plan.planName}</strong><span>{plan.maintenanceType} · Every {plan.frequencyValue} {plan.frequencyUnit.toLowerCase()} · {plan.estimatedDurationHours} h</span><p>Last completed: {plan.lastCompletedAt||"Not yet completed"} · Next due: {plan.nextDueAt}</p><small>{plan.assignedTo||"No technician assigned"} · {plan.checklist.length} checklist items · {plan.active?"Active":"Paused"}</small>{overdue&&<em className="machine-maintenance-overdue">Maintenance overdue</em>}</div><div className="module-record-card-actions"><button onClick={()=>createWorkOrder(plan)}>Create work order</button><button onClick={()=>update(current=>({...current,maintenancePlans:(current.maintenancePlans||[]).map(row=>row.id===plan.id?{...row,active:!row.active,updatedAt:nowIso()}:row)}))}>{plan.active?"Pause":"Activate"}</button></div></article>;
+        return <article className="module-record-card" key={plan.id}><div className="module-record-mark"><CalendarClock size={18}/></div><div className="module-record-copy"><strong>{plan.planName}</strong><span>{plan.maintenanceType} · Every {plan.frequencyValue} {plan.frequencyUnit.toLowerCase()} · {plan.estimatedDurationHours} h</span><p>Last completed: {plan.lastCompletedAt||"Not yet completed"} · Next due: {plan.nextDueAt}</p><small>{plan.assignedTo||"No technician assigned"} · {plan.checklist.length} checklist items · {plan.active?"Active":"Paused"}</small>{overdue&&<em className="machine-maintenance-overdue">Maintenance overdue</em>}</div><div className="module-record-card-actions"><button onClick={()=>editPlan(plan)}>Edit</button><button onClick={()=>createWorkOrder(plan)}>Create work order</button><button onClick={()=>update(current=>({...current,maintenancePlans:(current.maintenancePlans||[]).map(row=>row.id===plan.id?{...row,active:!row.active,updatedAt:nowIso()}:row)}))}>{plan.active?"Pause":"Activate"}</button></div></article>;
       })}</div>:<div className="module-empty-state"><CalendarClock size={26}/><h3>No preventive plans</h3><p>Create a service, lubrication, calibration or inspection schedule for this machine.</p></div>}
     </>}
     {tab==="workOrders"&&<>
-      <div className="machine-maintenance-section-heading"><div><h4>Maintenance work orders</h4><p>Plan and record preventive service, breakdown repair and corrective work.</p></div><button className="button-primary compact-button" onClick={()=>{setWorkDraft(blankWorkOrder(machine));setShowWorkForm(value=>!value);}}><Plus size={14}/> New work order</button></div>
+      <div className="machine-maintenance-section-heading"><div><h4>Maintenance work orders</h4><p>Plan and record preventive service, breakdown repair and corrective work.</p></div><button className="button-primary compact-button" onClick={()=>{setWorkDraft(blankWorkOrder(machine));setEditingWorkOrderId("");setShowWorkForm(value=>!value);}}><Plus size={14}/> New work order</button></div>
       {showWorkForm&&<div className="module-record-form machine-maintenance-form">
         <label>Work order number *<input value={workDraft.workOrderNumber} onChange={event=>setWorkDraft({...workDraft,workOrderNumber:event.target.value.toUpperCase()})}/></label>
         <label>Title / job description *<input value={workDraft.title} onChange={event=>setWorkDraft({...workDraft,title:event.target.value})} placeholder="Replace spindle bearings"/></label>
@@ -257,12 +283,17 @@ export default function MachineMaintenanceWorkspace({machines,plans,workOrders,d
         <label>Scheduled start<input type="datetime-local" value={localDateTime(workDraft.scheduledStart)} onChange={event=>setWorkDraft({...workDraft,scheduledStart:event.target.value})}/></label>
         <label>Scheduled end<input type="datetime-local" value={localDateTime(workDraft.scheduledEnd)} onChange={event=>setWorkDraft({...workDraft,scheduledEnd:event.target.value})}/></label>
         <label>Technician / owner<input value={workDraft.technician} onChange={event=>setWorkDraft({...workDraft,technician:event.target.value})}/></label>
+        <label>Actual start<input type="datetime-local" value={localDateTime(workDraft.actualStart)} onChange={event=>setWorkDraft({...workDraft,actualStart:event.target.value})}/></label>
+        <label>Actual end<input type="datetime-local" value={localDateTime(workDraft.actualEnd)} onChange={event=>setWorkDraft({...workDraft,actualEnd:event.target.value})}/></label>
         <label>Estimated cost (₹)<input type="number" min="0" step="0.01" value={workDraft.estimatedCost} onChange={event=>setWorkDraft({...workDraft,estimatedCost:Number(event.target.value)||0})}/></label>
+        <label>Actual cost (₹)<input type="number" min="0" step="0.01" value={workDraft.actualCost} onChange={event=>setWorkDraft({...workDraft,actualCost:Number(event.target.value)||0})}/></label>
         <label className="module-form-wide">Symptom / reported issue<textarea rows={2} value={workDraft.symptom} onChange={event=>setWorkDraft({...workDraft,symptom:event.target.value})}/></label>
+        <label className="module-form-wide">Root cause<textarea rows={2} value={workDraft.rootCause} onChange={event=>setWorkDraft({...workDraft,rootCause:event.target.value})}/></label>
+        <label className="module-form-wide">Corrective action taken<textarea rows={2} value={workDraft.actionTaken} onChange={event=>setWorkDraft({...workDraft,actionTaken:event.target.value})}/></label>
         <label className="module-form-wide">Notes<textarea rows={2} value={workDraft.notes} onChange={event=>setWorkDraft({...workDraft,notes:event.target.value})}/></label>
-        <div className="module-form-actions"><button className="button-primary" onClick={saveWorkOrder}><Check size={14}/> Save work order</button><button className="button-quiet" onClick={()=>setShowWorkForm(false)}>Cancel</button></div>
+        <div className="module-form-actions"><button className="button-primary" onClick={saveWorkOrder}><Check size={14}/> {editingWorkOrderId?"Update work order":"Save work order"}</button><button className="button-quiet" onClick={()=>{setShowWorkForm(false);setEditingWorkOrderId("");setWorkDraft(blankWorkOrder(machine));}}>Cancel</button></div>
       </div>}
-      {selectedWorkOrders.length?<div className="module-record-list">{selectedWorkOrders.map(order=><article className="module-record-card" key={order.id}><div className="module-record-mark"><Wrench size={18}/></div><div className="module-record-copy"><strong>{order.workOrderNumber} · {order.title}</strong><span>{order.workType} · {order.priority} · {order.status}</span><p>Scheduled: {dateLabel(order.scheduledStart)} → {dateLabel(order.scheduledEnd)}</p><small>{order.technician||"No technician assigned"} · Estimated {money(order.estimatedCost)} · Actual {money(order.actualCost)}</small>{order.symptom&&<small>Issue: {order.symptom}</small>}</div><div className="module-record-card-actions"><select aria-label={"Status for "+order.workOrderNumber} value={order.status} onChange={event=>updateWorkOrderStatus(order,event.target.value as MachineMaintenanceWorkStatus)}>{WORK_STATUSES.map(value=><option key={value}>{value}</option>)}</select></div></article>)}</div>:<div className="module-empty-state"><Wrench size={26}/><h3>No maintenance work orders</h3><p>Create a planned service or record a breakdown/corrective work order.</p></div>}
+      {selectedWorkOrders.length?<div className="module-record-list">{selectedWorkOrders.map(order=><article className="module-record-card" key={order.id}><div className="module-record-mark"><Wrench size={18}/></div><div className="module-record-copy"><strong>{order.workOrderNumber} · {order.title}</strong><span>{order.workType} · {order.priority} · {order.status}</span><p>Scheduled: {dateLabel(order.scheduledStart)} → {dateLabel(order.scheduledEnd)}</p><small>Actual: {dateLabel(order.actualStart)} → {dateLabel(order.actualEnd)}</small><small>{order.technician||"No technician assigned"} · Estimated {money(order.estimatedCost)} · Actual {money(order.actualCost)}</small>{order.symptom&&<small>Issue: {order.symptom}</small>}{order.rootCause&&<small>Root cause: {order.rootCause}</small>}{order.actionTaken&&<small>Action: {order.actionTaken}</small>}</div><div className="module-record-card-actions"><button onClick={()=>editWorkOrder(order)}>Edit</button><select aria-label={"Status for "+order.workOrderNumber} value={order.status} onChange={event=>updateWorkOrderStatus(order,event.target.value as MachineMaintenanceWorkStatus)}>{WORK_STATUSES.map(value=><option key={value}>{value}</option>)}</select></div></article>)}</div>:<div className="module-empty-state"><Wrench size={26}/><h3>No maintenance work orders</h3><p>Create a planned service or record a breakdown/corrective work order.</p></div>}
     </>}
     {tab==="downtime"&&<>
       <div className="machine-maintenance-section-heading"><div><h4>Machine downtime log</h4><p>Open events block overlapping production until closed.</p></div><button className="button-primary compact-button" onClick={()=>{setDowntimeDraft(blankDowntime(machine));setShowDowntimeForm(value=>!value);}}><Plus size={14}/> Record downtime</button></div>
