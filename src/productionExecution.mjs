@@ -73,7 +73,7 @@ export function validateProductionAssignment(candidate,context={}){
  const retained=assignments.filter(row=>row&&!row.deletedAt&&row.id!==(context.editingId||candidate.id));
  const operationAllocation=retained.filter(row=>row.operationId===operation.id&&row.status!=="Cancelled")
   .reduce((sum,row)=>sum+Math.max(0,Number(row.targetQuantity)||0),0);
- if(operationAllocation+target>Number(operation.quantity))return fail("operation-allocation-exceeded");
+ if(candidate.status!=="Cancelled"&&operationAllocation+target>Number(operation.quantity))return fail("operation-allocation-exceeded");
  if(ACTIVE_ASSIGNMENT_STATUSES.has(candidate.status||"Planned")){
   const machineWindow=validateMachineMaintenanceWindow(candidate.machineId,candidate.plannedStart,candidate.plannedEnd,
    (context.operations||[]).filter(row=>row?.id!==operation.id),context.maintenanceWorkOrders||[],context.machineDowntime||[]);
