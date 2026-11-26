@@ -53,13 +53,16 @@ test("Process Plan enforces whole-number operation and production quantities", (
 
 test("Inventory ledger enforces transaction direction, source references and live linked records", () => {
   const workspace = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  const ledger = readFileSync(new URL("../src/inventoryLedger.mjs", import.meta.url), "utf8");
   assert.ok(workspace.includes('"Issue to production": "out"'));
   assert.ok(workspace.includes('"Finished goods receipt": "in"'));
   assert.ok(workspace.includes("const requiredDirection = fixedStockDirections[transactionType]"));
   assert.ok(workspace.includes('if (!reference.trim())'));
   assert.ok(workspace.includes("The selected operation does not belong to the chosen PO line"));
-  assert.ok(workspace.includes('(!scope.companyId || row.companyId === scope.companyId) && (!scope.factoryId || row.factoryId === scope.factoryId)'), "stock balances must isolate company and factory");
-  assert.ok(workspace.includes('stockBalance("material", materialId, { companyId: bomIssueSelection.po.companyId, factoryId: bomIssueSelection.po.factoryId })'), "BOM issue shortage preview must use the owning PO factory balance");
+  assert.ok(ledger.includes("if(scope.companyId&&row.companyId!==scope.companyId)"), "stock balances must isolate company");
+  assert.ok(ledger.includes("if(scope.factoryId&&row.factoryId!==scope.factoryId)"), "stock balances must isolate factory");
+  assert.ok(workspace.includes("buildBomMaterialIssuePlan({"), "BOM preview and posting must share the same stock planning helper");
+  assert.ok(ledger.includes("companyId:po.companyId,factoryId:po.factoryId"), "BOM issue revalidation must use the owning PO factory balance");
   assert.ok(workspace.includes("op.id === bomIssueOperationId && op.poId === po.id && op.poLineId === line.id && !op.deletedAt"));
 });
 test("BOM and material masters reject invalid quantities, scrap limits and inactive links", () => {
