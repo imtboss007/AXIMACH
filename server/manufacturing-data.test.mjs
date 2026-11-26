@@ -8,7 +8,7 @@ const newTime = "2026-11-04T09:00:00.000Z";
 test("server merge covers every manufacturing collection, including follow-up assignments", () => {
   assert.deepEqual(manufacturingCollections, [
     "companies", "customers", "prospects", "factories", "machines", "toolingAssets", "fixtureAssets", "resourceUsageEvents", "maintenancePlans", "maintenanceWorkOrders", "machineDowntime", "purchaseOrders", "components", "vendors", "operations",
-    "quotations", "materials", "componentParts", "materialCostEntries", "bomLines", "materialProcessLinks", "inventoryTransactions", "contactProfiles",
+    "quotations", "materials", "componentParts", "materialCostEntries", "bomLines", "materialProcessLinks", "materialConsumptions", "inventoryTransactions", "contactProfiles",
     "processDefinitions", "plannedCosts", "paymentTransactions", "inspectionMeasurements",
     "supplierInvoices", "supplierPayments", "supplierFinanceApprovals", "supplierPaymentAllocations",
     "routeRelationships", "followUpAssignments", "transportRoutes", "transportLegs"
