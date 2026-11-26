@@ -1,3 +1,4 @@
+import { validateMachineMaintenanceWindow } from "./machineMaintenance.mjs";
 const ACTIVE_ASSIGNMENT_STATUSES=new Set(["Planned","Assigned","Running"]);
 const dateRange=(startValue,endValue)=>{
  const start=Date.parse(startValue||""),end=Date.parse(endValue||"");
@@ -42,6 +43,7 @@ export function validateProductionAssignment(candidate,context={}){
  if(machine.status==="Retired"||machine.status==="Breakdown"||machine.status==="Under maintenance"||machine.status==="Planned maintenance")
   return fail("machine-unavailable");
  if(operator.status!=="Active")return fail("operator-inactive");
+ if(ACTIVE_ASSIGNMENT_STATUSES.has(candidate.status||"Planned")&&["Complete","Rejected"].includes(operation.status))return fail("operation-not-open");
  if(!hasCapability(operator.processDefinitionIds,operation.processDefinitionId))
   return fail("operator-process-capability-mismatch");
  if(!hasCapability(operator.machineTypeCapabilities,machine.machineType))
@@ -73,6 +75,9 @@ export function validateProductionAssignment(candidate,context={}){
   .reduce((sum,row)=>sum+Math.max(0,Number(row.targetQuantity)||0),0);
  if(operationAllocation+target>Number(operation.quantity))return fail("operation-allocation-exceeded");
  if(ACTIVE_ASSIGNMENT_STATUSES.has(candidate.status||"Planned")){
+  const machineWindow=validateMachineMaintenanceWindow(candidate.machineId,candidate.plannedStart,candidate.plannedEnd,
+   (context.operations||[]).filter(row=>row?.id!==operation.id),context.maintenanceWorkOrders||[],context.machineDowntime||[]);
+  if(!machineWindow.ok)return fail("machine-maintenance-conflict");
   for(const row of retained){
    if(!ACTIVE_ASSIGNMENT_STATUSES.has(row.status)||row.companyId!==candidate.companyId||row.factoryId!==candidate.factoryId)continue;
    const otherWindow=dateRange(row.plannedStart,row.plannedEnd);
