@@ -129,6 +129,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const companies=useMemo(()=>activeRows(data.companies),[data.companies]);
   const orders=useMemo(()=>activeRows(data.purchaseOrders),[data.purchaseOrders]);
   const vendors=useMemo(()=>activeRows(data.vendors),[data.vendors]);
+  const processDefinitions=useMemo(()=>activeRows(data.processDefinitions||[]),[data.processDefinitions]);
   const operations=useMemo(()=>activeRows(data.operations),[data.operations]);
   const materials=useMemo(()=>activeRows(data.materialCostEntries),[data.materialCostEntries]);
   const materialMasterRecords=useMemo(()=>activeRows(data.materials||[]),[data.materials]);
@@ -829,7 +830,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       <div className="route-flow-editor-actions"><small>Each save creates a separate transport leg. Add several carriers / vehicle types on the same process connection as separate records.</small><button className="button-primary" onClick={saveTransportLeg}><Save size={14}/> Save transport leg</button></div>
     </section>}
 
-    {showAddOperation&&<OperationQuickCreate poId={poId} poLineId={poLineId} componentId={componentId} sequence={Math.max(0,...routeOperations.map(row=>row.sequence))+1} branch={branch} vendors={vendors.map(v=>({id:v.id,company:v.company}))} onSave={saveNewOperation} onCancel={()=>setShowAddOperation(false)}/>}
+    {showAddOperation&&<OperationQuickCreate poId={poId} poLineId={poLineId} componentId={componentId} sequence={Math.max(0,...routeOperations.map(row=>row.sequence))+1} branch={branch} vendors={vendors.map(v=>({id:v.id,company:v.company}))} processDefinitions={processDefinitions} onSave={saveNewOperation} onCancel={()=>setShowAddOperation(false)}/>}
     {editingOperation&&<OperationInlineEditor operation={editingOperation} vendors={vendors.map(v=>({id:v.id,company:v.company}))} onSave={saveInlineOperation} onCancel={()=>setEditingOperation(null)}/>}
 
     {showRelationshipEditor&&<section className="route-flow-editor-panel">
