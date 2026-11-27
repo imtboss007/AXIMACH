@@ -2487,8 +2487,17 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .app-shell:has(.manufacturing-universe-workspace) .command-rail,
 .app-shell:has(.route-flow-workspace) .status-ribbon,
 .app-shell:has(.manufacturing-universe-workspace) .status-ribbon{
-  display:none!important;
+  display:flex!important;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+  min-height:38px;
+  padding:6px 14px;
+  overflow:visible;
 }
+.status-ribbon>span{min-width:0}
+.status-ribbon>button{flex:0 0 auto;white-space:nowrap}
+.status-ribbon .ribbon-right{margin-left:auto}
 .app-shell:has(.route-flow-workspace) .page-content,
 .app-shell:has(.manufacturing-universe-workspace) .page-content{
   top:66px!important;left:0!important;right:0!important;bottom:0!important;
