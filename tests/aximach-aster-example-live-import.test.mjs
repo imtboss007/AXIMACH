@@ -9,6 +9,13 @@ const route = read("../src/RouteFlowWorkspace.tsx");
 const app = read("../src/App.tsx");
 const iconSource = read("../src/MechanicalOperationIcon.tsx");
 const iconStudio = read("../src/IconStudio.tsx");
+const componentMaster = read("../src/ManufacturingMasterWorkspace.tsx");
+const processMap = read("../src/LinkedProcessWorkspace.tsx");
+const costing = read("../src/LinkedCostingWorkspace.tsx");
+const partCosting = read("../src/PartMaterialCostingPanel.tsx");
+const payables = read("../src/SupplierAccountsPayablePanel.tsx");
+const inventory = read("../src/InventoryWorkspace.tsx");
+const materialCatalogue = read("../src/materialCatalogue.ts");
 
 const routeTypes = ["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"];
 
@@ -128,4 +135,30 @@ test("the logo catalogue uses distinct SVG drawings rather than palette variants
   assert.deepEqual([...new Set(rendered)].sort(), [...new Set(inventory)].sort(), "Every catalogue symbol must have its own SVG drawing.");
   assert.ok(iconStudio.includes("Unique engineering SVG symbols · not colour variants"));
   assert.ok(iconStudio.includes("not new logos"));
+});
+
+
+test("zero is blank-editable for unentered component, process, costing and supplier amounts", () => {
+  assert.ok(componentMaster.includes('setComponentPriceInput(Number(row.salePrice)>0?String(row.salePrice):"")'));
+  assert.ok(processMap.includes('type="text" inputMode="decimal" value={moneyDraftValue("ratePerPart",draft.ratePerPart)}'));
+  assert.ok(processMap.includes('type="text" inputMode="decimal" value={moneyDraftValue("actualRatePerPart",draft.actualRatePerPart)}'));
+  assert.ok(processMap.includes('type="text" inputMode="decimal" value={moneyDraftValue("processCostTotal",draft.processCostTotal)}'));
+  assert.ok(costing.includes('type="text" inputMode="decimal" value={extraInputValue("materialRate",materialRate)}'));
+  assert.ok(costing.includes('type="text" inputMode="decimal" value={extraInputValue("salePrice",sellingRate)}'));
+  assert.ok(partCosting.includes('type="text" inputMode="decimal" value={materialRate}'));
+  assert.ok(partCosting.includes('type="text" inputMode="decimal" value={cuttingRate}'));
+  assert.ok(payables.includes('type="text" inputMode="decimal" value={invoiceSubtotal}'));
+  assert.ok(payables.includes('type="text" inputMode="decimal" value={paymentAmount}'));
+  assert.ok(payables.includes('invoiceTotal>0?invoiceTotal.toFixed(2):""'));
+});
+
+test("material catalogue keeps kg and piece stock units and grade-driven density in kg per cubic metre", () => {
+  assert.ok(inventory.includes('label>Stock unit *'));
+  assert.ok(inventory.includes('value="kg">Kilogram (kg)'));
+  assert.ok(inventory.includes('value="piece">Piece / each'));
+  assert.ok(inventory.includes('Density (kg/m³)'));
+  assert.ok(inventory.includes('densityUnit:"kg/m3"'));
+  assert.ok(inventory.includes('materialDensityReference(grade,materialDraft.materialType||"")'));
+  assert.ok(materialCatalogue.includes('export function materialDensityReference(grade:string,materialType:string)'));
+  assert.ok(materialCatalogue.includes('TYPICAL_DENSITY_BY_MATERIAL_TYPE_KG_M3'));
 });
