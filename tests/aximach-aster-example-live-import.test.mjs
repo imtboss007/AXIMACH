@@ -116,12 +116,12 @@ test("the shared ASTER example includes removable machine, tooling, fixture, sto
 
 test("the global load/remove test-data control is visible in the shared application shell", () => {
   const styles = read("../src/aximach-ui.css");
-  assert.match(styles, /\\.status-ribbon\\{[\\s\\S]*?display:flex!important/);
-  assert.doesNotMatch(styles, /\\.status-ribbon\\{\\s*display:none!important/);
+  assert.match(styles, /\.status-ribbon\{[\s\S]*?display:flex!important/);
+  assert.doesNotMatch(styles, /\.status-ribbon\{\s*display:none!important/);
 });
 
 test("the logo catalogue uses distinct SVG drawings rather than palette variants", () => {
-  const inventory = [...iconSource.matchAll(/\\{glyph:"([^"]+)"/g)].map(match => match[1]);
+  const inventory = [...iconSource.matchAll(/\{glyph:"([^"]+)"/g)].map(match => match[1]);
   const rendered = [...iconSource.matchAll(/case "([^"]+)": return/g)].map(match => match[1]);
   assert.ok(inventory.length >= 90, "The manufacturing icon catalogue must contain the expanded set of unique symbols.");
   assert.equal(new Set(inventory).size, inventory.length, "One symbol glyph must not be duplicated as another logo.");
