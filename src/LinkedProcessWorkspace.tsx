@@ -20,7 +20,8 @@ import { RouteConnectorLegend as MaterialRouteConnectorLegend } from "./RouteCon
 import { ManufacturingGraphCanvas } from "./ManufacturingGraphCanvas";
 import { manufacturingGraphEdgeKey, routeRelationshipEdgeGeometry } from "./manufacturingGraphLayout.mjs";
 import TransportRoutingDemo from "./TransportRoutingDemo";
-import { VehicleIcon as VehicleTypeIcon, getVehicleVisual } from "./TransportVehicle";
+import { VehicleIcon as VehicleTypeIcon, getVehicleVisual, VEHICLE_TYPES } from "./TransportVehicle";
+import VehicleTypePicker from "./VehicleTypePicker";
 import { resolveProcessColor } from "./processPalette";
 import { getEligibleMachineAssets, validateMachineAssignment } from "./machineCapabilities.mjs";
 import { getMachineAvailability, validateMachineSchedule } from "./machineMaintenance.mjs";
@@ -176,7 +177,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [newTransportVendorId, setNewTransportVendorId] = useState("");
   const [newTransportFrom, setNewTransportFrom] = useState("");
   const [newTransportTo, setNewTransportTo] = useState("");
-  const [newTransportVehicle, setNewTransportVehicle] = useState("4-wheeler");
+  const [newTransportVehicle, setNewTransportVehicle] = useState("4-wheeler / Car");
   const [newTransportDirection, setNewTransportDirection] = useState<"One-way"|"Two-way">("One-way");
   const [newTransportAmount, setNewTransportAmount] = useState("");
   const [newTransportNotes, setNewTransportNotes] = useState("");
@@ -1653,8 +1654,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           <label>From location *<input list="process-transport-location-options" value={newTransportFrom} onChange={event=>setNewTransportFrom(event.target.value)} placeholder="Search or type pickup location…"/></label>
           <label>To location *<input list="process-transport-location-options" value={newTransportTo} onChange={event=>setNewTransportTo(event.target.value)} placeholder="Search or type delivery location…"/></label>
           <datalist id="process-transport-location-options">{transportLocationOptions.map(location=><option key={location} value={location}/>)}</datalist>
-          <label>Vehicle type *<input list="process-transport-vehicle-options" value={newTransportVehicle} onChange={event=>setNewTransportVehicle(event.target.value)} placeholder="Search or type vehicle type…"/></label>
-          <datalist id="process-transport-vehicle-options">{["2-wheeler","3-wheeler","4-wheeler","Tempo","Mini truck","Pickup truck","LCV","HCV","Container truck","Trailer","Refrigerated truck","Flatbed truck","Tanker","Courier van","Heavy-duty 4-wheeler"].map(value=><option key={value} value={value}/>)}</datalist>
+          <VehicleTypePicker id="process-transport-vehicle-type" label="Vehicle type *" value={newTransportVehicle} onChange={setNewTransportVehicle} options={[...VEHICLE_TYPES,...transportRoutes.map(route=>route.vehicleType),...allTransportLegs.map(leg=>leg.vehicleType)]}/>
           <SearchablePicker id="new-process-transport-direction" label="Route type *" value={newTransportDirection} options={[{id:"One-way",label:"One-way"},{id:"Two-way",label:"Two-way / return"}]} onChange={value=>setNewTransportDirection(value as "One-way"|"Two-way")}/>
           <label>Agreed route amount (₹) *<input type="number" min="0" step="any" value={newTransportAmount} onChange={event=>setNewTransportAmount(event.target.value)} placeholder="Enter agreed route amount"/></label>
           <label className="editor-wide">Route notes<input value={newTransportNotes} onChange={event=>setNewTransportNotes(event.target.value)} placeholder="Loading, waiting, validity or route restrictions"/></label>
