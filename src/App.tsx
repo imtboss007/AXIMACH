@@ -42,7 +42,7 @@ const LinkedCostingWorkspace = lazy(() => import("./LinkedCostingWorkspace"));
 const InventoryWorkspace = lazy(() => import("./InventoryWorkspace"));
 const IntegrationHubWorkspace = lazy(() => import("./IntegrationHubWorkspace"));
 import { activeRows, emptyManufacturingData, makeId, mergeManufacturingData, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
-import { ASTER_EXAMPLE_PREFIX, archiveAsterPrecisionExample, importAsterPrecisionExample } from "./asterPrecisionExample";
+import { ASTER_EXAMPLE_IDS, ASTER_EXAMPLE_PREFIX, archiveAsterPrecisionExample, importAsterPrecisionExample } from "./asterPrecisionExample";
 
 function isAllowedAxMachServiceUrl(value: string) {
   try {
@@ -193,13 +193,14 @@ function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:
 }
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; materialId?: string; routeId?: string; subtab?: string; searchText?: string };
+const ASTER_EXAMPLE_CONTEXT: LinkedNavigationContext = { companyId: ASTER_EXAMPLE_IDS.company, poId: ASTER_EXAMPLE_IDS.purchaseOrder, poLineId: ASTER_EXAMPLE_IDS.poLine, componentId: ASTER_EXAMPLE_IDS.component };
 
 function App() {
   useState(() => { removeLegacyDemoData(); return true; });
   const { data: appData, update: updateAppData } = useManufacturingData();
   const activeDemoRecordCount = Object.values(appData).filter(value => Array.isArray(value)).flatMap(value => value as Array<{id?:string;deletedAt?:string}>).filter(row => row.id?.startsWith(ASTER_EXAMPLE_PREFIX) && !row.deletedAt).length;
   const [activeModuleId, setActiveModuleId] = useState("dashboard");
-  const [moduleContext, setModuleContext] = useState<LinkedNavigationContext>({});
+  const [moduleContext, setModuleContext] = useState<LinkedNavigationContext>(() => activeDemoRecordCount > 0 ? ASTER_EXAMPLE_CONTEXT : {});
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [iconStudioOpen, setIconStudioOpen] = useState(false);
@@ -213,14 +214,16 @@ function App() {
   const [aiResponse, setAiResponse] = useState("");
   const [notice, setNotice] = useState("");
   const loadAsterExampleFromWorkspace = () => {
-    if (activeDemoRecordCount > 0) { setNotice("The ASTER synthetic example is already loaded in shared AXIMACH records. Open its company, PO, component, materials, Process Map, Route Flow, Costing or Quality records from their normal modules."); return; }
+    if (activeDemoRecordCount > 0) { setModuleContext(ASTER_EXAMPLE_CONTEXT); setNotice("ASTER synthetic example is already loaded. Its Company, PO and Component are now preselected as you move between connected modules."); return; }
     updateAppData(current => importAsterPrecisionExample(current));
-    setNotice("ASTER synthetic test records loaded into shared AXIMACH modules. Select ASTER Precision Works in the normal Company, PO and Component selectors. No real records were replaced.");
+    setModuleContext(ASTER_EXAMPLE_CONTEXT);
+    setNotice("ASTER synthetic test records loaded across shared AXIMACH modules. Connected workspaces now open on the same Company, PO and Component. No real records were replaced.");
   };
   const removeAsterExampleFromWorkspace = () => {
     if (!activeDemoRecordCount) { setNotice("No ASTER example records are currently loaded."); return; }
     if (!window.confirm("Remove the reversible ASTER synthetic test dataset from all shared modules? Only ASTER-EXAMPLE records will be archived; all real company, customer, supplier, PO, component, material and production records remain untouched.")) return;
     updateAppData(current => archiveAsterPrecisionExample(current));
+    if (moduleContext.companyId === ASTER_EXAMPLE_IDS.company) setModuleContext({});
     setNotice("ASTER synthetic example archived across the shared modules. Real records remain untouched; you can load the example again.");
   };
   const [themePreference,setThemePreference] = useState<ThemePreference>(()=>readThemePreference());
@@ -371,10 +374,10 @@ function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const selectModule = (id: string, context: LinkedNavigationContext = {}) => {
+  const selectModule = (id: string, context?: LinkedNavigationContext) => {
     setLandscapeCanvasOpen(false);
     setOrientationLockUnavailable(false);
-    setModuleContext(context);
+    setModuleContext(context ?? (activeDemoRecordCount > 0 ? ASTER_EXAMPLE_CONTEXT : {}));
     setActiveModuleId(id);
     setModuleExplorerOpen(false);
     setMobileNavOpen(false);
