@@ -729,6 +729,45 @@ try {
   for (const label of ["MAIN","ALTERNATE","REWORK","DEPENDENCY","PARALLEL","MERGE","SPLIT","FOLLOW-ON","FEEDBACK","CONDITIONAL","SUCCESSOR"]) {
     if (!routeEdgeLabels.includes(label)) throw new Error("Route Flow graph did not display relationship label "+label+": "+routeEdgeLabels);
   }
+  // Reflow the populated interactive graph at Android phone width. This
+  // checks the graph itself (not only the surrounding workspace shell).
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(350);
+  const phoneRouteGraph = await page.evaluate(() => {
+    const canvas=document.querySelector(".route-flow-graph-canvas");
+    const layer=document.querySelector(".route-flow-shared-graph-layer");
+    const rect=element=>{const box=element?.getBoundingClientRect();return box?{left:box.left,top:box.top,right:box.right,bottom:box.bottom,width:box.width,height:box.height}:null;};
+    const canvasRect=rect(canvas),layerRect=rect(layer);
+    const nodes=[...document.querySelectorAll(".route-flow-graph-canvas .react-flow__node")].map(node=>({
+      rect:rect(node),text:(node.textContent||"").trim()
+    }));
+    const visibleNodes=nodes.filter(node=>node.rect&&canvasRect&&node.rect.right>canvasRect.left&&node.rect.left<canvasRect.right&&node.rect.bottom>canvasRect.top&&node.rect.top<canvasRect.bottom);
+    const reset=canvas?.querySelector(".route-flow-graph-toolbar button");
+    return {
+      viewportWidth:document.documentElement.clientWidth,
+      documentWidth:document.documentElement.scrollWidth,
+      canvas:canvasRect,layer:layerRect,nodeCount:nodes.length,
+      measuredNodes:nodes.filter(node=>node.rect&&node.rect.width>0&&node.rect.height>0&&node.text).length,
+      visibleNodes:visibleNodes.length,
+      edgeCount:document.querySelectorAll(".route-flow-graph-canvas .react-flow__edge").length,
+      resetPointerEvents:reset?getComputedStyle(reset).pointerEvents:"missing"
+    };
+  });
+  if (phoneRouteGraph.documentWidth>phoneRouteGraph.viewportWidth+1 ||
+      !phoneRouteGraph.canvas || phoneRouteGraph.canvas.left<0 ||
+      phoneRouteGraph.canvas.right>phoneRouteGraph.viewportWidth+1 ||
+      phoneRouteGraph.canvas.width<280 || !phoneRouteGraph.layer ||
+      phoneRouteGraph.layer.width<phoneRouteGraph.canvas.width-2 ||
+      phoneRouteGraph.nodeCount<20 || phoneRouteGraph.measuredNodes!==phoneRouteGraph.nodeCount ||
+      phoneRouteGraph.visibleNodes<1 || phoneRouteGraph.edgeCount<11 ||
+      phoneRouteGraph.resetPointerEvents!=="auto") {
+    throw new Error("Populated Route Flow graph is clipped or unusable at 390×844: "+JSON.stringify(phoneRouteGraph));
+  }
+  await page.locator(".route-flow-graph-toolbar button").filter({hasText:"Reset node layout"}).click();
+  await page.locator(".notice-banner").filter({hasText:"node positions reset"}).waitFor({timeout:5000});
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.waitForTimeout(200);
+  console.log("PASS populated Route Flow graph, nodes, edges and reset control at 390×844 phone width");
   const routeTitleColor = await page.locator(".route-flow-workspace-head h1").first().evaluate(element => getComputedStyle(element).color);
   const routeTitleRgb = routeTitleColor.match(/\d+/g)?.map(Number) || [];
   if (routeTitleRgb.length < 3 || routeTitleRgb.every(channel => channel > 210)) {
