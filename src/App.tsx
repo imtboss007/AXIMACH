@@ -42,7 +42,7 @@ const LinkedCostingWorkspace = lazy(() => import("./LinkedCostingWorkspace"));
 const InventoryWorkspace = lazy(() => import("./InventoryWorkspace"));
 const IntegrationHubWorkspace = lazy(() => import("./IntegrationHubWorkspace"));
 import { activeRows, emptyManufacturingData, makeId, mergeManufacturingData, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
-import { AXIMACH_DEMO_ID_PREFIX, archiveAxMachTwoCompanyDemo } from "./aximachDemoData";
+import { AXIMACH_DEMO_ID_PREFIX, archiveAxMachTwoCompanyDemo, importAxMachTwoCompanyDemo } from "./aximachDemoData";
 
 function isAllowedAxMachServiceUrl(value: string) {
   try {
@@ -103,6 +103,11 @@ function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:
   const activeDemoCount = demoRows.filter(row => !row.deletedAt).length;
   const demoLoaded = activeDemoCount > 0;
   const demoCounts = { companies:data.companies.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, factories:data.factories.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, vendors:data.vendors.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, components:data.components.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, orders:data.purchaseOrders.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, operations:data.operations.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length };
+  const loadDemo = () => {
+    if (demoLoaded) { onNotice("The full Demo Factory is already loaded across AXIMACH modules. Use the normal company, PO, component, process, material, costing and transport selectors."); return; }
+    update(current => importAxMachTwoCompanyDemo(current));
+    onNotice("Full synthetic Demo Factory loaded into shared AXIMACH data. Open Company Directory, Purchase Orders, Process Map, Material Directory, Route Flow or Manufacturing Universe to test the linked records. Real records are preserved.");
+  };
   const deleteDemo = () => {
     if (!demoLoaded) { onNotice("No active Demo Factory records to delete."); return; }
     if (!window.confirm("Delete the imported Demo Factory? Only records with the reserved DEMO- ID prefix will be archived. Actual factory records will not be changed.")) return;
@@ -118,20 +123,30 @@ function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:
       <div className="workspace-title-row">
         <div><div className="eyebrow"><span className="eyebrow-mark"/> DATA / IMPORT &amp; EXPORT</div><h1>Data Exchange Centre<span>.</span></h1><p>One workspace for validated imports, module exports and full AXIMACH backups.</p></div>
       </div>
-      <section className="workspace-card" aria-label="Demo Factory data centre" style={{marginBottom:20,border:"1px solid var(--line, #d9e0e8)"}}>
+      <section className="workspace-card" aria-label="Full linked Demo Factory" style={{marginBottom:20,border:"1px solid var(--line, #d9e0e8)"}}>
         <div className="workspace-title-row" style={{alignItems:"center"}}>
-          <div><div className="eyebrow"><span className="eyebrow-mark"/> DATA CENTRE / SANDBOX</div><h2 style={{margin:"4px 0"}}>Legacy Demo Data Cleanup</h2><p>The retired two-company Demo Factory is no longer importable. Only reserved DEMO-prefixed records are archived; real company, PO, component and production records are preserved.</p></div>
-          <span className="demo-pill"><i/> {demoLoaded?"DEMO LOADED":"ISOLATED SANDBOX"}</span>
+          <div><div className="eyebrow"><span className="eyebrow-mark"/> DATA CENTRE / REVERSIBLE SANDBOX</div><h2 style={{margin:"4px 0"}}>Full AXIMACH Demo Factory</h2><p>Load fictional companies, factories, vendors, purchase orders, component lines, process routes, materials, BOM, costing, transport, inventory and quality records into the same shared data used by the real modules. Demo records are clearly namespaced and can be removed later.</p></div>
+          <span className="demo-pill"><i/> {demoLoaded?"DEMO LOADED IN SHARED MODULES":"READY TO LOAD"}</span>
         </div>
         <div className="metric-grid" style={{margin:"14px 0"}}>
-          <div className="metric-card"><small>Companies</small><strong>{demoCounts.companies}</strong></div><div className="metric-card"><small>Factories</small><strong>{demoCounts.factories}</strong></div><div className="metric-card"><small>Demo vendors</small><strong>{demoCounts.vendors}</strong></div><div className="metric-card"><small>Components</small><strong>{demoCounts.components}</strong></div><div className="metric-card"><small>Purchase orders</small><strong>{demoCounts.orders}</strong></div><div className="metric-card"><small>Operations</small><strong>{demoCounts.operations}</strong></div>
+          <div className="metric-card"><small>Companies</small><strong>{demoCounts.companies}</strong></div><div className="metric-card"><small>Factories</small><strong>{demoCounts.factories}</strong></div><div className="metric-card"><small>Vendors</small><strong>{demoCounts.vendors}</strong></div><div className="metric-card"><small>Components</small><strong>{demoCounts.components}</strong></div><div className="metric-card"><small>Purchase orders</small><strong>{demoCounts.orders}</strong></div><div className="metric-card"><small>Process operations</small><strong>{demoCounts.operations}</strong></div>
+          <div className="metric-card"><small>Material masters</small><strong>{data.materials.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>BOM lines</small><strong>{data.bomLines.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Material → process links</small><strong>{data.materialProcessLinks.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Transport legs</small><strong>{data.transportLegs.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Route relationships</small><strong>{data.routeRelationships.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Planned costs</small><strong>{data.plannedCosts.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length}</strong></div>
         </div>
         <div className="linked-route-actions">
-          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={deleteDemo}><RotateCcw size={14}/> Archive remaining DEMO records</button>
-          <button type="button" className="button-primary compact-button" onClick={()=>onSelectModule("route-flow")}><GitBranch size={14}/> Open Route Flow</button>
-          <span className="muted-copy">Sync: {syncStatus} · Real records are preserved</span>
+          <button type="button" className="button-primary compact-button" disabled={demoLoaded} onClick={loadDemo}><Plus size={14}/> Load full Demo Factory</button>
+          <button type="button" className="button-danger compact-button" disabled={!demoLoaded} onClick={deleteDemo}><Trash2 size={14}/> Remove demo records</button>
+          <span className="muted-copy">Sync: {syncStatus} · Real records remain untouched</span>
         </div>
-        <p className="muted-copy" style={{marginTop:10}}>The ASTER Precision Works example can be loaded from Route Flow into the normal company, purchase-order and component selectors. It remains clearly marked synthetic and does not overwrite real company records.</p>
+        <div className="linked-route-actions" style={{marginTop:10}}>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("companies")}><Factory size={14}/> Companies / factories</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("purchasing")}><Package size={14}/> Purchase orders</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("process-map")}><Workflow size={14}/> Process Map</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("inventory")}><Boxes size={14}/> Materials / BOM</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("route-flow")}><GitBranch size={14}/> Route Flow</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("manufacturing-universe")}><Network size={14}/> Manufacturing Universe</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("costing")}><CircleDollarSign size={14}/> Costing</button>
+        </div>
+        <p className="muted-copy" style={{marginTop:10}}>This is not an isolated preview. Imported demo company, PO, component and related records are the same records opened by each module's regular selectors. “Remove demo records” archives only IDs in the reserved DEMO- namespace; the demo can be loaded again.</p>
       </section>
       <div className="linked-route-actions" role="tablist" aria-label="Data exchange mode">
         <button type="button" role="tab" aria-selected={mode==="export"} className={(mode==="export"?"button-primary":"button-quiet")+" compact-button"} onClick={()=>setMode("export")}><FileDown size={14}/> Export records</button>
@@ -148,6 +163,8 @@ type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: s
 
 function App() {
   useState(() => { removeLegacyDemoData(); return true; });
+  const { data: appData } = useManufacturingData();
+  const activeDemoRecordCount = Object.values(appData).filter(value => Array.isArray(value)).flatMap(value => value as Array<{id?:string;deletedAt?:string}>).filter(row => row.id?.startsWith(AXIMACH_DEMO_ID_PREFIX) && !row.deletedAt).length;
   const [activeModuleId, setActiveModuleId] = useState("dashboard");
   const [moduleContext, setModuleContext] = useState<LinkedNavigationContext>({});
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
@@ -380,7 +397,7 @@ function App() {
       <div className="status-ribbon">
         <span className="ribbon-dot" /> AXIMACH WORKSPACE
         <span className="ribbon-separator">/</span>
-        <span>No example records loaded · production metrics populate from saved records</span>
+        <span>{activeDemoRecordCount ? `DEMO FACTORY ACTIVE · ${activeDemoRecordCount} shared sample records` : "No demo records loaded · production metrics populate from saved records"}</span>
         <span className="ribbon-right"><ShieldCheck size={13} /> Safety gates are design requirements</span>
       </div>
 
