@@ -162,6 +162,13 @@ function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:
           <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("route-flow")}><GitBranch size={14}/> Route Flow</button>
           <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("manufacturing-universe")}><Network size={14}/> Manufacturing Universe</button>
           <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("costing")}><CircleDollarSign size={14}/> Costing</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("vendors")}><Users size={14}/> Vendors</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("vendor-capability")}><Workflow size={14}/> Vendor Network</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("transport-master")}><Truck size={14}/> Transport Directory</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("production")}><Activity size={14}/> Production Plan</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("dispatch")}><Truck size={14}/> Dispatch</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("planned-cost")}><CircleDollarSign size={14}/> Planned Cost</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("quality")}><ClipboardCheck size={14}/> Quality Inspection</button>
         </div>
         <p className="muted-copy" style={{marginTop:10}}>This is not an isolated preview. The same ASTER buyer, company, PO, component, material grades, BOM, Process Directory definitions, operations and transport records appear in each module’s regular selectors. “Remove ASTER example” archives only ASTER-EXAMPLE- IDs; you can reload it whenever you need to test.</p>
       </section>
