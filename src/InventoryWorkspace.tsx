@@ -95,6 +95,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const [materialFormOpen, setMaterialFormOpen] = useState(false);
   const [bomFormOpen, setBomFormOpen] = useState(false);
   const [materialDraft, setMaterialDraft] = useState<MaterialDraft>(emptyMaterial());
+  const [materialRateInput,setMaterialRateInput]=useState("");
   const [bomDraft, setBomDraft] = useState<BomDraft>(emptyBom());
   const [itemType, setItemType] = useState<"material" | "component">("material");
   const [itemId, setItemId] = useState("");
@@ -344,11 +345,11 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     return total + rateQuantity * (material?.ratePerUnit || 0);
   }, 0);
 
-  const resetMaterial = () => { setMaterialFormOpen(false); setMaterialEditingId(""); setMaterialDraft(emptyMaterial()); };
+  const resetMaterial = () => { setMaterialFormOpen(false); setMaterialEditingId(""); setMaterialDraft(emptyMaterial()); setMaterialRateInput(""); };
   const resetBom = () => { setBomFormOpen(false); setBomEditingId(""); setBomDraft(emptyBom()); };
   const editMaterial = (row: MaterialRecord) => {
     const { id, createdAt, updatedAt, deletedAt, ...draft } = row;
-    setMaterialDraft(draft); setMaterialEditingId(id); setMaterialFormOpen(true);
+    setMaterialDraft(draft); setMaterialRateInput(String(row.ratePerUnit ?? "")); setMaterialEditingId(id); setMaterialFormOpen(true);
   };
   const editBom = (row: BomLineRecord) => {
     const { id, createdAt, updatedAt, deletedAt, ...draft } = row;
@@ -358,7 +359,8 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     if (!materialDraft.code.trim() || !materialDraft.name.trim() || !materialDraft.materialType?.trim() || !materialDraft.grade.trim() || !materialDraft.unit.trim()) { onNotice("Material code, material type, name, grade and unit are required."); return; }
     if (!(Number(materialDraft.densityKgM3)>0)) { onNotice("Enter a typical density in kg/m³ or select a known grade to fill it automatically."); return; }
     if (materialDraft.densityKgM3 && (!Number.isFinite(Number(materialDraft.densityKgM3)) || Number(materialDraft.densityKgM3) <= 0)) { onNotice("Density must be a positive kg/m³ value."); return; }
-    if (!Number.isFinite(Number(materialDraft.ratePerUnit)) || Number(materialDraft.ratePerUnit) < 0) { onNotice("Material rate must be a finite non-negative number."); return; }
+    const materialRateValue = materialRateInput.trim() === "" ? 0 : Number(materialRateInput);
+    if (!Number.isFinite(materialRateValue) || materialRateValue < 0) { onNotice("Material rate must be a finite non-negative number."); return; }
     if (materialDraft.preferredVendorId && !vendors.some(vendor => vendor.id === materialDraft.preferredVendorId)) { onNotice("Preferred vendor is missing or archived. Choose an active Vendor Directory record."); return; }
     const duplicate = materials.find(m => m.id !== materialEditingId && m.code.trim().toLowerCase() === materialDraft.code.trim().toLowerCase());
     const duplicateGrade = materials.find(m => m.id !== materialEditingId && m.grade.trim().toLowerCase() === materialDraft.grade.trim().toLowerCase() && (m.materialType||m.name).trim().toLowerCase() === (materialDraft.materialType||materialDraft.name).trim().toLowerCase());
@@ -367,7 +369,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     const stamp = nowIso(); const id = materialEditingId || makeId("material");
     update(current => {
       const old = current.materials.find(m => m.id === id);
-      return { ...current, materials: [...current.materials.filter(m => m.id !== id), { ...materialDraft, code: materialDraft.code.trim(), name: materialDraft.name.trim(), densityKgM3: materialDraft.densityUnit === "g/cm3" ? Number(materialDraft.densityKgM3) * 1000 : Number(materialDraft.densityKgM3), densityUnit: "kg/m3" as const, id, createdAt: old?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined }] };
+      return { ...current, materials: [...current.materials.filter(m => m.id !== id), { ...materialDraft, ratePerUnit: materialRateValue, code: materialDraft.code.trim(), name: materialDraft.name.trim(), densityKgM3: materialDraft.densityUnit === "g/cm3" ? Number(materialDraft.densityKgM3) * 1000 : Number(materialDraft.densityKgM3), densityUnit: "kg/m3" as const, id, createdAt: old?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined }] };
     });
     resetMaterial(); onNotice("Material saved permanently in the shared Material Directory. Similar grade searches will find this record; BOM links and stock ledger retain its stable ID.");
   };
@@ -627,7 +629,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
         : <div className="module-empty-state"><Package size={22}/><strong>Select the manufacturing job to allocate material</strong><p>Choose one Company, its Purchase Order and the Component using the three filters above. The material allocation form will then open here. You can add more than one part and more than one material / size / grade without replacing earlier entries.</p></div>}
     </section>}
     {tab==="materials" && <>
-      <div className="workspace-title-actions"><button className="button-primary" onClick={()=>{setMaterialDraft(emptyMaterial());setMaterialEditingId("");setMaterialFormOpen(true);}}><Plus size={14}/> Add material</button><button className="button-quiet" onClick={()=>onSelectModule("vendors",{companyId:directoryCompanyId||undefined,poId:directoryPoId||undefined,componentId:directoryComponentId||undefined})}><Users size={14}/> Vendor master</button></div>
+      <div className="workspace-title-actions"><button className="button-primary" onClick={()=>{setMaterialDraft(emptyMaterial());setMaterialRateInput("");setMaterialEditingId("");setMaterialFormOpen(true);}}><Plus size={14}/> Add material</button><button className="button-quiet" onClick={()=>onSelectModule("vendors",{companyId:directoryCompanyId||undefined,poId:directoryPoId||undefined,componentId:directoryComponentId||undefined})}><Users size={14}/> Vendor master</button></div>
       {materialFormOpen && <section className="surface-panel module-record-form-panel"><div className="panel-heading"><div><h3>{materialEditingId?"Edit material record":"Add material to directory"}</h3><p>Grade suggestions fill the typical reference density automatically. Your saved custom grades, types, shapes and rates remain in the permanent material catalogue.</p></div><button className="icon-control" onClick={resetMaterial} aria-label="Close material form"><X size={15}/></button></div>
         <div className="module-record-form">
           <label>Material code *<input value={materialDraft.code} onChange={e=>setMaterialDraft({...materialDraft,code:e.target.value})} placeholder="e.g. EN8-ROUND-80"/></label>
@@ -640,7 +642,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
           <label>Unit *<select value={materialDraft.unit} onChange={e=>setMaterialDraft({...materialDraft,unit:e.target.value,priceUnit:e.target.value==="piece"||e.target.value==="Nos"||e.target.value==="set"||e.target.value==="sheet"||e.target.value==="bar"?"piece":"kg"})}><option value="kg">kg</option><option value="piece">piece</option><option value="Nos">Nos (legacy)</option><option value="set">set</option><option value="sheet">sheet</option><option value="bar">bar</option><option value="litre">litre</option></select></label>
           <label>Density (kg/m³)<input type="number" min="0" step="any" value={materialDraft.densityKgM3||""} onChange={e=>setMaterialDraft({...materialDraft,densityKgM3:Math.max(0,Number(e.target.value)||0),densityUnit:"kg/m3"})} placeholder="Auto-filled from grade"/></label>
           
-          <label>Rate per unit (₹)<input type="number" min="0" step="0.01" value={materialDraft.ratePerUnit || ""} onChange={e=>setMaterialDraft({...materialDraft,ratePerUnit:e.target.value === "" ? 0 : Math.max(0,Number(e.target.value)||0)})}/></label>
+          <label>Rate per unit (₹)<input type="number" min="0" step="0.01" value={materialRateInput} onChange={e=>setMaterialRateInput(e.target.value)} placeholder="Enter amount"/></label>
           <label>Rate unit<select value={materialDraft.priceUnit||"kg"} onChange={e=>setMaterialDraft({...materialDraft,priceUnit:e.target.value as "kg"|"lb"|"piece"})}><option value="kg">₹ / kg</option><option value="lb">₹ / lb</option><option value="piece">₹ / piece</option></select></label>
           <SearchablePicker id="material-preferred-vendor" label="Preferred vendor" value={materialDraft.preferredVendorId} placeholder="Type supplier name / phone…" options={vendors.map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")}))} onChange={preferredVendorId=>setMaterialDraft({...materialDraft,preferredVendorId})}/>
           <label className="module-form-wide">Specification / notes<input value={materialDraft.specification} onChange={e=>setMaterialDraft({...materialDraft,specification:e.target.value})} placeholder="Size, standard, certificate or inspection notes"/></label>
