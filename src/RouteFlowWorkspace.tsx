@@ -19,7 +19,6 @@ import WorkspaceThemePicker from "./WorkspaceThemePicker";
 import { useWorkspaceTheme } from "./workspaceTheme";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
 import { RouteConnectorLegend } from "./RouteConnectorLegend";
-import { ASTER_EXAMPLE_IDS, importAsterPrecisionExample } from "./asterPrecisionExample";
 import { VehicleIcon as VehicleTypeIcon, getVehicleVisual, VEHICLE_TYPES } from "./TransportVehicle";
 import VehicleTypePicker from "./VehicleTypePicker";
 import { connectManufacturingGraphNodes } from "./manufacturingGraphConnections";
@@ -242,20 +241,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     setRouteGraphResetRevision(value=>value+1);
     onNotice("Route Flow node positions reset to the selected automatic layout.");
   };
-  const loadAsterExample=()=>{
-    update(current=>importAsterPrecisionExample(current));
-    setCompanyPick(ASTER_EXAMPLE_IDS.company);
-    setPoPick(ASTER_EXAMPLE_IDS.purchaseOrder);
-    setLinePick(ASTER_EXAMPLE_IDS.poLine);
-    setBranchPick("Main route");
-    setShowRelationshipEditor(false);
-    setShowTransportEditor(false);
-    setShowAddOperation(false);
-    setInspectedTransportId("");
-    setInspectedMaterialTransportId("");
-    setSelectedMaterialLinkId("");
-    onNotice("ASTER Precision Works example loaded into the normal Company, PO and Component selectors. The example is synthetic; existing company data is preserved.");
-  };
+
   const componentLineCount=lineOptions.filter(row=>row.componentId===componentId).length;
   const componentGlobalLineCount=orders.reduce((count,poRow)=>count+poRow.lines.filter(row=>!row.deletedAt&&row.componentId===componentId).length,0);
   const routeOperations=useMemo(()=>operations.filter(row=>row.poId===poId&&row.poLineId===poLineId&&row.componentId===componentId).sort((a,b)=>a.sequence-b.sequence),[operations,poId,poLineId,componentId]);
@@ -819,16 +805,6 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
 {RELATIONSHIPS.map(item=><span key={item.id} className={"route-flow-legend-item route-flow-curve-"+item.id}><i/>{item.label}</span>)}<span className="route-flow-legend-item route-flow-curve-transport"><Truck size={13}/> Transport leg</span></div>
     </section>
 
-    <section className="route-flow-advanced-demo-launch">
-      <div>
-        <span>READY-TO-SELECT SYNTHETIC COMPANY EXAMPLE</span>
-        <h3>ASTER Precision Works · ASTER-DEMO-PO-001 · AST-1001</h3>
-        <p>Load 28 operations across 18 process categories, all 11 persisted relationship types, 10 transport legs and BOM-linked material flows directly into the normal AXIMACH records and selectors. Existing company data is preserved.</p>
-      </div>
-      <button type="button" className="button-primary compact-button" onClick={loadAsterExample}>
-        <Plus size={14}/> Load ASTER example into AXIMACH
-      </button>
-    </section>
     <RouteFlowShowcase/>
 
     {showTransportEditor&&<section className="route-flow-editor-panel">
