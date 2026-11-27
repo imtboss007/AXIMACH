@@ -67,7 +67,8 @@ test("Inventory ledger enforces transaction direction, source references and liv
 });
 test("BOM and material masters reject invalid quantities, scrap limits and inactive links", () => {
   const workspace = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(workspace.includes("Number.isFinite(Number(materialDraft.ratePerUnit))"));
+  assert.ok(workspace.includes("const materialRateValue = materialRateInput.trim() === \"\" ? 0 : Number(materialRateInput)"));
+  assert.ok(workspace.includes("!Number.isFinite(materialRateValue) || materialRateValue < 0"));
   assert.ok(workspace.includes("!components.some(component => component.id === bomDraft.componentId)"));
   assert.ok(workspace.includes("bomDraft.scrapPercent > 100"));
 });
@@ -1581,7 +1582,7 @@ test("legacy two-company demo remains identifiable for cleanup but is no longer 
   assert.ok(demo.includes('transportVendorId:id("VENDOR","LOG")'));
   assert.ok(demo.includes('return {updatedAt:stamp,companies,customers:[],prospects:[],factories,machines,toolingAssets:[],fixtureAssets:[],resourceUsageEvents:[],maintenancePlans:[],maintenanceWorkOrders:[],machineDowntime:[],purchaseOrders,components,vendors,operations,quotations,materials,componentParts:[],materialCostEntries,bomLines'));
   assert.ok(demo.includes('export function archiveAxMachTwoCompanyDemo'));
-  assert.ok(demo.includes('row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)'));
+  assert.ok(demo.includes('row.id?.startsWith(AXIMACH_DEMO_ID_PREFIX)'));
   assert.ok(!importer.includes("loadTwoCompanyDemo"));
   assert.ok(!importer.includes("createAxMachTwoCompanyDemo"));
   assert.ok(importer.includes("One-company / one-PO / one-component manufacturing preview"));
