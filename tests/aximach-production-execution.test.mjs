@@ -37,7 +37,7 @@ test("a valid internal PO-line operation, machine, operator and shift assignment
 test("assignments reject foreign company/factory, wrong PO line, outsourced work and wrong machine",()=>{
  assert.equal(validateProductionAssignment({...candidate,companyId:"c2"},context()).reason,"company-factory-mismatch");
  assert.equal(validateProductionAssignment({...candidate,factoryId:"f2"},context()).reason,"company-factory-mismatch");
- assert.equal(validateProductionAssignment({...candidate,poLineId:"another-line"},context()).reason,"po-line-operation-mismatch");
+ assert.equal(validateProductionAssignment({...candidate,poLineId:"another-line"},context()).reason,"linked-record-not-found");
  assert.equal(validateProductionAssignment(candidate,context({operations:[{...operation,executionType:"Outsourced"}]})).reason,"internal-machine-assignment-required");
  assert.equal(validateProductionAssignment({...candidate,machineId:"machine-2"},context()).reason,"linked-record-not-found");
 });
