@@ -230,6 +230,16 @@ export type SupplierPaymentAllocationRecord = {
   id: string; paymentId: string; invoiceId: string; amount: number; notes: string;
   createdBy: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export const STANDARD_MANUFACTURING_MATERIAL_TYPES = [
+  "Steel","Carbon steel","Mild steel","Structural steel","Alloy steel","Tool steel","Spring steel","Bearing steel","Stainless steel",
+  "Cast iron","Ductile iron","Aluminium","Copper","Copper alloy","Brass","Bronze","Non-ferrous",
+  "Nickel alloy","Titanium","Magnesium","Zinc","Lead","Tin","Plastic","Engineering plastic",
+  "Nylon","Polycarbonate","Acetal / POM","PTFE","PEEK","Polyethylene","Polypropylene",
+  "Ceramic","Composite","CFRP / GFRP","Rubber","Graphite","Wood",
+  "Coating / finishing consumable","Paint / powder coating","Cutting fluid / coolant","Lubricant / oil",
+  "Adhesive / sealant","Chemical / treatment","Packaging material","Electrical / electronic","Other"
+] as const;
+
 export type MaterialRecord = {
   id: string; code: string; name: string; grade: string; unit: string; specification: string;
   preferredVendorId: string; ratePerUnit: number; notes: string;
