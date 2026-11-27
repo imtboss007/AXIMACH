@@ -21,9 +21,12 @@ const ICONS: IconMeta[] = engineeredMechanicalIcons;
 const iconKey = (item: Pick<IconMeta, "name" | "variant">) => `${item.variant}:${item.name}`;
 
 const families = [
-  "CNC Turning", "VMC / Milling", "Wire EDM", "Grinding", "Welding",
-  "Heat Treatment", "Surface Finish", "Inspection / Quality", "Assembly",
-  "Transport / Dispatch", "Material Handling"
+  "CNC Turning", "VMC / Milling", "Drilling / Boring", "Wire EDM", "Grinding / Honing / Lapping",
+  "Gear Manufacturing", "Sawing / Cutting", "Forming / Sheet Metal", "Welding / Joining",
+  "Heat Treatment", "Surface Finish / Coating", "Inspection / Metrology / Testing",
+  "Assembly / Fastening", "Foundry / Forging / Casting", "Additive Manufacturing",
+  "Machine Tools / Automation", "Material Handling / Warehousing", "Transport / Dispatch",
+  "Packaging", "Maintenance", "Industrial Components", "Plant Utilities", "General"
 ];
 
 const palettes = [
@@ -134,14 +137,27 @@ function normaliseWords(value: string) { return value.toLowerCase().replace(/[^a
 export function processFamilyForName(value: string) {
   const name = normaliseWords(value);
   if (/turn|lathe|turning/.test(name)) return "CNC Turning";
-  if (/vmc|milling|mill|machining centre/.test(name)) return "VMC / Milling";
-  if (/wire edm|edm|spark erosion/.test(name)) return "Wire EDM";
-  if (/grind|grinding|honing|lapping/.test(name)) return "Grinding";
-  if (/weld|welding|brazing/.test(name)) return "Welding";
-  if (/heat treat|hardening|tempering|anneal/.test(name)) return "Heat Treatment";
-  if (/coat|plating|anod|paint|finish|polish/.test(name)) return "Surface Finish";
-  if (/inspect|quality|metrology|cmm|measurement|testing/.test(name)) return "Inspection / Quality";
-  if (/assembl|fitment|sub assembl/.test(name)) return "Assembly";
+  if (/vmc|milling|mill|machining centre|machining center/.test(name)) return "VMC / Milling";
+  if (/drill|boring|ream|tap|thread|counterbore|countersink/.test(name)) return "Drilling / Boring";
+  if (/wire edm|sinker edm|spark erosion|edm/.test(name)) return "Wire EDM";
+  if (/grind|honing|lapping|superfinish/.test(name)) return "Grinding / Honing / Lapping";
+  if (/gear|hobb|spline/.test(name)) return "Gear Manufacturing";
+  if (/saw|slit|laser cut|plasma cut|waterjet|shear/.test(name)) return "Sawing / Cutting";
+  if (/form|bend|press brake|sheet metal|stamping/.test(name)) return "Forming / Sheet Metal";
+  if (/weld|braz|solder|join/.test(name)) return "Welding / Joining";
+  if (/heat treat|hardening|tempering|anneal|carbur/.test(name)) return "Heat Treatment";
+  if (/coat|plating|anod|paint|finish|polish|blast|clean/.test(name)) return "Surface Finish / Coating";
+  if (/inspect|quality|metrology|cmm|measurement|testing|spectrom|hardness/.test(name)) return "Inspection / Metrology / Testing";
+  if (/assembl|fitment|sub assembl|fasten|riveting|torque/.test(name)) return "Assembly / Fastening";
+  if (/foundry|forging|casting/.test(name)) return "Foundry / Forging / Casting";
+  if (/additive|3d print|powder bed/.test(name)) return "Additive Manufacturing";
+  if (/transport|dispatch|shipping|logistic|delivery/.test(name)) return "Transport / Dispatch";
+  if (/pack|packing/.test(name)) return "Packaging";
+  if (/maint|repair|service/.test(name)) return "Maintenance";
+  if (/material|stock|store|handling|warehouse|forklift|conveyor/.test(name)) return "Material Handling / Warehousing";
+  if (/robot|automation|machine|cnc|vmc|lathe/.test(name)) return "Machine Tools / Automation";
+  if (/bearing|shaft|fastener|valve|pump|motor|component|part/.test(name)) return "Industrial Components";
+  if (/coolant|hydraulic|compressor|plant utility|power unit/.test(name)) return "Plant Utilities";
   if (/transport|dispatch|shipping|logistic|delivery/.test(name)) return "Transport / Dispatch";
   if (/pack|packing/.test(name)) return "Packaging";
   if (/maint|repair|service/.test(name)) return "Maintenance";
@@ -486,12 +502,12 @@ export default function IconStudio({ open, onClose, initialTarget }: { open: boo
         <motion.div className="ax-icon-studio-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
           <motion.section className="ax-icon-studio" role="dialog" aria-modal="true" aria-labelledby="ax-icon-studio-title" initial={{ opacity: 0, y: 28, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 18, scale: 0.98 }} transition={{ type: "spring", stiffness: 100, damping: 20 }}>
             <header className="ax-icon-studio-header">
-              <div className="ax-icon-studio-brand"><span><Layers3 size={20}/></span><div><div className="eyebrow">AXIMACH / VISUAL SYSTEM</div><h2 id="ax-icon-studio-title">3D Icon Studio</h2><p>Build, import, customise and globally assign process and component logos by permanent master ID.</p></div></div>
+              <div className="ax-icon-studio-brand"><span><Layers3 size={20}/></span><div><div className="eyebrow">AXIMACH / VISUAL SYSTEM</div><h2 id="ax-icon-studio-title">3D Icon Studio</h2><p>Browse distinct manufacturing, machine, tooling, metrology, material and logistics symbols; assign them by permanent master ID. Colour and finish change the appearance, not the symbol identity.</p></div></div>
               <button className="ax-icon-studio-close" onClick={onClose} aria-label="Close icon studio"><X size={18}/></button>
             </header>
             <div className="ax-icon-studio-stats">
-              <div><strong>{ICONS.length.toLocaleString("en-IN")}</strong><span>Mechanical &amp; transport logos</span></div>
-              <div><strong>{(ICONS.length * STYLE_VARIANTS_PER_ICON).toLocaleString("en-IN")}+</strong><span>3D style combinations</span></div>
+              <div><strong>{ICONS.length.toLocaleString("en-IN")}</strong><span>Distinct manufacturing pictograms</span></div>
+              <div><strong>{(ICONS.length * STYLE_VARIANTS_PER_ICON).toLocaleString("en-IN")}+</strong><span>Visual styling combinations · same symbols</span></div>
               <div><strong>{Object.keys(assignments).length}</strong><span>Logo assignments</span></div>
               <div><strong>{presets.length.toLocaleString("en-IN")}</strong><span>Saved style presets</span></div>
             </div>
