@@ -236,3 +236,22 @@ test("single-component route graph uses a compact multi-lane layout sized for re
   assert.ok(css.includes(".single-component-route-demo-canvas{height:1020px!important;min-height:900px!important}"));
   assert.ok(css.includes("width:1120px!important;max-width:none!important;height:900px!important"));
 });
+
+
+test("all 21 transport types are visible in the searchable icon picker in every route-creation surface", () => {
+  const visuals = readFileSync(new URL("../src/TransportVehicle.tsx", import.meta.url), "utf8");
+  const picker = readFileSync(new URL("../src/VehicleTypePicker.tsx", import.meta.url), "utf8");
+  const directory = readFileSync(new URL("../src/TransportDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const optionBlock = visuals.match(/export const VEHICLE_TYPES = \[([\s\S]*?)\] as const;/)?.[1] || "";
+  const categories = [...optionBlock.matchAll(/"([^"]+)"/g)].map(match => match[1]);
+  assert.equal(categories.length, 21, "the canonical catalogue must expose all 21 requested transport types");
+  assert.ok(picker.includes("...VEHICLE_TYPES"), "the selector must always include all canonical vehicle types");
+  assert.ok(picker.includes("<VehicleIcon vehicleType={item} size={22}/>"), "each option must render its own vehicle icon");
+  assert.ok(picker.includes("matches.map(item =>"), "the full catalogue must be searchable and rendered as options");
+  assert.ok(directory.includes('<VehicleTypePicker id="transport-route-vehicle"'), "Transport Directory must use the icon picker");
+  assert.ok(routeFlow.includes('<VehicleTypePicker id="route-flow-vehicle-type"'), "Route Flow transport-leg creation must use the icon picker");
+  assert.ok(processMap.includes('<VehicleTypePicker id="process-transport-vehicle-type"'), "Process Map route creation must use the icon picker");
+  for (const category of categories) assert.ok(visuals.includes('"' + category + '"'), "Missing catalogue item: " + category);
+});
