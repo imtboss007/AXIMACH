@@ -93,6 +93,7 @@ const customer: CustomerRecord = {
 const materialRows: MaterialRecord[] = (source.materials as any[]).map(row => ({
   id: materialId(row.id), code: row.code, name: row.name, grade: row.grade, unit: row.unit,
   specification: row.specification || "", preferredVendorId: vendorId,
+  materialType: /aluminium|6082/i.test(String(row.name)+" "+String(row.grade)) ? "Aluminium" : /powder coat|polyester|epoxy/i.test(String(row.name)+" "+String(row.grade)) ? "Coating / finishing consumable" : "Alloy steel",
   densityKgM3: /aluminium|6082/i.test(String(row.name)+" "+String(row.grade)) ? 2700 : /powder coat|polyester|epoxy/i.test(String(row.name)+" "+String(row.grade)) ? 1400 : 7850,
   densityUnit: "kg/m3" as const,
   ratePerUnit: Number(row.ratePerUnit) || 0,
