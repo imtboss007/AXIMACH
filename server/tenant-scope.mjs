@@ -1,5 +1,5 @@
 const ARRAY_FIELDS = Object.freeze([
- "companies","customers","prospects","factories","machines","toolingAssets","fixtureAssets","resourceUsageEvents","maintenancePlans","maintenanceWorkOrders","machineDowntime","purchaseOrders","components","vendors","productionOperators","productionAssignments","operations","quotations","materials",
+ "companies","customers","prospects","factories","machines","toolingAssets","fixtureAssets","resourceUsageEvents","maintenancePlans","maintenanceWorkOrders","machineDowntime","purchaseOrders","components","vendors","operations","quotations","materials",
  "componentParts","materialCostEntries","bomLines","materialProcessLinks","materialConsumptions","inventoryTransactions",
  "contactProfiles","processDefinitions","plannedCosts","transportRoutes","transportLegs",
  "paymentTransactions","inspectionMeasurements","supplierInvoices","supplierPayments","supplierFinanceApprovals","supplierPaymentAllocations","routeRelationships","followUpAssignments"
@@ -198,28 +198,6 @@ function resolveAccess(data, user) {
   ...fixtureAssets.flatMap(asset=>Array.isArray(asset.processDefinitionIds)?asset.processDefinitionIds:[])
  ]);
  const processDefinitions = rows(data,"processDefinitions").filter(row => processDefinitionIds.has(row.id)).map(row => ({...row,vendorIds:(Array.isArray(row.vendorIds)?row.vendorIds:[]).filter(id=>vendorIds.has(id))}));
- const productionOperators=rows(data,"productionOperators").filter(row=>
-  companyAllowed(row.companyId)&&factoryAllowed(row.factoryId)&&factoryById.get(row.factoryId)?.companyId===row.companyId&&
-  Array.isArray(row.processDefinitionIds)&&row.processDefinitionIds.every(id=>processDefinitionIds.has(id))&&
-  Array.isArray(row.machineTypeCapabilities)&&row.machineTypeCapabilities.every(value=>typeof value==="string"&&value.trim().length<=120)
- );
- const productionOperatorIds=ids(productionOperators);
- const productionAssignments=rows(data,"productionAssignments").filter(row=>{
-  const po=purchaseOrdersById.get(row.poId);
-  const line=po&&rows(po,"lines").find(item=>item.id===row.poLineId&&!item.deletedAt);
-  const operation=operations.find(item=>item.id===row.operationId&&!item.deletedAt);
-  const machine=machineById.get(row.machineId);
-  const operator=productionOperators.find(item=>item.id===row.operatorId);
-  const start=Date.parse(row.plannedStart||""),end=Date.parse(row.plannedEnd||"");
-  return Boolean(po&&line&&operation&&machine&&operator&&
-   companyAllowed(row.companyId)&&factoryAllowed(row.factoryId)&&
-   po.companyId===row.companyId&&po.factoryId===row.factoryId&&
-   machine.companyId===row.companyId&&machine.factoryId===row.factoryId&&operation.machineId===machine.id&&
-   operator.companyId===row.companyId&&operator.factoryId===row.factoryId&&
-   line.componentId===row.componentId&&operation.poId===po.id&&operation.poLineId===line.id&&operation.componentId===row.componentId&&
-   operation.executionType!=="Outsourced"&&Number.isFinite(start)&&Number.isFinite(end)&&end>start&&
-   typeof row.shiftCode==="string"&&Boolean(row.shiftCode.trim())&&typeof row.shiftName==="string"&&Boolean(row.shiftName.trim()));
- });
  const transportRouteIds = ids(transportLegs.map(row => ({id:row.routeId})).filter(row => row.id));
  const transportRoutes = rows(data,"transportRoutes").filter(row => transportRouteIds.has(row.id) && vendorIds.has(row.vendorId));
  const companies = rows(data,"companies").filter(row => companyAllowed(row.id));
@@ -258,7 +236,7 @@ function resolveAccess(data, user) {
   ...ids(paymentTransactions),...ids(inspectionMeasurements),...ids(materialProcessLinks),
   ...ids(inventoryTransactions),...ids(componentParts),...ids(bomLines),...ids(materialCostEntries),...ids(materialConsumptions),
   ...ids(contactProfiles),...ids(supplierInvoices),...ids(supplierPayments),...ids(supplierFinanceApprovals),...ids(supplierPaymentAllocations),
-  ...ids(vendors),...ids(productionOperators),...ids(productionAssignments),...ids(materials),...ids(processDefinitions),...ids(transportRoutes)
+  ...ids(vendors),...ids(materials),...ids(processDefinitions),...ids(transportRoutes)
  ]);
  const contactProfileIds = ids(contactProfiles);
  const followUpAssignments = rows(data,"followUpAssignments").filter(row =>
@@ -267,7 +245,7 @@ function resolveAccess(data, user) {
  return {
   companyIds, factoryIds, purchaseOrderIds, lineIds, componentIds, operationIds, vendorIds, vendorOwners,
   materialIds, processDefinitionIds, transportRouteIds, entityIds,
-  companies,customers,prospects,factories,machines,toolingAssets,fixtureAssets,resourceUsageEvents,maintenancePlans,maintenanceWorkOrders,machineDowntime,purchaseOrders,components,productionOperators,productionAssignments,operations,quotations,transportLegs,routeRelationships,
+  companies,customers,prospects,factories,machines,toolingAssets,fixtureAssets,resourceUsageEvents,maintenancePlans,maintenanceWorkOrders,machineDowntime,purchaseOrders,components,operations,quotations,transportLegs,routeRelationships,
   paymentTransactions,inspectionMeasurements,materialProcessLinks,materialConsumptions,inventoryTransactions,
   componentParts,bomLines,materialCostEntries,materials,vendors,processDefinitions,transportRoutes,
   plannedCosts,contactProfiles,supplierInvoices,supplierPayments,supplierFinanceApprovals,supplierPaymentAllocations,followUpAssignments
@@ -552,94 +530,6 @@ export function validateManufacturingWrite(currentData, incoming, user) {
    (!capabilities.length || Boolean(operation.processDefinitionId && capabilities.includes(operation.processDefinitionId))) &&
    machineScheduleAllowed(operation) && machineMaintenanceScheduleAllowed(operation));
  };
- const allProductionOperators=combinedById("productionOperators");
- const allProductionAssignments=combinedById("productionAssignments");
- const allOperationsForExecution=combinedById("operations");
- const productionOperatorAllowed=row=>{
-  const duplicate=[...allProductionOperators.values()].some(other=>other.id!==row.id&&!other.deletedAt&&
-   other.companyId===row.companyId&&other.factoryId===row.factoryId&&
-   String(other.employeeCode||"").trim().toLowerCase()===String(row.employeeCode||"").trim().toLowerCase());
-  return Boolean(companyIds.has(row.companyId)&&factoryAllowed(row.factoryId)&&factoryById.get(row.factoryId)?.companyId===row.companyId&&
-   typeof row.employeeCode==="string"&&row.employeeCode.trim().length>0&&row.employeeCode.length<=80&&!duplicate&&
-   typeof row.displayName==="string"&&row.displayName.trim().length>0&&row.displayName.length<=180&&
-   typeof row.role==="string"&&row.role.trim().length>0&&row.role.length<=100&&
-   ["Active","Inactive"].includes(row.status)&&
-   Array.isArray(row.processDefinitionIds)&&row.processDefinitionIds.length<=100&&row.processDefinitionIds.every(id=>processIds.has(id))&&
-   Array.isArray(row.machineTypeCapabilities)&&row.machineTypeCapabilities.length<=40&&row.machineTypeCapabilities.every(value=>typeof value==="string"&&value.trim().length>0&&value.length<=120)&&
-   typeof row.notes==="string"&&row.notes.length<=4000);
- };
- const productionAssignmentAllowed=row=>{
-  const po=allowedPOById.get(row.poId);
-  const line=po&&rows(po,"lines").find(item=>item.id===row.poLineId&&!item.deletedAt);
-  const operation=allOperationsForExecution.get(row.operationId);
-  const machine=machineById.get(row.machineId);
-  const operator=allProductionOperators.get(row.operatorId);
-  const active=["Planned","Assigned","Running"].includes(row.status);
-  const statuses=["Planned","Assigned","Running","Completed","Cancelled"];
-  const range=timeRange(row.plannedStart,row.plannedEnd);
-  if(!po||!line||!operation||!machine||!operator||!range)return false;
-  if(!companyIds.has(row.companyId)||!factoryAllowed(row.factoryId)||
-     po.companyId!==row.companyId||po.factoryId!==row.factoryId||
-     machine.companyId!==row.companyId||machine.factoryId!==row.factoryId||
-     operator.companyId!==row.companyId||operator.factoryId!==row.factoryId||
-     line.componentId!==row.componentId||operation.poId!==po.id||operation.poLineId!==line.id||
-     operation.componentId!==row.componentId||operation.executionType==="Outsourced"||operation.machineId!==machine.id||
-     !statuses.includes(row.status)||typeof row.shiftCode!=="string"||!row.shiftCode.trim()||row.shiftCode.length>40||
-     typeof row.shiftName!=="string"||!row.shiftName.trim()||row.shiftName.length>120||
-     !Number.isSafeInteger(Number(row.targetQuantity))||Number(row.targetQuantity)<=0||
-     Number(row.targetQuantity)>Number(operation.quantity)||typeof row.operatorCode!=="string"||row.operatorCode.length>80||
-     typeof row.operatorName!=="string"||row.operatorName.length>180||row.operatorCode!==operator.employeeCode||row.operatorName!==operator.displayName||typeof row.notes!=="string"||row.notes.length>4000||
-     !productionOperatorAllowed(operator)||
-     (operation.processDefinitionId&&!processIds.has(operation.processDefinitionId)))return false;
-  const operationHasWindow=Boolean(operation.plannedStart||operation.plannedEnd);
-  if(operationHasWindow){
-   const operationWindow=timeRange(operation.plannedStart,operation.plannedEnd);
-   if(!operationWindow||range.start<operationWindow.start||range.end>operationWindow.end)return false;
-  }
-  if(row.status==="Running"&&!Number.isFinite(Date.parse(row.actualStart||"")))return false;
-  if(row.status==="Completed"&&!timeRange(row.actualStart,row.actualEnd))return false;
-  if(row.actualStart&&!Number.isFinite(Date.parse(row.actualStart)))return false;
-  if(row.actualEnd&&(!row.actualStart||!timeRange(row.actualStart,row.actualEnd)))return false;
-  if(row.status!=="Cancelled"){
-   const allocated=[...allProductionAssignments.values()].filter(other=>
-    other&&other.id!==row.id&&!other.deletedAt&&other.operationId===row.operationId&&other.status!=="Cancelled"
-   ).reduce((sum,other)=>sum+Math.max(0,Number(other.targetQuantity)||0),0);
-   if(allocated+Number(row.targetQuantity)>Number(operation.quantity))return false;
-  }
-  if(active){
-   if(operator.status!=="Active"||machine.deletedAt||["Retired","Breakdown","Under maintenance","Planned maintenance"].includes(machine.status)||["Complete","Rejected"].includes(operation.status))return false;
-   const machineCapabilities=Array.isArray(machine.processDefinitionIds)?machine.processDefinitionIds:[];
-   const operatorProcesses=Array.isArray(operator.processDefinitionIds)?operator.processDefinitionIds:[];
-   const operatorMachineTypes=Array.isArray(operator.machineTypeCapabilities)?operator.machineTypeCapabilities:[];
-   if(machineCapabilities.length&&(!operation.processDefinitionId||!machineCapabilities.includes(operation.processDefinitionId)))return false;
-   if(operatorProcesses.length&&(!operation.processDefinitionId||!operatorProcesses.includes(operation.processDefinitionId)))return false;
-   if(operatorMachineTypes.length&&!operatorMachineTypes.includes(machine.machineType))return false;
-   for(const other of allProductionAssignments.values()){
-    if(!other||other.id===row.id||other.deletedAt||!["Planned","Assigned","Running"].includes(other.status))continue;
-    const otherRange=timeRange(other.plannedStart,other.plannedEnd);
-    if(!otherRange||!overlaps(range,otherRange))continue;
-    if(other.operatorId===row.operatorId)return false;
-    if(other.machineId===row.machineId&&other.operationId!==row.operationId)return false;
-   }
-   for(const order of [...rows(currentData,"maintenanceWorkOrders"),...rows(incoming,"maintenanceWorkOrders")]){
-    if(!order||order.machineId!==machine.id||order.deletedAt||!["Planned","In progress","Waiting parts"].includes(order.status))continue;
-    const scheduled=timeRange(order.scheduledStart,order.scheduledEnd)||
-     (["In progress","Waiting parts"].includes(order.status)&&order.actualStart?{start:Date.parse(order.actualStart),end:Number.POSITIVE_INFINITY}:null);
-    if(scheduled&&Number.isFinite(scheduled.start)&&overlaps(range,scheduled))return false;
-   }
-   for(const event of [...rows(currentData,"machineDowntime"),...rows(incoming,"machineDowntime")]){
-    if(!event||event.machineId!==machine.id||event.deletedAt||!event.startedAt)continue;
-    const start=Date.parse(event.startedAt),end=event.endedAt?Date.parse(event.endedAt):Number.POSITIVE_INFINITY;
-    if(Number.isFinite(start)&&(!event.endedAt||Number.isFinite(end))&&overlaps(range,{start,end}))return false;
-   }
-   for(const other of allOperationsForExecution.values()){
-    if(!other||other.id===operation.id||other.machineId!==machine.id||other.deletedAt||other.executionType==="Outsourced"||["Complete","Rejected"].includes(other.status))continue;
-    const otherRange=timeRange(other.plannedStart,other.plannedEnd);
-    if(otherRange&&overlaps(range,otherRange))return false;
-   }
-  }
-  return true;
- };
  const transportRouteIds = access.transportRouteIds;
  const scopeIds = access.entityIds;
  const safeId = (collection,row) => {
@@ -792,8 +682,6 @@ export function validateManufacturingWrite(currentData, incoming, user) {
     }
     case "purchaseOrders": allowed=Boolean(poAllowed(row)); break;
     case "components": allowed=(row.companyId && companyIds.has(row.companyId)) || currentVisibleComponents.has(row.id); break;
-    case "productionOperators": allowed=productionOperatorAllowed(row); break;
-    case "productionAssignments": allowed=productionAssignmentAllowed(row); break;
     case "operations": allowed=allowedPOIds.has(row.poId) && lines.has(row.poLineId) && componentIds.has(row.componentId) && (!row.vendorId || vendorIds.has(row.vendorId)) && (!row.transportVendorId || vendorIds.has(row.transportVendorId)) && (!row.processDefinitionId || processIds.has(row.processDefinitionId)) && (!row.transportRouteId || transportRouteIds.has(row.transportRouteId)) && machineAssignmentAllowed(row) && resourceAssignmentsAllowed(row); break;
     case "quotations": case "transportLegs": case "paymentTransactions": case "inspectionMeasurements":
      allowed=allowedChild(row,allowedPOById,{purchaseOrderIds:allowedPOIds,lineIds:lines,componentIds,operationIds},

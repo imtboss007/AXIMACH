@@ -1579,7 +1579,7 @@ test("legacy two-company demo remains identifiable for cleanup but is no longer 
   assert.ok(demo.includes('materialCostEntries.push({id:id("MATERIAL-ALLOCATION"'));
   assert.ok(demo.includes('scope:"process-map"'));
   assert.ok(demo.includes('transportVendorId:id("VENDOR","LOG")'));
-  assert.ok(demo.includes('return {updatedAt:stamp,companies,customers:[],prospects:[],factories,machines,toolingAssets:[],fixtureAssets:[],resourceUsageEvents:[],maintenancePlans:[],maintenanceWorkOrders:[],machineDowntime:[],purchaseOrders,components,vendors,productionOperators:[],productionAssignments:[],operations,quotations,materials,componentParts:[],materialCostEntries,bomLines'));
+  assert.ok(demo.includes('return {updatedAt:stamp,companies,customers:[],prospects:[],factories,machines,toolingAssets:[],fixtureAssets:[],resourceUsageEvents:[],maintenancePlans:[],maintenanceWorkOrders:[],machineDowntime:[],purchaseOrders,components,vendors,operations,quotations,materials,componentParts:[],materialCostEntries,bomLines'));
   assert.ok(demo.includes('export function archiveAxMachTwoCompanyDemo'));
   assert.ok(demo.includes('row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)'));
   assert.ok(!importer.includes("loadTwoCompanyDemo"));
