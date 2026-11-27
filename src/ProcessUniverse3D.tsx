@@ -17,7 +17,7 @@ type MaterialRouteNode = {
   id:string; poLineId?:string; partLabel:string; partNumber?:string; partName?:string; materialLabel:string; dimensionsLabel?:string; companyLabel?:string; poLabel?:string; componentLabel?:string; densityKgM3?:number; anchorOperationId?:string; anchorOperationName?:string; quantity:number; weightKg:number;
   supplier:string; transporter:string; from:string; to:string; vehicle:string;
   materialGivenAt:string; materialDueAt:string; materialReceivedAt:string;
-  pickupAt:string; deliveryAt:string; status:string; materialRate:number; priceUnit:"kg"|"lb";
+  pickupAt:string; deliveryAt:string; status:string; materialRate:number; priceUnit:"kg"|"lb"|"piece";
   materialCost:number; cuttingType:string; cuttingBasis:string; cuttingRate:number; cuttingCost:number; transportCost:number;
 };
 type TransportLegRouteNode = { id:string; poLineId:string; anchorOperationId:string; targetOperationId?:string; materialEntryId?:string; placement:"start"|"before"|"after"; fromLocation:string; toLocation:string; vehicleType:string; vendorName:string; vendorContact?:string; vendorRole?:string; vendorPhone?:string; vendorWhatsapp?:string; vendorEmail?:string; vendorAddress?:string; vendorStatus?:string; vendorNotes?:string; directoryRouteNotes?:string; directoryRouteActive?:boolean; tripDirection:"One-way"|"Two-way"; tripCount:number; amount:number; pickupAt:string; deliveryAt:string; status:string; relation:"main"|"alternate"|"rework" };
