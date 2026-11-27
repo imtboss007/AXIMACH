@@ -20,7 +20,8 @@ import WorkspaceThemePicker from "./WorkspaceThemePicker";
 import { useWorkspaceTheme } from "./workspaceTheme";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
 import { RouteConnectorLegend } from "./RouteConnectorLegend";
-import { VehicleIcon as VehicleTypeIcon, getVehicleVisual } from "./TransportVehicle";
+import { VehicleIcon as VehicleTypeIcon, getVehicleVisual, VEHICLE_TYPES } from "./TransportVehicle";
+import VehicleTypePicker from "./VehicleTypePicker";
 import { connectManufacturingGraphNodes } from "./manufacturingGraphConnections";
 import { routeRelationshipRequiresCriteria, validateRouteRelationshipCriteria } from "./routeRelationshipValidation.mjs";
 import { resolveProcessColor } from "./processPalette";
@@ -182,7 +183,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const [transportRouteId,setTransportRouteId]=useState("");
   const [transportFrom,setTransportFrom]=useState("");
   const [transportTo,setTransportTo]=useState("");
-  const [vehicleType,setVehicleType]=useState("4-wheeler");
+  const [vehicleType,setVehicleType]=useState("4-wheeler / Car");
   const [tripDirection,setTripDirection]=useState<"One-way"|"Two-way">("One-way");
   const [tripCount,setTripCount]=useState("1");
   const [transportAmount,setTransportAmount]=useState("");
@@ -829,7 +830,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         <label>From location<input list="route-flow-locations" value={transportFrom} onChange={e=>setTransportFrom(e.target.value)} placeholder="Search or enter new pickup location"/></label>
         <label>To location<input list="route-flow-locations" value={transportTo} onChange={e=>setTransportTo(e.target.value)} placeholder="Search or enter new destination"/></label>
         <datalist id="route-flow-locations">{locationHints.map(value=><option key={value} value={value}/>)}</datalist>
-        <label>Vehicle type<input value={vehicleType} onChange={e=>setVehicleType(e.target.value)} placeholder="Truck, tempo, van, car, bike…"/></label>
+        <VehicleTypePicker id="route-flow-vehicle-type" label="Vehicle type" value={vehicleType} onChange={setVehicleType} options={[...VEHICLE_TYPES,...routes.map(row=>row.vehicleType),...legs.map(row=>row.vehicleType)]}/>
         <label>Trip direction<select value={tripDirection} onChange={e=>setTripDirection(e.target.value as "One-way"|"Two-way")}><option>One-way</option><option>Two-way</option></select></label>
         <label>Trips / carries<input type="number" min="1" step="1" value={tripCount} onChange={e=>setTripCount(e.target.value)}/></label>
         <label>Amount per trip (₹)<input type="number" min="0" step="0.01" value={transportAmount} onChange={e=>setTransportAmount(e.target.value)}/></label>
