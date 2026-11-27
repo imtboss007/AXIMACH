@@ -1360,7 +1360,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     setNewTransportVendorId(leg?.vendorId||"");
     setNewTransportFrom(leg?.fromLocation||"");
     setNewTransportTo(leg?.toLocation||"");
-    setNewTransportVehicle(leg?.vehicleType||"4-wheeler");
+    setNewTransportVehicle(leg?.vehicleType||"4-wheeler / Car");
     setNewTransportDirection(leg?.tripDirection||"One-way");
     setNewTransportAmount("");
     setNewTransportNotes("");
