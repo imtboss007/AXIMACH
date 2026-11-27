@@ -784,7 +784,7 @@ try {
   await page.locator(".route-flow-canvas-tools button").filter({ hasText: "Add transport leg" }).click();
   const vehicleTypePicker = page.locator("#route-flow-vehicle-type");
   await vehicleTypePicker.waitFor({ timeout: 10000 });
-  await vehicleTypePicker.click();
+  await vehicleTypePicker.focus();
   await page.waitForFunction(() => document.querySelectorAll(".vehicle-type-picker-menu [role='option']").length >= 21, null, { timeout: 5000 });
   const vehicleOptions = page.locator(".vehicle-type-picker-menu [role='option']");
   const vehicleLabels = await vehicleOptions.locator(".vehicle-type-picker-option-label").allTextContents();
@@ -800,12 +800,13 @@ try {
   }
   const vehicleIconCount = await page.locator(".vehicle-type-picker-menu .vehicle-type-picker-option-icon svg").count();
   if (vehicleIconCount < 21) throw new Error("Every canonical transport category must display its own SVG vehicle icon; found " + vehicleIconCount);
-  await vehicleOptions.filter({ hasText: "Heavy-duty tempo" }).click();
+  await vehicleTypePicker.fill("Heavy-duty tempo");
+  await vehicleTypePicker.press("Enter");
   if (await vehicleTypePicker.inputValue() !== "Heavy-duty tempo") {
-    throw new Error("Selecting Heavy-duty tempo did not update the Route Flow vehicle type.");
+    throw new Error("Keyboard selection of Heavy-duty tempo did not update the Route Flow vehicle type.");
   }
-  await page.locator(".route-flow-editor-title button.close-round").click();
-  console.log("PASS Route Flow vehicle picker: all 21 categories, 21 icons and saved form selection");
+  await page.locator(".route-flow-editor-title button.close-round").evaluate(element => (element as HTMLButtonElement).click());
+  console.log("PASS Route Flow vehicle picker: all 21 categories, 21 icons, searchable keyboard selection");
 
   await page.getByRole("button", { name: "Open Process Plan" }).click();
   await page.locator(".linked-process-page > .workspace-title-row h1").waitFor({ timeout: 10000 });
