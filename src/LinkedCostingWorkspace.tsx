@@ -221,14 +221,14 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
   }, [initialContext?.poLineId, initialContext?.componentId, componentLines, lineKey]);
   const selectedLine = componentLines.find(line => line.key === lineKey) || preferredLine;
   useEffect(() => {
-    setExtraInputKey(selectedLine?.key || selectedComponent?.id || "");
+    setExtraInputKey(selectedLine?.key || "");
     setExtraInputValues({});
-  }, [selectedLine?.key, selectedComponent?.id]);
+  }, [selectedLine?.key]);
   const extraInputValue = (key:string,value:number) =>
-    extraInputKey === (selectedLine?.key || selectedComponent?.id || "")
+    extraInputKey === (selectedLine?.key || "")
       ? (extraInputValues[key] ?? (value || ""))
       : (value || "");
-  const updateExtraInput = (key: Parameters<typeof setExtra>[0], value:string) => {
+  const updateExtraInput = (key:"overhead"|"toolingCost"|"reworkCost"|"scrapCost"|"materialRate"|"materialQty"|"salePrice", value:string) => {
     setExtraInputValues(current=>({...current,[key]:value}));
     setExtra(key, value.trim()==="" ? 0 : Math.max(0,Number(value)||0));
   };
