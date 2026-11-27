@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { routeRelationshipEdgeGeometry, routeRelationshipHandles } from "../src/manufacturingGraphLayout.mjs";
+import { routeRelationshipRequiresCriteria, validateRouteRelationshipCriteria } from "../src/routeRelationshipValidation.mjs";
 
 const types = ["main", "alternate", "rework", "dependency", "parallel", "merge", "split", "follow-on", "feedback", "conditional", "successor", "transport"];
 
@@ -75,4 +76,20 @@ test("Route Flow, Process Map and Manufacturing Universe share the adaptive edge
   assert.ok(canvas.includes("DEFAULT_MANUFACTURING_EDGE_TYPES"), "Shared canvas must register the custom edge renderer.");
   assert.ok(edgeRenderer.includes("getBezierPath") && edgeRenderer.includes("getSmoothStepPath"),
     "Custom edge renderer must use supported React Flow path utilities.");
+});
+
+test("conditional route criteria are required before saving a conditional relationship",()=>{
+ assert.equal(routeRelationshipRequiresCriteria("conditional","Active"),true);
+ assert.deepEqual(validateRouteRelationshipCriteria({relationshipType:"conditional",status:"Active",condition:""}),{ok:false,reason:"condition-required"});
+ assert.deepEqual(validateRouteRelationshipCriteria({relationshipType:"conditional",status:"Active",condition:"   "}),{ok:false,reason:"condition-required"});
+ assert.deepEqual(validateRouteRelationshipCriteria({relationshipType:"conditional",status:"Planned",condition:"Inspection result = Accepted"}),{ok:true,reason:""});
+});
+test("rework and any relationship explicitly marked Conditional require an acceptance rule",()=>{
+ assert.deepEqual(validateRouteRelationshipCriteria({relationshipType:"rework",status:"Conditional",condition:""}),{ok:false,reason:"condition-required"});
+ assert.deepEqual(validateRouteRelationshipCriteria({relationshipType:"alternate",status:"Conditional",condition:""}),{ok:false,reason:"condition-required"});
+ assert.deepEqual(validateRouteRelationshipCriteria({relationshipType:"rework",status:"Conditional",condition:"Inspection result = Rejected"}),{ok:true,reason:""});
+});
+test("ordinary active and planned relationships do not require conditional criteria",()=>{
+ assert.deepEqual(validateRouteRelationshipCriteria({relationshipType:"main",status:"Active",condition:""}),{ok:true,reason:""});
+ assert.deepEqual(validateRouteRelationshipCriteria({relationshipType:"alternate",status:"Planned",condition:""}),{ok:true,reason:""});
 });
