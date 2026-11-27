@@ -4,7 +4,7 @@ import type {
   ManufacturingData, CompanyRecord, FactoryRecord, ComponentRecord, PurchaseOrderRecord,
   VendorRecord, CustomerRecord, ProcessDefinitionRecord, PlannedCostEntry, InspectionMeasurementRecord, MaterialRecord, BomLineRecord, MaterialCostEntryRecord, MaterialProcessLinkRecord,
   OperationRecord, TransportRouteRecord, ComponentTransportLegRecord, RouteRelationshipRecord,
-  RouteRelationshipType
+  RouteRelationshipType, MachineRecord, ToolingAssetRecord, FixtureAssetRecord, InventoryTransactionRecord, QuotationRecord, ContactProfileRecord
 } from "./manufacturingData";
 
 export const ASTER_EXAMPLE_IDS = {
@@ -161,12 +161,56 @@ const processDefinitionRows: ProcessDefinitionRecord[] = processDefinitionSource
   };
 });
 const processDefinitionByKey = new Map(processDefinitionRows.map(item => [item.category + "|" + item.processType, item]));
+const demoMachineId=id("MACHINE","VMC-1200");
+const demoToolId=id("TOOLING","END-MILL-12");
+const demoFixtureId=id("FIXTURE","PRECISION-VICE");
+const machinableDefinitions=processDefinitionRows.filter(row=>/machin|mill|drill|boring|tap|thread/i.test(row.category+" "+row.processType));
+const demoMachineRows:MachineRecord[]=[{
+  id:demoMachineId,companyId,factoryId,assetCode:"ASTER-EXAMPLE-VMC-001",name:"ASTER Demonstration VMC 1200",
+  machineType:"Vertical machining centre (VMC)",manufacturer:"Synthetic training record",model:"VMC 1200 · demo",
+  serialNumber:"ASTER-EXAMPLE-SERIAL",controller:"Generic CNC · simulation only",axisCount:3,
+  workEnvelopeXmm:1200,workEnvelopeYmm:600,workEnvelopeZmm:600,spindleMaxRpm:10000,
+  positioningAccuracyMicron:10,maxWorkpieceWeightKg:500,
+  processDefinitionIds:machinableDefinitions.map(row=>row.id),
+  materialCapabilities:["Carbon steel","Alloy steel","Aluminium","Stainless steel"],
+  status:"Available",commissionedAt:date,nextMaintenanceAt:addDays(date,30),
+  notes:"SYNTHETIC ASSET FOR MODULE-LINK TESTING ONLY — not a physical machine or availability statement.",
+  createdAt,updatedAt:createdAt
+}];
+const demoToolRows:ToolingAssetRecord[]=[{
+  id:demoToolId,companyId,factoryId,assetCode:"ASTER-EXAMPLE-TOOL-001",name:"12 mm carbide end mill · demo",
+  toolType:"Solid carbide end mill",manufacturer:"Synthetic training record",model:"4-flute · 12 mm",
+  specification:"Illustrative Ø12 mm, 4-flute, carbide end mill",holderInterface:"BT40",
+  coating:"AlTiN · illustrative",diameterMm:12,fluteCount:4,maxRpm:12000,
+  compatibleMachineIds:[demoMachineId],machineTypeCapabilities:["VMC","CNC machining centre"],
+  processDefinitionIds:machinableDefinitions.map(row=>row.id),materialCapabilities:["Carbon steel","Alloy steel","Aluminium"],
+  toolLifeLimitMinutes:600,toolLifeUsedMinutes:0,toolLifeLimitCycles:1000,toolLifeUsedCycles:0,
+  regrindCount:0,maxRegrinds:3,status:"Available",storageLocation:"ASTER demo tooling cabinet",
+  notes:"SYNTHETIC TOOLING ASSET — illustrative compatibility and life limits; verify real tooling before production.",
+  createdAt,updatedAt:createdAt
+}];
+const demoFixtureRows:FixtureAssetRecord[]=[{
+  id:demoFixtureId,companyId,factoryId,assetCode:"ASTER-EXAMPLE-FIXTURE-001",
+  name:"Precision machine vice · demo",fixtureType:"Machine vice / workholding",
+  manufacturer:"Synthetic training record",model:"160 mm modular vice",
+  workholdingType:"Mechanical vice with soft-jaw option",compatibleMachineIds:[demoMachineId],
+  machineTypeCapabilities:["VMC","CNC machining centre"],
+  processDefinitionIds:machinableDefinitions.map(row=>row.id),componentIds:[componentId],
+  maxWorkpieceWeightKg:80,maxClampForceKn:35,repeatabilityMicron:20,
+  usageCycles:0,maxUsageCycles:50000,status:"Available",storageLocation:"ASTER demo fixture rack",
+  setupNotes:"Illustrative datum setup only; establish actual clamping force and datum plan from drawing.",
+  notes:"SYNTHETIC FIXTURE ASSET — not a physical asset or verified capacity.",
+  createdAt,updatedAt:createdAt
+}];
 const operations: OperationRecord[] = (source.operations as any[]).map(row => ({
   id: operationId(row.id), poId, poLineId, componentId,
   processDefinitionId: processDefinitionByKey.get(String(row.category || "General") + "|" + String(row.processType || row.name))?.id,
   processSubcategoryId: processDefinitionByKey.get(String(row.category || "General") + "|" + String(row.processType || row.name))?.subcategoryIds?.[processDefinitionByKey.get(String(row.category || "General") + "|" + String(row.processType || row.name))?.subcategories.indexOf(String(row.subProcess || "")) ?? -1],
   sequence: Number(row.sequence) || 0, name: row.name, category: row.category,
-  machine: row.processType || row.category, vendorId, status: "Planned",
+  machine: row.processType || row.category, vendorId,
+   machineId:/machin|mill|drill|boring|tap/i.test(row.category+" "+row.processType) ? demoMachineId : undefined,
+   toolingAssetIds:/machin|mill|drill|boring|tap/i.test(row.category+" "+row.processType) ? [demoToolId] : [],
+   fixtureAssetIds:/machin|mill|drill|boring|tap/i.test(row.category+" "+row.processType) ? [demoFixtureId] : [], status: "Planned",
   plannedStart: "", plannedEnd: "", actualStart: "", actualEnd: "",
   quantity: Number(row.quantity) || Number(source.component.quantity) || 250,
   completed: 0, accepted: 0, rejected: 0,
@@ -201,6 +245,31 @@ const inspectionMeasurementRows: InspectionMeasurementRecord[] = operations.filt
   inspectedAt: createdAt, createdAt, updatedAt: createdAt
 }));
 
+const quotationOperation=operations.find(row=>row.ratePerPart>0)||operations[0];
+const quotationRows:QuotationRecord[]=[{
+  id:id("QUOTATION","PROCESS-001"),poId,poLineId,componentId,operationId:quotationOperation.id,vendorId,
+  quoteReference:"ASTER-EXAMPLE-QUOTE-001",quotedAt:createdAt,validUntil:addDays(date,15),
+  quantity:quotationOperation.quantity,ratePerPart:quotationOperation.ratePerPart,
+  transportCost:0,leadDays:7,status:"Received",
+  notes:"SYNTHETIC QUOTATION FOR WORKFLOW TESTING — not a supplier offer or payable commitment.",
+  createdAt,updatedAt:createdAt
+}];
+const contactProfileRows:ContactProfileRecord[]=[
+  {id:id("CONTACT","COMPANY"),linkedType:"company",linkedId:companyId,name:"ASTER Demo Purchasing Contact",
+   role:"Example purchasing coordinator",group:"Buyer / purchasing",phone:"",whatsapp:"",email:"purchasing@example.invalid",
+   address:"Bengaluru, Karnataka, India",followUpDate:"",history:"Synthetic example contact only; do not contact.",createdAt,updatedAt:createdAt},
+  {id:id("CONTACT","VENDOR"),linkedType:"vendor",linkedId:vendorId,name:"ASTER Demo Logistics Contact",
+   role:"Example transport coordinator",group:"Internal demo logistics",phone:"",whatsapp:"",email:"logistics@example.invalid",
+   address:"Bengaluru, Karnataka, India",followUpDate:"",history:"Synthetic example contact only; do not contact.",createdAt,updatedAt:createdAt}
+];
+const inventoryTransactionRows:InventoryTransactionRecord[]=materialRows.map((material,index)=>({
+  id:id("OPENING-STOCK",material.id),itemType:"material",itemId:material.id,
+  transactionType:"Opening balance",direction:"in",quantity:material.unit==="piece"?50:100,
+  occurredAt:createdAt,reference:"ASTER-EXAMPLE-OPENING-"+String(index+1).padStart(2,"0"),
+  notes:"SYNTHETIC TEST STOCK ONLY — illustrative opening quantity, not a physical stock count or verified balance.",
+  companyId,factoryId,poId:"",poLineId:"",operationId:"",vendorId,reversalOfId:"",
+  createdAt,createdBy:"ASTER synthetic test dataset",updatedAt:createdAt
+}));
 const routeRows: TransportRouteRecord[] = (source.transportRoutes as any[]).map(row => ({
   id: routeId(row.id), vendorId, fromLocation: row.fromLocation, toLocation: row.toLocation,
   tripDirection: row.tripDirection === "Two-way" ? "Two-way" : "One-way",
@@ -279,6 +348,12 @@ export function importAsterPrecisionExample(current: ManufacturingData): Manufac
     materialProcessLinks: mergeById(current.materialProcessLinks, materialLinks.map(row => ({ ...row, updatedAt }))),
     processDefinitions: mergeById(current.processDefinitions, processDefinitionRows.map(row => ({ ...row, updatedAt }))),
     operations: mergeById(current.operations, operations.map(row => ({ ...row, updatedAt }))),
+    machines: mergeById(current.machines, demoMachineRows.map(row=>({...row,updatedAt}))),
+    toolingAssets: mergeById(current.toolingAssets, demoToolRows.map(row=>({...row,updatedAt}))),
+    fixtureAssets: mergeById(current.fixtureAssets, demoFixtureRows.map(row=>({...row,updatedAt}))),
+    inventoryTransactions: mergeById(current.inventoryTransactions, inventoryTransactionRows.map(row=>({...row,updatedAt}))),
+    quotations: mergeById(current.quotations, quotationRows.map(row=>({...row,updatedAt}))),
+    contactProfiles: mergeById(current.contactProfiles, contactProfileRows.map(row=>({...row,updatedAt}))),
     transportRoutes: mergeById(current.transportRoutes, routeRows.map(row => ({ ...row, updatedAt }))),
     transportLegs: mergeById(current.transportLegs, transportLegRows.map(row => ({ ...row, updatedAt }))),
     routeRelationships: mergeById(current.routeRelationships, routeRelationships.map(row => ({ ...row, updatedAt }))),
@@ -312,6 +387,7 @@ export function archiveAsterPrecisionExample(current: ManufacturingData, archive
 
 export const ASTER_EXAMPLE_EXPECTED = {
   companyCount: 1, purchaseOrderCount: 1, componentCount: 1, operationCount: 28,
-  processCategoryCount: 18, transportLegCount: 10,
+  processCategoryCount: 18, transportLegCount: 10, machineCount:1, toolingAssetCount:1, fixtureAssetCount:1,
+  quotationCount:1, inventoryOpeningRows:6, contactProfileCount:2,
   relationshipTypes: [...relationshipTypes]
 } as const;
