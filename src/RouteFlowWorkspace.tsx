@@ -22,6 +22,7 @@ import { MaterialFlowMarker } from "./MaterialFlowMarker";
 import { RouteConnectorLegend } from "./RouteConnectorLegend";
 import { VehicleIcon as VehicleTypeIcon, getVehicleVisual } from "./TransportVehicle";
 import { connectManufacturingGraphNodes } from "./manufacturingGraphConnections";
+import { routeRelationshipRequiresCriteria, validateRouteRelationshipCriteria } from "./routeRelationshipValidation.mjs";
 import { resolveProcessColor } from "./processPalette";
 import { Activity, ArrowLeft, ArrowRight, Box, Check, ChevronDown, CircleDashed, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, GitMerge, GitPullRequest, Link2, MessageCircle, Network, Package, Plus, Route, Save, ShieldCheck, Sparkles, Split, Truck, Users, Waypoints, Workflow, X } from "lucide-react";
 import {
@@ -527,6 +528,8 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     if(!fromOperationId||!toOperationId||fromOperationId===toOperationId){onNotice("Choose two different saved process operations.");return;}
     const from=routeOperations.find(row=>row.id===fromOperationId),to=routeOperations.find(row=>row.id===toOperationId);
     if(!from||!to){onNotice("Both route endpoints must belong to the selected PO line.");return;}
+    const criteria=validateRouteRelationshipCriteria({relationshipType,status:relationshipStatus,condition:relationshipCondition});
+    if(!criteria.ok){onNotice("Conditional and rework relationships need a written condition / acceptance rule before they can be saved.");return;}
     const existing=relationships.find(row=>row.fromOperationId===fromOperationId&&row.toOperationId===toOperationId&&row.relationshipType===relationshipType&&row.status!=="Disabled");
     if(existing){onNotice("This relationship is already saved. Edit or disable its existing record before adding another identical link.");return;}
     const stamp=nowIso();
@@ -844,7 +847,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         <label>To process<select value={toOperationId} onChange={e=>setToOperationId(e.target.value)}><option value="">Select destination process…</option>{routeOperations.map(row=><option key={row.id} value={row.id}>{row.name} · OP-{row.sequence}</option>)}</select></label>
         <label>Relationship type<select value={relationshipType} onChange={e=>setRelationshipType(e.target.value as RouteRelationshipType)}>{RELATIONSHIPS.map(item=><option key={item.id} value={item.id}>{item.label} · {item.description}</option>)}</select></label>
         <label>Link status<select value={relationshipStatus} onChange={e=>setRelationshipStatus(e.target.value as RouteRelationshipStatus)}>{STATUS_OPTIONS.filter(value=>value!=="Disabled").map(value=><option key={value}>{value}</option>)}</select></label>
-        {relationshipType==="conditional"&&<label className="route-flow-wide">Condition / rule<input value={relationshipCondition} onChange={e=>setRelationshipCondition(e.target.value)} placeholder="Example: continue only if inspection result is accepted"/></label>}
+        {routeRelationshipRequiresCriteria(relationshipType,relationshipStatus)&&<label className="route-flow-wide">Condition / acceptance rule *<input aria-label="Condition / acceptance rule" required value={relationshipCondition} onChange={e=>setRelationshipCondition(e.target.value)} placeholder="Example: Inspection result = Accepted; otherwise route to rework"/><small className="field-hint">Required for conditional/rework links and any relationship marked Conditional. A blank rule cannot be saved.</small></label>}
         <label className="route-flow-wide">Notes<input value={relationshipNotes} onChange={e=>setRelationshipNotes(e.target.value)} placeholder="Why these process steps are linked…"/></label>
       </div>
       <div className="route-flow-editor-actions"><small>The relationship is saved against this PO line and shown with its own arrow colour, curve and pattern.</small><button className="button-primary" onClick={saveRelationship}><Save size={14}/> Save relationship</button></div>
