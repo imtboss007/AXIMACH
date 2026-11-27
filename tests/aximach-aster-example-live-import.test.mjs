@@ -106,5 +106,5 @@ test("the shared ASTER example includes removable machine, tooling, fixture, sto
   assert.ok(importer.includes('contactProfileRows'));
   assert.ok(importer.includes("machineCount:1"));
   assert.ok(importer.includes("inventoryOpeningRows:6"));
-  assert.ok(importer.includes("Only ASTER-EXAMPLE IDs"));
+  assert.ok(importer.includes("row.id?.startsWith(ASTER_EXAMPLE_PREFIX)"));
 });
