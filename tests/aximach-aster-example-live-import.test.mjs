@@ -88,3 +88,23 @@ test("all 28 operation nodes form one connected route after split, branch, paral
   }
   assert.equal(visited.size, 28, "all process operations must be reachable in one connected route graph");
 });
+
+test("the shared ASTER example includes removable machine, tooling, fixture, stock, quotation and contact records", () => {
+  for (const field of [
+    "machines: mergeById(current.machines",
+    "toolingAssets: mergeById(current.toolingAssets",
+    "fixtureAssets: mergeById(current.fixtureAssets",
+    "inventoryTransactions: mergeById(current.inventoryTransactions",
+    "quotations: mergeById(current.quotations",
+    "contactProfiles: mergeById(current.contactProfiles"
+  ]) assert.ok(importer.includes(field), "missing linked module data: " + field);
+  assert.ok(importer.includes('id:demoMachineId'));
+  assert.ok(importer.includes('compatibleMachineIds:[demoMachineId]'));
+  assert.ok(importer.includes('machineId:/machin|mill|drill|boring|tap/i'));
+  assert.ok(importer.includes('SYNTHETIC TEST STOCK ONLY'));
+  assert.ok(importer.includes('SYNTHETIC QUOTATION FOR WORKFLOW TESTING'));
+  assert.ok(importer.includes('contactProfileRows'));
+  assert.ok(importer.includes("machineCount:1"));
+  assert.ok(importer.includes("inventoryOpeningRows:6"));
+  assert.ok(importer.includes("Only ASTER-EXAMPLE IDs"));
+});
