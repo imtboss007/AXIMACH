@@ -600,6 +600,12 @@ export function validateManufacturingWrite(currentData, incoming, user) {
   if(row.status==="Completed"&&!timeRange(row.actualStart,row.actualEnd))return false;
   if(row.actualStart&&!Number.isFinite(Date.parse(row.actualStart)))return false;
   if(row.actualEnd&&(!row.actualStart||!timeRange(row.actualStart,row.actualEnd)))return false;
+  if(row.status!=="Cancelled"){
+   const allocated=[...allProductionAssignments.values()].filter(other=>
+    other&&other.id!==row.id&&!other.deletedAt&&other.operationId===row.operationId&&other.status!=="Cancelled"
+   ).reduce((sum,other)=>sum+Math.max(0,Number(other.targetQuantity)||0),0);
+   if(allocated+Number(row.targetQuantity)>Number(operation.quantity))return false;
+  }
   if(active){
    if(operator.status!=="Active"||machine.deletedAt||["Retired","Breakdown","Under maintenance","Planned maintenance"].includes(machine.status)||["Complete","Rejected"].includes(operation.status))return false;
    const machineCapabilities=Array.isArray(machine.processDefinitionIds)?machine.processDefinitionIds:[];
@@ -615,10 +621,6 @@ export function validateManufacturingWrite(currentData, incoming, user) {
     if(other.operatorId===row.operatorId)return false;
     if(other.machineId===row.machineId&&other.operationId!==row.operationId)return false;
    }
-   const allocated=[...allProductionAssignments.values()].filter(other=>
-    other&&other.id!==row.id&&!other.deletedAt&&other.operationId===row.operationId&&other.status!=="Cancelled"
-   ).reduce((sum,other)=>sum+Math.max(0,Number(other.targetQuantity)||0),0);
-   if(allocated+Number(row.targetQuantity)>Number(operation.quantity))return false;
    for(const order of [...rows(currentData,"maintenanceWorkOrders"),...rows(incoming,"maintenanceWorkOrders")]){
     if(!order||order.machineId!==machine.id||order.deletedAt||!["Planned","In progress","Waiting parts"].includes(order.status))continue;
     const scheduled=timeRange(order.scheduledStart,order.scheduledEnd)||

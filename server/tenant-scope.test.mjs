@@ -356,6 +356,8 @@ test("tenant writes reject cross-factory operators, invalid skill links, foreign
  const assigned={...productionAssignmentA,id:"already-assigned",targetQuantity:60,status:"Completed"};
  const nearlyFull={...productionAssignmentA,id:"over-assigned",targetQuantity:50};
  assert.equal(validateManufacturingWrite({...base,productionAssignments:[assigned]},{productionAssignments:[nearlyFull]},user).ok,false);
+ const completedOverAllocation={...nearlyFull,id:"completed-over-allocation",status:"Completed",actualStart:"2026-11-26T08:00:00.000Z",actualEnd:"2026-11-26T09:00:00.000Z"};
+ assert.equal(validateManufacturingWrite({...base,productionAssignments:[assigned]},{productionAssignments:[completedOverAllocation]},user).ok,false);
 });
 test("tenant writes reject overlapping production operator schedules and machine assignments",()=>{
  const existing={...productionAssignmentA,id:"existing-assignment",plannedStart:"2026-11-26T08:00:00.000Z",plannedEnd:"2026-11-26T12:00:00.000Z",targetQuantity:40};
