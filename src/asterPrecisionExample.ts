@@ -58,8 +58,18 @@ const component: ComponentRecord = {
   overhead: 0, toolingCost: 0, reworkCost: 0, scrapCost: 0, rejectedQty: 0, gstRate: 0,
   createdAt, updatedAt: createdAt
 };
+const customer: CustomerRecord = {
+  id: id("CUSTOMER", "BUYER-01"), ownerCompanyId: companyId, customerCode: "ASTER-CUST-001",
+  legalName: "ASTER Example Buyer Industries", displayName: "ASTER Example Buyer",
+  industry: "Industrial equipment", primaryContact: "Example purchasing desk",
+  phone: "", email: "buyer@example.invalid", billingAddress: "Bengaluru, Karnataka, India",
+  shippingAddress: "Bengaluru, Karnataka, India", paymentTerms: "Net 30", creditLimit: 500000,
+  currency: "INR", status: "Active",
+  notes: "SYNTHETIC DEMONSTRATION BUYER ONLY — not a real customer or credit account.",
+  createdAt, updatedAt: createdAt
+};
 const po: PurchaseOrderRecord = {
-  id: poId, number: source.purchaseOrder.number, companyId, factoryId,
+  id: poId, number: source.purchaseOrder.number, companyId, factoryId, customerId: customer.id,
   issueDate: date, targetDelivery: addDays(date, 30), status: "Open",
   notes: "SYNTHETIC ASTER ROUTE EXAMPLE — not a customer purchase order.",
   lines: [{
@@ -80,16 +90,7 @@ const vendor: VendorRecord = {
 };
 
 const vendorRows: VendorRecord[] = [vendor];
-const customer: CustomerRecord = {
-  id: id("CUSTOMER", "BUYER-01"), ownerCompanyId: companyId, customerCode: "ASTER-CUST-001",
-  legalName: "ASTER Example Buyer Industries", displayName: "ASTER Example Buyer",
-  industry: "Industrial equipment", primaryContact: "Example purchasing desk",
-  phone: "", email: "buyer@example.invalid", billingAddress: "Bengaluru, Karnataka, India",
-  shippingAddress: "Bengaluru, Karnataka, India", paymentTerms: "Net 30", creditLimit: 500000,
-  currency: "INR", status: "Active",
-  notes: "SYNTHETIC DEMONSTRATION BUYER ONLY — not a real customer or credit account.",
-  createdAt, updatedAt: createdAt
-};
+
 const materialRows: MaterialRecord[] = (source.materials as any[]).map(row => ({
   id: materialId(row.id), code: row.code, name: row.name, grade: row.grade, unit: row.unit,
   specification: row.specification || "", preferredVendorId: vendorId,
