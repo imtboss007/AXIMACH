@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { X, CalendarClock, Phone, Mail, MessageCircle, Building2, Route, ReceiptText, BadgeCheck } from "lucide-react";
-import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle";
+import { VehicleIcon as VehicleTypeIcon, getVehicleVisual } from "./TransportVehicle";
 import type { ComponentTransportLegRecord, MaterialCostEntryRecord, TransportRouteRecord, VendorRecord, VendorTransportRoute } from "./manufacturingData";
 
 type Props={
@@ -15,16 +15,7 @@ type Props={
   onClose:()=>void;
   onOpenDirectory?:()=>void;
 };
-const vehicleClass=(value:string)=>{
- const text=(value||"").toLowerCase();
- if(/bike|motorcycle|scooter/.test(text))return "bike";
- if(/bus/.test(text))return "bus";
- if(/car|taxi|auto|three.wheeler/.test(text))return "car";
- if(/plane|air|flight/.test(text))return "air";
- if(/ship|boat|vessel/.test(text))return "ship";
- if(/train|rail/.test(text))return "rail";
- return "truck";
-};
+const vehicleClass=(value:string)=>getVehicleVisual(value).className;
 const displayDate=(value?:string)=>value?new Date(value).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):"Not recorded";
 const amount=(value:number)=>"₹"+Number(value||0).toLocaleString("en-IN",{maximumFractionDigits:2});
 export default function TransportRecordInspector({leg,vendor,directoryRoute,legacyVendorRoute,onClose,onOpenDirectory,anchor,materialEntry,fromOperationName,toOperationName}:Props){
