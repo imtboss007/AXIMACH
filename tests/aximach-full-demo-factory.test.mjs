@@ -33,7 +33,7 @@ test("demo data is opened from the regular module workflows, not an isolated Rou
   }
   const source = read("../src/aximachDemoData.ts");
   for (const key of [
-    "companies,customers:[]", "factories,machines:", "purchaseOrders,components,vendors,operations",
+    "companies,customers:[]", "factories,machines,toolingAssets", "purchaseOrders,components,vendors,operations",
     "materials,componentParts", "materialCostEntries,bomLines,materialProcessLinks",
     "transportRoutes,transportLegs", "routeRelationships,followUpAssignments"
   ]) assert.ok(source.includes(key), "The shared example should seed linked records including " + key);
