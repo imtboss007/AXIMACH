@@ -224,6 +224,8 @@ test("Route Flow applies the selected layout to the live graph, preserves explic
   const connections=source("src/manufacturingGraphConnections.ts");
   assert.ok(connections.includes('validateRouteRelationshipCriteria({relationshipType:type,status,condition:""})'),"Drag-to-connect must not create blank conditional/rework links.");
   assert.ok(connections.includes("no blank link was saved"),"The user must be told to enter a condition before a conditional graph link is created.");
+  const visual=source("src/aximach-ui.css");
+  assert.ok(visual.includes(".route-flow-graph-toolbar button{pointer-events:auto}"),"The reset-layout button must receive pointer input above the graph canvas.");
   assert.ok(flow.includes("targetOperationId"),"Transport destinations must remain explicit saved references.");
   assert.ok(flow.includes('markerEnd:{type:MarkerType.ArrowClosed,color:style.color,width:18,height:18}'));
   assert.ok(flow.includes("strokeWidth:type===\"transport\"?3.4:3.8"));
