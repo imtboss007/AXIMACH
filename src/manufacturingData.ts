@@ -249,7 +249,7 @@ export type MaterialCostEntryRecord = {
   /** Optional route insertion point: blank means procurement before the first manufacturing operation. */
   anchorOperationId?: string;
   shapeType: string; dimensions: Record<string, number>; dimensionUnits: Record<string, string>; quantity: number;
-  weightPerPieceKg: number; totalWeightKg: number; priceUnit: "kg" | "lb"; materialRate: number; materialCost: number;
+  weightPerPieceKg: number; totalWeightKg: number; priceUnit: "kg" | "lb" | "piece"; piecesPerFinishedPart?: number; materialRate: number; materialCost: number;
   cuttingType: string; cuttingBasis: string; cuttingRate: number; cutsPerPiece: number; cuttingHours: number; cuttingCost: number; wastagePercent: number;
   vendorId: string; givenDate: string; deliveryDate: string; actualDeliveryDate: string; poReference: string; notes: string; currency: "INR";
   /** Direct material inbound transport; kept separate from material and cutting cost. */
