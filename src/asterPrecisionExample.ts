@@ -1,4 +1,5 @@
 import fixture from "./single-component-route-demo.json";
+import { materialReferenceForGrade, materialDensityReference } from "./materialCatalogue";
 import type {
   ManufacturingData, CompanyRecord, FactoryRecord, ComponentRecord, PurchaseOrderRecord,
   VendorRecord, CustomerRecord, ProcessDefinitionRecord, PlannedCostEntry, InspectionMeasurementRecord, MaterialRecord, BomLineRecord, MaterialCostEntryRecord, MaterialProcessLinkRecord,
@@ -91,16 +92,19 @@ const vendor: VendorRecord = {
 
 const vendorRows: VendorRecord[] = [vendor];
 
-const materialRows: MaterialRecord[] = (source.materials as any[]).map(row => ({
-  id: materialId(row.id), code: row.code, name: row.name, grade: row.grade, unit: row.unit,
-  specification: row.specification || "", preferredVendorId: vendorId,
-  materialType: /aluminium|6082/i.test(String(row.name)+" "+String(row.grade)) ? "Aluminium" : /powder coat|polyester|epoxy/i.test(String(row.name)+" "+String(row.grade)) ? "Coating / finishing consumable" : /IS\s*2062|E250/i.test(String(row.name)+" "+String(row.grade)) ? "Structural steel" : /EN8|080M40/i.test(String(row.name)+" "+String(row.grade)) ? "Carbon steel" : "Alloy steel",
-  densityKgM3: /aluminium|6082/i.test(String(row.name)+" "+String(row.grade)) ? 2700 : /powder coat|polyester|epoxy/i.test(String(row.name)+" "+String(row.grade)) ? 1400 : 7850,
-  densityUnit: "kg/m3" as const,
-  ratePerUnit: Number(row.ratePerUnit) || 0,
-  notes: "SYNTHETIC ASTER EXAMPLE MATERIAL — verify grade, rate and specification before real use.",
-  createdAt, updatedAt: createdAt
-}));
+const materialRows: MaterialRecord[] = (source.materials as any[]).map(row => {
+  const reference = materialReferenceForGrade(String(row.grade || row.name || ""));
+  const materialType = reference?.[3] || (/aluminium/i.test(String(row.name)+" "+String(row.grade)) ? "Aluminium" : "Other");
+  return {
+    id: materialId(row.id), code: row.code, name: row.name, grade: row.grade, unit: row.unit === "piece" ? "piece" : "kg",
+    specification: row.specification || "", preferredVendorId: vendorId, materialType,
+    densityKgM3: reference?.[2] ?? materialDensityReference(String(row.grade || ""), materialType),
+    densityUnit: "kg/m3" as const,
+    ratePerUnit: Number(row.ratePerUnit) || 0,
+    notes: "SYNTHETIC ASTER EXAMPLE MATERIAL — density is a kg/m³ reference; verify the exact grade and supplier certificate before production use.",
+    createdAt, updatedAt: createdAt
+  };
+});
 const materialBySource = new Map((source.materials as any[]).map(row => [row.id, row]));
 const bomRows: BomLineRecord[] = (source.bomLines as any[]).map(row => ({
   id: bomId(row.id), componentId, materialId: materialId(row.materialId), revision: row.revision || "A",
