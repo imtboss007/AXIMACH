@@ -137,10 +137,13 @@ test("every transport category keeps a unique stable colour in Process Map, Rout
   const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
   const transportInspector = readFileSync(new URL("../src/TransportRecordInspector.tsx", import.meta.url), "utf8");
   const materialInspector = readFileSync(new URL("../src/MaterialTransportRecordInspector.tsx", import.meta.url), "utf8");
-  const visualBlock = visuals.slice(visuals.indexOf("const VEHICLE_VISUALS"), visuals.indexOf("function resolveVehicleKind"));
+  const visualBlock = visuals.slice(visuals.indexOf("const VEHICLE_VISUALS"), visuals.indexOf("const FALLBACK_VEHICLE_VISUAL"));
   const colors = [...visualBlock.matchAll(/color:"(#[A-Fa-f0-9]+)"/g)].map(match => match[1]);
-  assert.equal(colors.length, 18, "every canonical vehicle class must have an explicit colour");
-  assert.equal(new Set(colors).size, 18, "every canonical vehicle class must have a distinct identity colour");
+  const visualClasses = [...visualBlock.matchAll(/className:"([^"]+)"/g)].map(match => match[1]);
+  assert.equal(colors.length, 21, "every canonical vehicle class must have an explicit colour");
+  assert.equal(new Set(colors).size, 21, "every canonical vehicle class must have a distinct identity colour");
+  assert.equal(visualClasses.length, 21, "every canonical vehicle class must have a distinct visual class");
+  assert.equal(new Set(visualClasses).size, 21, "no canonical vehicle types may collapse to a generic visual class");
   assert.ok(universe.includes("<VehicleTypeIcon vehicleType={route.vehicle}"));
   assert.ok(universe.includes("<VehicleTypeIcon vehicleType={leg.vehicleType}"));
   assert.ok(scene.includes("<VehicleTypeIcon vehicleType={route.vehicle}"));
