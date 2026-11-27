@@ -82,15 +82,16 @@ test("optional money fields do not force a visible zero while typing", () => {
 test("material directory uses fixed material families, known grade density in kg/m3 and kg/piece pricing units", () => {
   const inventory = read("../src/InventoryWorkspace.tsx");
   const types = read("../src/manufacturingData.ts");
+  const catalogue = read("../src/materialCatalogue.ts");
   assert.ok(types.includes("export const STANDARD_MANUFACTURING_MATERIAL_TYPES = ["));
   assert.ok(inventory.includes("const STANDARD_MATERIAL_TYPES = STANDARD_MANUFACTURING_MATERIAL_TYPES;"));
-  assert.ok(inventory.includes('"Tool steel"'));
-  assert.ok(inventory.includes('"Cutting fluid / coolant"'));
-  assert.ok(inventory.includes("STANDARD_MATERIAL_TYPES.map(type=>"));
+  assert.ok(catalogue.includes('"Tool steel"'));
+  assert.ok(catalogue.includes('"Cutting fluid / coolant"'));
+  assert.ok(inventory.includes("MATERIAL_TYPE_GROUPS.map(group=><optgroup"));
   assert.ok(inventory.includes('densityUnit:"kg/m3"'));
   assert.ok(inventory.includes("handleMaterialGradeChange"));
-  assert.ok(inventory.includes('<option value="kg">kg</option>'));
-  assert.ok(inventory.includes('<option value="piece">piece</option>'));
+  assert.ok(inventory.includes('<option value="kg">Kilogram (kg)</option>'));
+  assert.ok(inventory.includes('<option value="piece">Piece / each</option>'));
   assert.ok(inventory.includes('value="piece">₹ / piece'));
   assert.ok(types.includes('"kg" | "lb" | "piece"'));
   const costing = read("../src/PartMaterialCostingPanel.tsx");
