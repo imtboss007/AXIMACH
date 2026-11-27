@@ -48,7 +48,7 @@ function resolveVehicleKind(vehicleType:string):VehicleKind|null{
  if(/trailer|tractor/.test(value))return "trailer";
  if(/mini\s*truck/.test(value))return "mini-truck";
  if(/pickup/.test(value))return "pickup";
- if(/heavy\s*(?:duty\s*)?truck|heavy\s*goods|\bhcv\b/.test(value))return "heavy-truck";
+ if(/heavy\s*(?:duty\s*)?4\s*[- ]?wheel|refrigerated\s*truck|flatbed\s*truck|tanker|heavy\s*(?:duty\s*)?truck|heavy\s*goods|\bhcv\b/.test(value))return "heavy-truck";
  if(/tempo|goods\s*carrier|small\s*goods/.test(value))return "tempo";
  if(/bus|staff/.test(value))return "bus";
  if(/air|plane|flight|freight\s*air/.test(value))return "air";
