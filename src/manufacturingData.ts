@@ -119,7 +119,7 @@ export type PurchaseOrderLine = {
   overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number;
 };
 export type PurchaseOrderRecord = {
-  id: string; number: string; companyId: string; factoryId: string; issueDate: string;
+  id: string; number: string; companyId: string; factoryId: string; customerId?: string; issueDate: string;
   targetDelivery: string; status: string; notes: string; lines: PurchaseOrderLine[];
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
