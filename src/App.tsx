@@ -131,7 +131,7 @@ function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:
           <button type="button" className="button-primary compact-button" onClick={()=>onSelectModule("route-flow")}><GitBranch size={14}/> Open Route Flow</button>
           <span className="muted-copy">Sync: {syncStatus} · Real records are preserved</span>
         </div>
-        <p className="muted-copy" style={{marginTop:10}}>For a one-company / one-PO / one-component preview, use the dedicated synthetic route fixture. It is separate from live manufacturing records.</p>
+        <p className="muted-copy" style={{marginTop:10}}>The ASTER Precision Works example can be loaded from Route Flow into the normal company, purchase-order and component selectors. It remains clearly marked synthetic and does not overwrite real company records.</p>
       </section>
       <div className="linked-route-actions" role="tablist" aria-label="Data exchange mode">
         <button type="button" role="tab" aria-selected={mode==="export"} className={(mode==="export"?"button-primary":"button-quiet")+" compact-button"} onClick={()=>setMode("export")}><FileDown size={14}/> Export records</button>
