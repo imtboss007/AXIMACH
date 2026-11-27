@@ -1,7 +1,7 @@
 import fixture from "./single-component-route-demo.json";
 import type {
   ManufacturingData, CompanyRecord, FactoryRecord, ComponentRecord, PurchaseOrderRecord,
-  VendorRecord, CustomerRecord, ProcessDefinitionRecord, MaterialRecord, BomLineRecord, MaterialCostEntryRecord, MaterialProcessLinkRecord,
+  VendorRecord, CustomerRecord, ProcessDefinitionRecord, PlannedCostEntry, InspectionMeasurementRecord, MaterialRecord, BomLineRecord, MaterialCostEntryRecord, MaterialProcessLinkRecord,
   OperationRecord, TransportRouteRecord, ComponentTransportLegRecord, RouteRelationshipRecord,
   RouteRelationshipType
 } from "./manufacturingData";
@@ -178,6 +178,24 @@ const operations: OperationRecord[] = (source.operations as any[]).map(row => ({
   relationType: row.relationType === "alternate" || row.relationType === "rework" ? row.relationType : undefined,
   costIncluded: Boolean(row.costIncluded), createdAt, updatedAt: createdAt
 }));
+const plannedCostRows: PlannedCostEntry[] = operations.map(operation => ({
+  id: id("PLANNED-COST", operation.id), companyId, poId, componentId,
+  processDefinitionId: operation.processDefinitionId, processSubcategoryId: operation.processSubcategoryId,
+  companyName: company.name, poNumber: po.number,
+  componentName: component.name, componentNumber: component.partNumber,
+  processType: operation.name, processCategory: operation.category, processSubcategory: operation.subcategory,
+  plannedQty: operation.quantity || Number(source.component.quantity) || 250, unit: "piece",
+  plannedRate: operation.ratePerPart, notes: "SYNTHETIC ASTER EXAMPLE — planned comparison only, not an actual quote.",
+  createdAt, updatedAt: createdAt
+}));
+const inspectionMeasurementRows: InspectionMeasurementRecord[] = operations.filter(operation => operation.inspectionRequired).map(operation => ({
+  id: id("INSPECTION", operation.id), operationId: operation.id, poId, poLineId, componentId,
+  characteristic: "Demo inspection characteristic — replace with drawing requirement",
+  nominalValue: null, lowerLimit: null, upperLimit: null, measuredValue: 0, unit: "mm",
+  result: "Not assessed", notes: "SYNTHETIC EXAMPLE PLACEHOLDER — no physical measurement has been performed.",
+  inspectedAt: createdAt, createdAt, updatedAt: createdAt
+}));
+
 const routeRows: TransportRouteRecord[] = (source.transportRoutes as any[]).map(row => ({
   id: routeId(row.id), vendorId, fromLocation: row.fromLocation, toLocation: row.toLocation,
   tripDirection: row.tripDirection === "Two-way" ? "Two-way" : "One-way",
@@ -258,7 +276,9 @@ export function importAsterPrecisionExample(current: ManufacturingData): Manufac
     operations: mergeById(current.operations, operations.map(row => ({ ...row, updatedAt }))),
     transportRoutes: mergeById(current.transportRoutes, routeRows.map(row => ({ ...row, updatedAt }))),
     transportLegs: mergeById(current.transportLegs, transportLegRows.map(row => ({ ...row, updatedAt }))),
-    routeRelationships: mergeById(current.routeRelationships, routeRelationships.map(row => ({ ...row, updatedAt })))
+    routeRelationships: mergeById(current.routeRelationships, routeRelationships.map(row => ({ ...row, updatedAt }))),
+    plannedCosts: mergeById(current.plannedCosts, plannedCostRows.map(row => ({ ...row, updatedAt }))),
+    inspectionMeasurements: mergeById(current.inspectionMeasurements, inspectionMeasurementRows.map(row => ({ ...row, updatedAt })))
   };
 }
 
