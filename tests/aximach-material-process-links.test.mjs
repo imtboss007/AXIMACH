@@ -126,7 +126,7 @@ test("Process Map material procurement persists a part-scoped BOM row and archiv
   assert.ok(model.includes("partId?: string;"));
   assert.ok(model.includes("sourceMaterialCostEntryId?: string;"));
   assert.ok(panel.includes("sourceMaterialCostEntryId:sourceBom?.sourceMaterialCostEntryId"));
-  assert.ok(panel.includes("quantityPerPart:sourceBom?perPieceKg"));
+  assert.ok(panel.includes('quantityPerPart:sourceBom?(priceUnit==="piece"?piecesPerPart:perPieceKg)'));
   assert.ok(panel.includes('row.sourceMaterialCostEntryId===entry.id'));
 });
 
