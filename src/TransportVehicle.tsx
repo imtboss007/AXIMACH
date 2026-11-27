@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Bike, Bus, CarFront, Package, Plane, Ship, TrainFront, Truck, type LucideIcon } from "lucide-react";
 import type { ComponentTransportLegRecord, TransportRouteRecord } from "./manufacturingData";
 
@@ -70,7 +70,7 @@ export function getVehicleVisual(vehicleType:string):VehicleVisual{
 
 function VehicleSilhouette({kind,size=17}:{kind:VehicleKind;size?:number}){
  const common={fill:"none",stroke:"currentColor",strokeWidth:2.1,strokeLinecap:"round" as const,strokeLinejoin:"round" as const};
- const Svg=({children}:{children:React.ReactNode})=><svg width={size*1.9} height={size} viewBox="0 0 64 36" aria-hidden="true" {...common}>{children}</svg>;
+ const Svg=({children}:{children:ReactNode})=><svg width={size*1.9} height={size} viewBox="0 0 64 36" aria-hidden="true" {...common}>{children}</svg>;
  if(kind==="motorcycle")return <Svg><path d="M7 27h9l9-10h13l8 10h8M24 17l-5-7h8l6 7M38 17l6-8h7M44 9h7l4 5"/><circle cx="16" cy="27" r="6"/><circle cx="53" cy="27" r="6"/><path d="M28 11h7"/></Svg>;
  if(kind==="scooter")return <Svg><path d="M8 27h10l8-7h15l5 7h7M25 20l-2-9h8l5 9M39 20l7-11h7M46 9h8"/><circle cx="17" cy="27" r="6"/><circle cx="52" cy="27" r="6"/><path d="M22 20h-6"/></Svg>;
  if(kind==="three-wheeler")return <Svg><path d="M6 26V15c0-4 3-7 7-7h25l9 10v8H6Z"/><path d="M14 10v10h24l-2-10M38 20h8M9 26h47"/><circle cx="16" cy="28" r="5"/><circle cx="49" cy="28" r="5"/><path d="M47 14h8v8h-8M6 15H3"/></Svg>;
