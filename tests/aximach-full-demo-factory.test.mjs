@@ -67,7 +67,7 @@ test("optional money fields do not force a visible zero while typing", () => {
   }
   assert.ok(master.includes("const [componentPriceInput,setComponentPriceInput]=useState(\"\");"));
   assert.ok(master.includes("value={componentPriceInput}"));
-  assert.ok(inventory.includes("const [materialRateInput,setMaterialRateInput]=useState(\"\"));"));
+  assert.ok(inventory.includes('const [materialRateInput,setMaterialRateInput]=useState("");'));
   assert.ok(inventory.includes("value={materialRateInput}"));
 });
 
