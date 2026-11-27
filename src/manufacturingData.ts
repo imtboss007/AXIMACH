@@ -367,7 +367,7 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
       ...material,
       densityKgM3: material.densityKgM3 == null ? undefined : Number(material.densityUnit === "g/cm3" ? Number(material.densityKgM3) * 1000 : material.densityKgM3),
       densityUnit: "kg/m3" as const,
-      priceUnit: material.priceUnit === "lb" ? "lb" as const : "kg" as const,
+      priceUnit: material.priceUnit === "lb" ? "lb" as const : material.priceUnit === "piece" ? "piece" as const : "kg" as const,
       unit: material.unit || "kg"
     })) : empty.materials,
     componentParts: Array.isArray(value?.componentParts) ? value.componentParts.map(part => {
