@@ -172,14 +172,21 @@ export function importAxMachTwoCompanyDemo(current:ManufacturingData,stamp=new D
 }
 
 export function archiveAxMachTwoCompanyDemo(current:ManufacturingData,stamp=new Date().toISOString()):ManufacturingData{
- const archive=<T extends {id:string;updatedAt?:string;deletedAt?:string}>(rows:T[]):T[]=>rows.map(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)?{...row,deletedAt:stamp,updatedAt:stamp}:row);
- return {...current,updatedAt:stamp,companies:archive(current.companies),factories:archive(current.factories),machines:archive(current.machines||[]),
-  purchaseOrders:current.purchaseOrders.map(po=>({...po,...(po.id.startsWith(AXIMACH_DEMO_ID_PREFIX)?{deletedAt:stamp,updatedAt:stamp}:{}),lines:po.lines.map(line=>line.id.startsWith(AXIMACH_DEMO_ID_PREFIX)?{...line,deletedAt:stamp,updatedAt:stamp}:line)})),
-  components:archive(current.components),vendors:archive(current.vendors),operations:archive(current.operations),
-  quotations:archive(current.quotations),materials:archive(current.materials),componentParts:archive(current.componentParts),materialCostEntries:archive(current.materialCostEntries),bomLines:archive(current.bomLines),
-  inventoryTransactions:archive(current.inventoryTransactions),materialConsumptions:archive(current.materialConsumptions||[]),contactProfiles:archive(current.contactProfiles),
-  processDefinitions:archive(current.processDefinitions),plannedCosts:archive(current.plannedCosts),
-  transportRoutes:archive(current.transportRoutes),transportLegs:archive(current.transportLegs),
-  paymentTransactions:archive(current.paymentTransactions),inspectionMeasurements:archive(current.inspectionMeasurements),materialProcessLinks:archive(current.materialProcessLinks||[]),routeRelationships:archive(current.routeRelationships||[]),
-  followUpAssignments:archive(current.followUpAssignments)};
+ const next={...current,updatedAt:stamp} as ManufacturingData;
+ for(const [key,value] of Object.entries(current)){
+  if(!Array.isArray(value))continue;
+  if(key==="purchaseOrders"){
+   next.purchaseOrders=(value as ManufacturingData["purchaseOrders"]).map(po=>({
+    ...po,
+    ...(po.id.startsWith(AXIMACH_DEMO_ID_PREFIX)?{deletedAt:stamp,updatedAt:stamp}:{}),
+    lines:po.lines.map(line=>line.id.startsWith(AXIMACH_DEMO_ID_PREFIX)?{...line,deletedAt:stamp,updatedAt:stamp}:line)
+   }));
+   continue;
+  }
+  const rows=(value as Array<{id?:string;updatedAt?:string;deletedAt?:string}>).map(row=>
+   row.id?.startsWith(AXIMACH_DEMO_ID_PREFIX)?{...row,deletedAt:stamp,updatedAt:stamp}:row
+  );
+  (next as unknown as Record<string,unknown>)[key]=rows;
+ }
+ return next;
 }
