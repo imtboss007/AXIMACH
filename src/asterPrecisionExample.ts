@@ -7,6 +7,8 @@ import type {
   RouteRelationshipType, MachineRecord, ToolingAssetRecord, FixtureAssetRecord, InventoryTransactionRecord, QuotationRecord, ContactProfileRecord
 } from "./manufacturingData";
 
+export const ASTER_EXAMPLE_PREFIX = "ASTER-EXAMPLE-";
+
 export const ASTER_EXAMPLE_IDS = {
   company: "ASTER-EXAMPLE-COMPANY",
   factory: "ASTER-EXAMPLE-FACTORY",
@@ -21,7 +23,6 @@ const source = fixture as any;
 const createdAt = String(source.purchaseOrder.createdAt || "2026-11-25T09:00:00.000Z");
 const date = createdAt.slice(0, 10);
 const stamp = () => new Date().toISOString();
-export const ASTER_EXAMPLE_PREFIX = "ASTER-EXAMPLE-";
 const addDays = (value: string, days: number) => {
   const result = new Date(value + "T00:00:00.000Z");
   result.setUTCDate(result.getUTCDate() + days);
