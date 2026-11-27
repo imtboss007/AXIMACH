@@ -14,12 +14,13 @@ export const ASTER_EXAMPLE_IDS = {
   component: "ASTER-EXAMPLE-COMPONENT"
 } as const;
 
-const PREFIX = "ASTER-EXAMPLE-";
+const PREFIX = ASTER_EXAMPLE_PREFIX;
 const id = (kind: string, source = "") => PREFIX + kind + (source ? "-" + source.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toUpperCase() : "");
 const source = fixture as any;
 const createdAt = String(source.purchaseOrder.createdAt || "2026-11-25T09:00:00.000Z");
 const date = createdAt.slice(0, 10);
 const stamp = () => new Date().toISOString();
+export const ASTER_EXAMPLE_PREFIX = "ASTER-EXAMPLE-";
 const addDays = (value: string, days: number) => {
   const result = new Date(value + "T00:00:00.000Z");
   result.setUTCDate(result.getUTCDate() + days);
@@ -82,6 +83,8 @@ const vendorRows: VendorRecord[] = [vendor];
 const materialRows: MaterialRecord[] = (source.materials as any[]).map(row => ({
   id: materialId(row.id), code: row.code, name: row.name, grade: row.grade, unit: row.unit,
   specification: row.specification || "", preferredVendorId: vendorId,
+  densityKgM3: /aluminium|6082/i.test(String(row.name)+" "+String(row.grade)) ? 2700 : /powder coat|polyester|epoxy/i.test(String(row.name)+" "+String(row.grade)) ? 1400 : 7850,
+  densityUnit: "kg/m3" as const,
   ratePerUnit: Number(row.ratePerUnit) || 0,
   notes: "SYNTHETIC ASTER EXAMPLE MATERIAL — verify grade, rate and specification before real use.",
   createdAt, updatedAt: createdAt
@@ -114,7 +117,7 @@ const materialCostRows: MaterialCostEntryRecord[] = (source.bomLines as any[]).m
     id: id("MATERIAL-ENTRY", row.id), scope: "process-map", companyId, poId, poLineId, componentId,
     partNumber: source.component.partNumber, partName: source.component.name,
     materialId: materialId(row.materialId), materialName: material.name || "Example material",
-    materialGrade: material.grade || "", densityKgM3: 0, anchorOperationId: linked ? operationId(linked.operationId) : "",
+    materialGrade: material.grade || "", densityKgM3: material.densityKgM3 || 0, anchorOperationId: linked ? operationId(linked.operationId) : "",
     shapeType: "", dimensions: {}, dimensionUnits: {}, quantity: totalQuantity,
     weightPerPieceKg: material.unit === "kg" ? perPart : 0,
     totalWeightKg: material.unit === "kg" ? totalQuantity : 0,
@@ -226,6 +229,29 @@ export function importAsterPrecisionExample(current: ManufacturingData): Manufac
     transportLegs: mergeById(current.transportLegs, transportLegRows.map(row => ({ ...row, updatedAt }))),
     routeRelationships: mergeById(current.routeRelationships, routeRelationships.map(row => ({ ...row, updatedAt })))
   };
+}
+
+/**
+ * Soft-archives only the reversible ASTER example namespace, including nested PO lines.
+ * All real customer records and non-example IDs remain untouched.
+ */
+export function archiveAsterPrecisionExample(current: ManufacturingData, archivedAt = new Date().toISOString()): ManufacturingData {
+  const next = { ...current, updatedAt: archivedAt } as ManufacturingData;
+  for (const [key, value] of Object.entries(current)) {
+    if (!Array.isArray(value)) continue;
+    if (key === "purchaseOrders") {
+      next.purchaseOrders = (value as ManufacturingData["purchaseOrders"]).map(po => ({
+        ...po,
+        ...(po.id.startsWith(ASTER_EXAMPLE_PREFIX) ? { deletedAt: archivedAt, updatedAt: archivedAt } : {}),
+        lines: po.lines.map(line => line.id.startsWith(ASTER_EXAMPLE_PREFIX) ? { ...line, deletedAt: archivedAt, updatedAt: archivedAt } : line)
+      }));
+      continue;
+    }
+    (next as unknown as Record<string, unknown>)[key] = (value as Array<{id?:string;updatedAt?:string;deletedAt?:string}>).map(row =>
+      row.id?.startsWith(ASTER_EXAMPLE_PREFIX) ? { ...row, deletedAt: archivedAt, updatedAt: archivedAt } : row
+    );
+  }
+  return next;
 }
 
 export const ASTER_EXAMPLE_EXPECTED = {
