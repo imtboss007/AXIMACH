@@ -149,6 +149,28 @@ export function createAxMachTwoCompanyDemo():ManufacturingData{
  const materialProcessLinks:ManufacturingData["materialProcessLinks"]=parts.map(p=>({id:id("MATERIAL-PROCESS-LINK",p.key),companyId:id("COMPANY",p.co),poId:id("PO",p.co),poLineId:id("LINE",p.key),componentId:id("COMPONENT",p.key),bomLineId:id("BOM",p.key),materialId:id("MATERIAL",p.key),operationId:id("OPERATION",p.key+"-01"),quantityPerPart:1.25,unit:"kg",flowType:"Material input",placement:"before",notes:"SYNTHETIC DEMO material feed; verify against the released BOM and operation.",createdAt:stamp,updatedAt:stamp}));
  return {updatedAt:stamp,companies,customers:[],prospects:[],factories,machines,toolingAssets:[],fixtureAssets:[],resourceUsageEvents:[],maintenancePlans:[],maintenanceWorkOrders:[],machineDowntime:[],purchaseOrders,components,vendors,operations,quotations,materials,componentParts:[],materialCostEntries,bomLines,materialProcessLinks,materialConsumptions:[],inventoryTransactions,contactProfiles,processDefinitions,plannedCosts,transportRoutes,transportLegs,paymentTransactions,inspectionMeasurements,supplierInvoices,supplierPayments,supplierFinanceApprovals,supplierPaymentAllocations,routeRelationships,followUpAssignments};
 }
+
+/**
+ * Import the complete synthetic factory into the shared AXIMACH data model.
+ * DEMO- is a reserved namespace: existing real records are retained, while
+ * previous demo rows are replaced from the canonical fixture on re-import.
+ */
+export function importAxMachTwoCompanyDemo(current:ManufacturingData,stamp=new Date().toISOString()):ManufacturingData{
+ const sample=createAxMachTwoCompanyDemo();
+ const next={...current,updatedAt:stamp} as ManufacturingData;
+ for(const [key,value] of Object.entries(sample)){
+  if(!Array.isArray(value))continue;
+  const existing=(current as unknown as Record<string,unknown>)[key];
+  if(!Array.isArray(existing))continue;
+  const realRows=(existing as Array<{id?:string}>).filter(row=>!row.id?.startsWith(AXIMACH_DEMO_ID_PREFIX));
+  const demoRows=(value as Array<{id?:string;deletedAt?:string}>)
+    .filter(row=>row.id?.startsWith(AXIMACH_DEMO_ID_PREFIX))
+    .map(row=>({...row,deletedAt:undefined}));
+  (next as unknown as Record<string,unknown>)[key]=[...realRows,...demoRows];
+ }
+ return next;
+}
+
 export function archiveAxMachTwoCompanyDemo(current:ManufacturingData,stamp=new Date().toISOString()):ManufacturingData{
  const archive=<T extends {id:string;updatedAt?:string;deletedAt?:string}>(rows:T[]):T[]=>rows.map(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)?{...row,deletedAt:stamp,updatedAt:stamp}:row);
  return {...current,updatedAt:stamp,companies:archive(current.companies),factories:archive(current.factories),machines:archive(current.machines||[]),
