@@ -34,7 +34,8 @@ test("ASTER example is visible in regular company, PO and component selectors wi
   assert.ok(importer.includes("const mergeById ="));
   assert.ok(importer.includes("rows.set(row.id, row)"));
   assert.ok(importer.includes("...current, updatedAt"));
-  assert.ok(app.includes("loaded from Route Flow into the normal company, purchase-order and component selectors"));
+  assert.ok(app.includes("loadAsterExampleFromWorkspace"));
+  assert.ok(app.includes("Load full demo"));
 });
 
 test("live-import dataset preserves the one-company / one-PO / one-component scope and all required detail", () => {
