@@ -778,6 +778,35 @@ try {
   await page.getByRole("button", { name: "Interactive graph" }).click();
   await page.getByRole("button", { name: "Stage cards" }).waitFor({ timeout: 10000 });
   console.log("PASS Route Flow graph-first view, stage-card toggle and readable heading contrast");
+
+  // The icon-led picker must expose every canonical transport category and
+  // render a distinct SVG icon for each option at desktop and phone widths.
+  await page.locator(".route-flow-canvas-tools button").filter({ hasText: "Add transport leg" }).click();
+  const vehicleTypePicker = page.locator("#route-flow-vehicle-type");
+  await vehicleTypePicker.waitFor({ timeout: 10000 });
+  await vehicleTypePicker.click();
+  await page.waitForFunction(() => document.querySelectorAll(".vehicle-type-picker-menu [role='option']").length >= 21, null, { timeout: 5000 });
+  const vehicleOptions = page.locator(".vehicle-type-picker-menu [role='option']");
+  const vehicleLabels = await vehicleOptions.locator(".vehicle-type-picker-option-label").allTextContents();
+  const requiredVehicleTypes = [
+    "2-wheeler / Bike", "Motorcycle", "Scooter", "3-wheeler / Auto rickshaw",
+    "Tempo / 3-wheeler goods carrier", "Heavy-duty tempo", "4-wheeler / Car", "Car / Taxi",
+    "Light commercial vehicle / Van", "Mini truck", "Pickup truck", "Lorry / goods truck",
+    "Heavy lorry", "Heavy truck", "Container truck", "Trailer / tractor", "Bus / staff vehicle",
+    "Courier / delivery van", "Air freight", "Ship / marine", "Rail / train"
+  ];
+  if (requiredVehicleTypes.some(type => !vehicleLabels.includes(type))) {
+    throw new Error("Vehicle picker is missing one or more of the 21 canonical transport types: " + vehicleLabels.join(" | "));
+  }
+  const vehicleIconCount = await page.locator(".vehicle-type-picker-menu .vehicle-type-picker-option-icon svg").count();
+  if (vehicleIconCount < 21) throw new Error("Every canonical transport category must display its own SVG vehicle icon; found " + vehicleIconCount);
+  await vehicleOptions.filter({ hasText: "Heavy-duty tempo" }).click();
+  if (await vehicleTypePicker.inputValue() !== "Heavy-duty tempo") {
+    throw new Error("Selecting Heavy-duty tempo did not update the Route Flow vehicle type.");
+  }
+  await page.locator(".route-flow-editor-title button.close-round").click();
+  console.log("PASS Route Flow vehicle picker: all 21 categories, 21 icons and saved form selection");
+
   await page.getByRole("button", { name: "Open Process Plan" }).click();
   await page.locator(".linked-process-page > .workspace-title-row h1").waitFor({ timeout: 10000 });
 
