@@ -6943,6 +6943,7 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 }
 .route-flow-shared-graph-layer{z-index:1!important}
 .route-flow-graph-toolbar{position:relative;z-index:3;pointer-events:none}
+.route-flow-graph-toolbar button{pointer-events:auto}
 .route-flow-graph-canvas>.route-connector-legend{position:relative;z-index:3;pointer-events:none}
 .process-map-graph-canvas>.process-map-graph-header{z-index:4}
 .ax-ecosystem-node-heading,
