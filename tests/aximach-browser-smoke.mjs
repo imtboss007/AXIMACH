@@ -811,7 +811,7 @@ try {
   // The ASTER example must be imported into normal company / PO / component
   // selectors and rendered by the live Route Flow graph, not an isolated demo.
   await page.getByRole("button", { name: /Load ASTER example into AXIMACH/ }).click();
-  const routeScopeSelects = page.locator(".route-flow-scope-bar select");
+  const asterExampleScopeSelects = page.locator(".route-flow-scope-bar select");
   await page.waitForFunction(() => {
     const selects = [...document.querySelectorAll(".route-flow-scope-bar select")];
     return selects.length >= 3
@@ -819,13 +819,13 @@ try {
       && selects[1].value === "ASTER-EXAMPLE-PO"
       && selects[2].value === "ASTER-EXAMPLE-PO-LINE";
   }, null, { timeout: 10000 });
-  const routeStats = await page.locator(".route-flow-scope-stats").innerText();
-  if (!routeStats.includes("10") || !routeStats.includes("TRANSPORT LEGS")) {
-    throw new Error("ASTER live import did not populate all 10 transport legs in the normal Route Flow scope: " + routeStats);
+  const asterExampleRouteStats = await page.locator(".route-flow-scope-stats").innerText();
+  if (!asterExampleRouteStats.includes("10") || !asterExampleRouteStats.includes("TRANSPORT LEGS")) {
+    throw new Error("ASTER live import did not populate all 10 transport legs in the normal Route Flow scope: " + asterExampleRouteStats);
   }
-  const routeScopeValues = await routeScopeSelects.evaluateAll(selects => selects.slice(0, 3).map(select => select.value));
-  if (routeScopeValues.join("|") !== "ASTER-EXAMPLE-COMPANY|ASTER-EXAMPLE-PO|ASTER-EXAMPLE-PO-LINE") {
-    throw new Error("ASTER example did not appear in the regular company, PO and component selectors: " + routeScopeValues.join("|"));
+  const asterExampleScopeValues = await asterExampleScopeSelects.evaluateAll(selects => selects.slice(0, 3).map(select => select.value));
+  if (asterExampleScopeValues.join("|") !== "ASTER-EXAMPLE-COMPANY|ASTER-EXAMPLE-PO|ASTER-EXAMPLE-PO-LINE") {
+    throw new Error("ASTER example did not appear in the regular company, PO and component selectors: " + asterExampleScopeValues.join("|"));
   }
   console.log("PASS ASTER example live import: normal company / PO / component selectors selected; 10 transport legs visible");
 
