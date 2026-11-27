@@ -321,28 +321,25 @@ function GlyphShape({ glyph }: { glyph: ToolGlyph }): ReactNode {
 }
 
 const componentRules: Array<[RegExp, ToolGlyph]> = [
-  [/bearing|ball bearing|roller bearing/, "bearing"],
-  [/\\bgear\\b|sprocket|worm wheel|pinion/, "gear"],
-  [/shaft|spindle|axle/, "shaft"],
-  [/bolt|screw|stud|nut|washer|fastener/, "fastener"],
+  // Specific manufacturing identities must precede generic component nouns.
+  [/gear|sprocket|rack|worm wheel|splined/, "hob"],
+  [/shaft|spindle|axle|pinion shaft|drive shaft/, "turning-insert"],
+  [/fixture|jig|workholding|tooling plate|clamping fixture/, "fixture-jig"],
+  [/bracket|clamp|support|mount/, "press-tool"],
+  [/housing|body|casing|manifold|block|valve body/, "boring-bar"],
+  [/bush|bushing|sleeve|spacer|bearing|roller/, "reamer"],
+  [/flange|disc|hub|rotor|brake rotor/, "face-mill"],
+  [/plate|panel|sheet|cover|guard|base plate/, "saw"],
+  [/coupling|pulley|sheave|collar|ring/, "grooving"],
+  [/bolt|screw|stud|nut|washer|fastener|threaded/, "tap"],
   [/valve/, "valve"],
   [/pump|impeller/, "industrial-pump"],
   [/motor|stator|rotor/, "electric-motor"],
-  [/fixture|jig|workholding|tooling plate|clamping fixture/, "fixture-jig"],
-  // Prefer the gear-specific identity when a component name contains both "gear" and "shaft".
-  [/\b(?:gear|sprocket|rack|worm wheel|splined)\b/, "hob"],
-  [/shaft|spindle|axle|pinion shaft|drive shaft/, "turning-insert"],
-  [/housing|body|casing|manifold|block|valve body/, "boring-bar"],
-  [/flange|disc|hub|rotor|brake rotor/, "face-mill"],
-  [/bush|bushing|sleeve|spacer|bearing|roller/, "reamer"],
-  [/bracket|clamp|support|mount|fixture|jig/, "press-tool"],
-  [/plate|panel|sheet|cover|guard|base plate/, "saw"],
-  [/coupling|pulley|sheave|collar|ring/, "grooving"],
-  [/bolt|screw|stud|nut|threaded/, "tap"],
+  [/bearing|ball bearing|roller bearing/, "bearing"],
   [/impeller|fan|propeller|blade/, "end-mill"],
   [/spring|wire form|formed wire/, "broach"],
   [/weldment|fabricated|welded assembly/, "welding-torch"]
-];
+];;
 
 export function mechanicalGlyphForComponentName(componentName: string): ToolGlyph | null {
   const value = componentName.toLowerCase().replace(/[_-]+/g, " ");
