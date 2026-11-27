@@ -109,11 +109,12 @@ function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:
     components:data.components.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
     orders:data.purchaseOrders.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
     operations:data.operations.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
-    materials:demoCounts.materials,
-    bom:demoCounts.bom,
-    links:demoCounts.links,
-    legs:demoCounts.legs,
-    relationships:demoCounts.relationships
+    materials:data.materials.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    bom:data.bomLines.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    links:data.materialProcessLinks.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    legs:data.transportLegs.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    routes:data.transportRoutes.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    relationships:data.routeRelationships.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length
   };
   const loadDemo = () => {
     if (demoLoaded) { onNotice("The one-company ASTER example is already loaded across AXIMACH modules. Use the regular company, PO, component, material, Process Map, Route Flow and costing selectors."); return; }
@@ -142,7 +143,7 @@ function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:
         </div>
         <div className="metric-grid" style={{margin:"14px 0"}}>
           <div className="metric-card"><small>Companies</small><strong>{demoCounts.companies}</strong></div><div className="metric-card"><small>Factories</small><strong>{demoCounts.factories}</strong></div><div className="metric-card"><small>Vendors</small><strong>{demoCounts.vendors}</strong></div><div className="metric-card"><small>Components</small><strong>{demoCounts.components}</strong></div><div className="metric-card"><small>Purchase orders</small><strong>{demoCounts.orders}</strong></div><div className="metric-card"><small>Process operations</small><strong>{demoCounts.operations}</strong></div>
-          <div className="metric-card"><small>Material masters</small><strong>{data.materials.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>BOM lines</small><strong>{data.bomLines.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Material → process links</small><strong>{data.materialProcessLinks.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Transport legs</small><strong>{data.transportLegs.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Route relationships</small><strong>{data.routeRelationships.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Planned costs</small><strong>{0}</strong></div>
+          <div className="metric-card"><small>Material masters</small><strong>{{demoCounts.materials}</strong></div><div className="metric-card"><small>BOM lines</small><strong>{demoCounts.bom}</strong></div><div className="metric-card"><small>Material → process links</small><strong>{demoCounts.links}</strong></div><div className="metric-card"><small>Transport legs</small><strong>{demoCounts.legs}</strong></div><div className="metric-card"><small>Transport routes</small><strong>{demoCounts.routes}</strong></div><div className="metric-card"><small>Route relationships</small><strong>{demoCounts.relationships}
         </div>
         <div className="linked-route-actions">
           <button type="button" className="button-primary compact-button" disabled={demoLoaded} onClick={loadDemo}><Plus size={14}/> Load ASTER example into all modules</button>
