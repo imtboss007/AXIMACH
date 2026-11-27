@@ -211,7 +211,7 @@ test("Route Flow applies the selected layout to the live graph, preserves explic
   assert.ok(flow.includes("saveRouteFlowGraphPosition(current,node.id,node.position)"),"Dragged node positions must be written to scoped local storage.");
   assert.ok(flow.includes("onNodeDragStop={persistRouteGraphNodePosition}"),"Route Flow must persist node positions when a drag completes.");
   assert.ok(flow.includes("Reset node layout")&&flow.includes("window.localStorage.removeItem(routeGraphLayoutStorageKey)"),"Users must be able to clear saved positions and restore the selected automatic layout.");
-  assert.ok(flow.includes('revision={routeLayout+":"+routeGraphLayoutStorageKey+":"+routeFlowGraph.nodes.map(node=>node.id).join(";")}'),"Auto-fit must react to scope or node-set changes, not manual position changes.");
+  assert.ok(flow.includes('revision={routeLayout+":"+routeGraphLayoutStorageKey+":"+(compactGraphViewport?"compact":"wide")+":"+routeFlowGraph.nodes.map(node=>node.id).join(";")}'),"Auto-fit must react to scope or node-set changes, not manual position changes.");
   assert.ok(!flow.includes('node.id+"@"+node.position.x'),"Dragging must not retrigger camera auto-fit.");
   assert.ok(flow.includes("routeRelationshipEdgeGeometry(type,nodeCenter(source),nodeCenter(target),routeLayout,parallelIndex)"),"Each edge must adapt to its real node geometry and selected route layout.");
   assert.ok(flow.includes("type:geometry.edgeType,label,animated"),"The edge path type must be selected per relationship.");
@@ -220,6 +220,10 @@ test("Route Flow applies the selected layout to the live graph, preserves explic
   assert.ok(flow.includes("maxZoom={2.8}"));
   assert.ok(flow.includes("<RouteConnectorLegend/>"));
   assert.ok(flow.includes("RouteFlowFitController revision={routeLayout+"));
+  assert.ok(flow.includes('validateRouteRelationshipCriteria({relationshipType,status:relationshipStatus,condition:relationshipCondition})'),"The editor must reject conditional/rework links without an acceptance rule.");
+  const connections=source("src/manufacturingGraphConnections.ts");
+  assert.ok(connections.includes('validateRouteRelationshipCriteria({relationshipType:type,status,condition:""})'),"Drag-to-connect must not create blank conditional/rework links.");
+  assert.ok(connections.includes("no blank link was saved"),"The user must be told to enter a condition before a conditional graph link is created.");
   assert.ok(flow.includes("targetOperationId"),"Transport destinations must remain explicit saved references.");
   assert.ok(flow.includes('markerEnd:{type:MarkerType.ArrowClosed,color:style.color,width:18,height:18}'));
   assert.ok(flow.includes("strokeWidth:type===\"transport\"?3.4:3.8"));
