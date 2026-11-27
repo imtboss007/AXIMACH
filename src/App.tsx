@@ -42,7 +42,7 @@ const LinkedCostingWorkspace = lazy(() => import("./LinkedCostingWorkspace"));
 const InventoryWorkspace = lazy(() => import("./InventoryWorkspace"));
 const IntegrationHubWorkspace = lazy(() => import("./IntegrationHubWorkspace"));
 import { activeRows, emptyManufacturingData, makeId, mergeManufacturingData, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
-import { AXIMACH_DEMO_ID_PREFIX, archiveAxMachTwoCompanyDemo, importAxMachTwoCompanyDemo } from "./aximachDemoData";
+import { ASTER_EXAMPLE_PREFIX, archiveAsterPrecisionExample, importAsterPrecisionExample } from "./asterPrecisionExample";
 
 function isAllowedAxMachServiceUrl(value: string) {
   try {
@@ -99,10 +99,22 @@ const groupOptions = ["All domains", ...Array.from(new Set(modules.map((item) =>
 function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string,context?:LinkedNavigationContext)=>void}) {
   const [mode,setMode] = useState<"export"|"import">("export");
   const { data, update, syncStatus } = useManufacturingData();
-  const demoRows = Object.values(data).filter(value => Array.isArray(value)).flatMap(value => value as Array<{id?:string;deletedAt?:string}>).filter(row => row.id?.startsWith(AXIMACH_DEMO_ID_PREFIX));
+  const demoRows = Object.values(data).filter(value => Array.isArray(value)).flatMap(value => value as Array<{id?:string;deletedAt?:string}>).filter(row => row.id?.startsWith(ASTER_EXAMPLE_PREFIX));
   const activeDemoCount = demoRows.filter(row => !row.deletedAt).length;
   const demoLoaded = activeDemoCount > 0;
-  const demoCounts = { companies:data.companies.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, factories:data.factories.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, vendors:data.vendors.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, components:data.components.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, orders:data.purchaseOrders.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, operations:data.operations.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length };
+  const demoCounts = {
+    companies:data.companies.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    factories:data.factories.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    vendors:data.vendors.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    components:data.components.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    orders:data.purchaseOrders.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    operations:data.operations.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    materials:data.materials.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    bom:data.bomLines.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    links:data.materialProcessLinks.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    legs:data.transportLegs.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    relationships:data.routeRelationships.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length
+  };
   const loadDemo = () => {
     if (demoLoaded) { onNotice("The full Demo Factory is already loaded across AXIMACH modules. Use the normal company, PO, component, process, material, costing and transport selectors."); return; }
     update(current => importAxMachTwoCompanyDemo(current));
@@ -130,7 +142,7 @@ function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:
         </div>
         <div className="metric-grid" style={{margin:"14px 0"}}>
           <div className="metric-card"><small>Companies</small><strong>{demoCounts.companies}</strong></div><div className="metric-card"><small>Factories</small><strong>{demoCounts.factories}</strong></div><div className="metric-card"><small>Vendors</small><strong>{demoCounts.vendors}</strong></div><div className="metric-card"><small>Components</small><strong>{demoCounts.components}</strong></div><div className="metric-card"><small>Purchase orders</small><strong>{demoCounts.orders}</strong></div><div className="metric-card"><small>Process operations</small><strong>{demoCounts.operations}</strong></div>
-          <div className="metric-card"><small>Material masters</small><strong>{data.materials.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>BOM lines</small><strong>{data.bomLines.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Material → process links</small><strong>{data.materialProcessLinks.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Transport legs</small><strong>{data.transportLegs.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Route relationships</small><strong>{data.routeRelationships.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Planned costs</small><strong>{data.plannedCosts.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length}</strong></div>
+          <div className="metric-card"><small>Material masters</small><strong>{data.materials.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>BOM lines</small><strong>{data.bomLines.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Material → process links</small><strong>{data.materialProcessLinks.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Transport legs</small><strong>{data.transportLegs.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Route relationships</small><strong>{data.routeRelationships.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Planned costs</small><strong>{data.plannedCosts.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div>
         </div>
         <div className="linked-route-actions">
           <button type="button" className="button-primary compact-button" disabled={demoLoaded} onClick={loadDemo}><Plus size={14}/> Load full Demo Factory</button>
@@ -164,7 +176,7 @@ type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: s
 function App() {
   useState(() => { removeLegacyDemoData(); return true; });
   const { data: appData } = useManufacturingData();
-  const activeDemoRecordCount = Object.values(appData).filter(value => Array.isArray(value)).flatMap(value => value as Array<{id?:string;deletedAt?:string}>).filter(row => row.id?.startsWith(AXIMACH_DEMO_ID_PREFIX) && !row.deletedAt).length;
+  const activeDemoRecordCount = Object.values(appData).filter(value => Array.isArray(value)).flatMap(value => value as Array<{id?:string;deletedAt?:string}>).filter(row => row.id?.startsWith(ASTER_EXAMPLE_PREFIX) && !row.deletedAt).length;
   const [activeModuleId, setActiveModuleId] = useState("dashboard");
   const [moduleContext, setModuleContext] = useState<LinkedNavigationContext>({});
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
