@@ -6,7 +6,6 @@ import { useReducedMotion } from "motion/react";
 import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
 import { RouteLayoutPicker, useRouteLayout, type RouteLayoutMode } from "./RouteLayoutPicker";
 import { RouteFlowShowcase } from "./RouteFlowShowcase";
-import TransportRoutingDemo from "./TransportRoutingDemo";
 import { buildRouteFlowOperationPositions } from "./routeFlowLayout.js";
 import { loadRouteFlowGraphLayout, saveRouteFlowGraphPosition } from "./routeFlowGraphLayout.mjs";
 import { routeRelationshipEdgeGeometry } from "./manufacturingGraphLayout.mjs";
@@ -20,6 +19,7 @@ import WorkspaceThemePicker from "./WorkspaceThemePicker";
 import { useWorkspaceTheme } from "./workspaceTheme";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
 import { RouteConnectorLegend } from "./RouteConnectorLegend";
+import { ASTER_EXAMPLE_IDS, importAsterPrecisionExample } from "./asterPrecisionExample";
 import { VehicleIcon as VehicleTypeIcon, getVehicleVisual, VEHICLE_TYPES } from "./TransportVehicle";
 import VehicleTypePicker from "./VehicleTypePicker";
 import { connectManufacturingGraphNodes } from "./manufacturingGraphConnections";
@@ -207,7 +207,6 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const [showAddOperation,setShowAddOperation]=useState(false);
   const [exportFormat,setExportFormat]=useState<"svg"|"png"|"pdf"|"csv"|"json">("svg");
   const [routeCanvasMode,setRouteCanvasMode]=useState<"cards"|"graph">("graph");
-  const [showSingleComponentRouteDemo,setShowSingleComponentRouteDemo]=useState(false);
   const [showRelationshipEditor,setShowRelationshipEditor]=useState(false);
   const [showTransportEditor,setShowTransportEditor]=useState(false);
   const routeViewportRef=useRef<HTMLDivElement|null>(null);
@@ -242,6 +241,20 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     setRouteGraphLayoutRevision(value=>value+1);
     setRouteGraphResetRevision(value=>value+1);
     onNotice("Route Flow node positions reset to the selected automatic layout.");
+  };
+  const loadAsterExample=()=>{
+    update(current=>importAsterPrecisionExample(current));
+    setCompanyPick(ASTER_EXAMPLE_IDS.company);
+    setPoPick(ASTER_EXAMPLE_IDS.purchaseOrder);
+    setLinePick(ASTER_EXAMPLE_IDS.poLine);
+    setBranchPick("Main route");
+    setShowRelationshipEditor(false);
+    setShowTransportEditor(false);
+    setShowAddOperation(false);
+    setInspectedTransportId("");
+    setInspectedMaterialTransportId("");
+    setSelectedMaterialLinkId("");
+    onNotice("ASTER Precision Works example loaded into the normal Company, PO and Component selectors. The example is synthetic; existing company data is preserved.");
   };
   const componentLineCount=lineOptions.filter(row=>row.componentId===componentId).length;
   const componentGlobalLineCount=orders.reduce((count,poRow)=>count+poRow.lines.filter(row=>!row.deletedAt&&row.componentId===componentId).length,0);
@@ -808,15 +821,14 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
 
     <section className="route-flow-advanced-demo-launch">
       <div>
-        <span>ADVANCED ROUTE ACCEPTANCE · SINGLE SOURCE OF TRUTH</span>
-        <h3>One company · one PO · one component · complete rate graph</h3>
-        <p>28 priced operations · 18 process categories including Wire EDM and fabrication · 11 route relationship patterns · 10 transport legs · BOM material flows · alternate and rework costing.</p>
+        <span>READY-TO-SELECT SYNTHETIC COMPANY EXAMPLE</span>
+        <h3>ASTER Precision Works · ASTER-DEMO-PO-001 · AST-1001</h3>
+        <p>Load 28 operations across 18 process categories, all 11 persisted relationship types, 10 transport legs and BOM-linked material flows directly into the normal AXIMACH records and selectors. Existing company data is preserved.</p>
       </div>
-      <button type="button" className="button-primary compact-button" onClick={()=>setShowSingleComponentRouteDemo(value=>!value)} aria-expanded={showSingleComponentRouteDemo}>
-        {showSingleComponentRouteDemo?"Hide complete route demo":"Open complete route + rate demo"}
+      <button type="button" className="button-primary compact-button" onClick={loadAsterExample}>
+        <Plus size={14}/> Load ASTER example into AXIMACH
       </button>
     </section>
-    {showSingleComponentRouteDemo&&<TransportRoutingDemo onClose={()=>setShowSingleComponentRouteDemo(false)}/>}
     <RouteFlowShowcase/>
 
     {showTransportEditor&&<section className="route-flow-editor-panel">
