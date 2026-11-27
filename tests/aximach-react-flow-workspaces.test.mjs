@@ -415,10 +415,11 @@ test("Manufacturing Universe is scoped to the selected component and uses the na
   assert.ok(graph.includes("minZoom:.28"),"The mobile graph must not auto-shrink the whole unfiltered company database to unreadable size.");
   assert.ok(workspace.includes("scope={{companyId,poId,poLineId,componentId}}"));
   assert.ok(workspace.includes("Manufacturing Graph"),"The old Ecosystem tab is replaced by the Manufacturing Graph label.");
-  assert.ok(workspace.includes('useState<"ecosystem"|"route"|"preview">("ecosystem")'),"Manufacturing Universe exposes the live graph, single-component preview and animated 3D route.");
+  assert.ok(workspace.includes('useState<"ecosystem"|"route">("ecosystem")'),"Manufacturing Universe exposes only shared-data graph and animated 3D route.");
+  assert.ok(!workspace.includes("One Component Preview"),"The isolated static fixture preview is not exposed as a live module.");
   assert.ok(workspace.includes("const defaultPO=!context.poId&&!context.poLineId&&!context.operationId"),"An unscoped visit must select one available live PO instead of rendering the entire company database.");
   assert.ok(workspace.includes("targetPO?.lines.find(row=>!row.deletedAt)"),"An unscoped visit must open the first active component line in that PO.");
-  assert.ok(workspace.includes("<SingleComponentRouteGraphDemo/>"),"The one-company, one-PO, one-component preview must be directly available inside Manufacturing Universe.");
+  assert.ok(!workspace.includes("<SingleComponentRouteGraphDemo/>"),"Manufacturing Universe uses shared normal-module records only.");
 });
 
 test("the retired two-company demo importer is removed and reserved DEMO records are archived without touching real IDs",()=>{
