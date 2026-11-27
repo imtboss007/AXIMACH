@@ -866,7 +866,7 @@ test("five synthetic component names resolve to the intended mechanical logo fam
   for (const part of fixture.parts) {
     assert.equal(glyphFor(part.name + " " + part.partNumber), expected.get(part.partNumber), part.partNumber + " mechanical logo family");
   }
-  assert.ok(iconSource.indexOf("gear|sprocket|rack|worm wheel|splined") < iconSource.indexOf("shaft|spindle|axle|pinion shaft|drive shaft"), "gear identity must take priority over the generic shaft rule");
+  assert.ok(iconSource.indexOf("\\bgear\\b|\\bsprocket\\b|\\brack\\b|worm wheel|splined") < iconSource.indexOf("shaft|spindle|axle|pinion shaft|drive shaft"), "gear identity must take priority over the generic shaft rule");
 });
 
 
@@ -900,7 +900,7 @@ test("Logo Studio limits selectable and persisted symbols to mechanical and tran
   assert.ok(studio.includes("const ICONS: IconMeta[] = engineeredMechanicalIcons;"));
   assert.ok(!studio.includes("tablerIconCatalogue"));
   assert.ok(studio.includes("useState(() => iconKey(ICONS[0]))"));
-  assert.ok(studio.includes("Mechanical &amp; transport logos"));
+  assert.ok(studio.includes("Unique engineering SVG symbols · not colour variants"));
   assert.ok(studio.includes("!isMechanicalStudioIcon(assignment.iconName)"));
   assert.ok(mechanical.includes('mechanicalGlyphForOperation(operation) || "component-block"'));
 });
@@ -1129,7 +1129,7 @@ test("Logo Studio lists and renders the authored mechanical tool and transport g
   assert.ok(mechanical.includes('[/\\bhmc\\b|horizontal machining centre|horizontal machining center/, "cnc-machine"]'));
   assert.ok(studio.includes("const ICONS: IconMeta[] = engineeredMechanicalIcons;"));
   assert.ok(studio.includes("useState(() => iconKey(ICONS[0]))"));
-  assert.ok(studio.includes("Mechanical &amp; transport logos"));
+  assert.ok(studio.includes("Unique engineering SVG symbols · not colour variants"));
   assert.ok(studio.includes("Search mechanical process, machine, tool or transport logo"));
   assert.ok(!studio.includes("tablerIconCatalogue"));
 });
