@@ -331,7 +331,7 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
     {showAddOperation&&<OperationQuickCreate
       poId={poId} poLineId={poLineId} componentId={componentId}
       sequence={Math.max(0,...allRouteOperations.map(row=>row.sequence))+1}
-      branch="Main route" vendors={vendors.map(row=>({id:row.id,company:row.company}))}
+      branch="Main route" vendors={vendors.map(row=>({id:row.id,company:row.company}))} processDefinitions={definitions}
       onSave={saveNewOperation} onCancel={()=>setShowAddOperation(false)}
     />}
     {editingOperation&&<OperationInlineEditor
