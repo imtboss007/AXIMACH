@@ -5,17 +5,17 @@ import test from "node:test";
 const read = path => readFileSync(new URL(path, import.meta.url), "utf8");
 
 test("full Demo Factory imports into shared module records and preserves real records", () => {
-  const demo = read("../src/aximachDemoData.ts");
+  const demo = read("../src/asterPrecisionExample.ts");
   const app = read("../src/App.tsx");
-  assert.ok(demo.includes("export function createAxMachTwoCompanyDemo()"));
-  assert.ok(demo.includes("export function importAxMachTwoCompanyDemo(current:ManufacturingData"));
-  assert.ok(demo.includes("const sample=createAxMachTwoCompanyDemo()"));
-  assert.ok(demo.includes("filter(row=>!row.id?.startsWith(AXIMACH_DEMO_ID_PREFIX))"), "real non-DEMO rows must be retained");
-  assert.ok(demo.includes("filter(row=>row.id?.startsWith(AXIMACH_DEMO_ID_PREFIX))"), "only reserved demo rows are re-imported");
-  assert.ok(app.includes("importAxMachTwoCompanyDemo(current)"));
-  assert.ok(app.includes("Load full Demo Factory"));
-  assert.ok(app.includes("Remove demo records"));
-  assert.ok(app.includes("DEMO FACTORY ACTIVE"));
+  assert.ok(demo.includes("export function importAsterPrecisionExample(current: ManufacturingData)"));
+  assert.ok(demo.includes("export function archiveAsterPrecisionExample(current: ManufacturingData"));
+  assert.ok(demo.includes("export const ASTER_EXAMPLE_PREFIX = \"ASTER-EXAMPLE-\";"));
+  assert.ok(demo.includes("mergeById(current.companies, [{ ...company, updatedAt }])"), "real company records must remain");
+  assert.ok(demo.includes("mergeById(current.purchaseOrders, [{ ...po, updatedAt }])"), "example PO must be idempotently imported");
+  assert.ok(app.includes("importAsterPrecisionExample(current)"));
+  assert.ok(app.includes("Load ASTER example into all modules"));
+  assert.ok(app.includes("Remove ASTER example"));
+  assert.ok(app.includes("ASTER EXAMPLE ACTIVE"));
 });
 
 test("demo data is opened from the regular module workflows, not an isolated Route Flow preview", () => {
@@ -31,22 +31,23 @@ test("demo data is opened from the regular module workflows, not an isolated Rou
   ]) {
     assert.ok(app.includes('onSelectModule("' + moduleId + '")'), "Demo Factory needs a direct link to " + label);
   }
-  const source = read("../src/aximachDemoData.ts");
+  const source = read("../src/asterPrecisionExample.ts");
   for (const key of [
-    "companies,customers:[]", "factories,machines,toolingAssets", "purchaseOrders,components,vendors,operations",
-    "materials,componentParts", "materialCostEntries,bomLines,materialProcessLinks",
-    "transportRoutes,transportLegs", "routeRelationships,followUpAssignments"
+    "companies: mergeById(current.companies", "factories: mergeById(current.factories", "purchaseOrders: mergeOrders",
+    "components: mergeById(current.components", "materials: mergeById(current.materials", "operations: mergeById(current.operations",
+    "bomLines: mergeById(current.bomLines", "materialProcessLinks: mergeById(current.materialProcessLinks",
+    "transportRoutes: mergeById(current.transportRoutes", "transportLegs: mergeById(current.transportLegs", "routeRelationships: mergeById(current.routeRelationships"
   ]) assert.ok(source.includes(key), "The shared example should seed linked records including " + key);
 });
 
 test("removing the Demo Factory archives DEMO IDs across all record collections and can be re-imported", () => {
-  const demo = read("../src/aximachDemoData.ts");
-  assert.ok(demo.includes("for(const [key,value] of Object.entries(current))"));
-  assert.ok(demo.includes('if(key==="purchaseOrders")'));
-  assert.ok(demo.includes("line.id.startsWith(AXIMACH_DEMO_ID_PREFIX)"));
-  assert.ok(demo.includes("deletedAt:stamp,updatedAt:stamp"));
-  assert.ok(demo.includes("const realRows="));
-  assert.ok(demo.includes("const demoRows="));
+  const demo = read("../src/asterPrecisionExample.ts");
+  assert.ok(demo.includes("export function archiveAsterPrecisionExample(current: ManufacturingData"));
+  assert.ok(demo.includes('if (key === "purchaseOrders")'));
+  assert.ok(demo.includes("line.id.startsWith(ASTER_EXAMPLE_PREFIX)"));
+  assert.ok(demo.includes("deletedAt: archivedAt, updatedAt: archivedAt"));
+  assert.ok(demo.includes("row.id?.startsWith(ASTER_EXAMPLE_PREFIX)"));
+  assert.ok(demo.includes("All real customer records and non-example IDs remain untouched."));
 });
 
 test("optional money fields do not force a visible zero while typing", () => {
