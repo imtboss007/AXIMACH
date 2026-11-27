@@ -506,7 +506,7 @@ export default function IconStudio({ open, onClose, initialTarget }: { open: boo
               <button className="ax-icon-studio-close" onClick={onClose} aria-label="Close icon studio"><X size={18}/></button>
             </header>
             <div className="ax-icon-studio-stats">
-              <div><strong>{ICONS.length.toLocaleString("en-IN")}</strong><span>Distinct manufacturing pictograms</span></div>
+              <div><strong>{ICONS.length.toLocaleString("en-IN")}</strong><span>Mechanical &amp; transport logos · distinct manufacturing pictograms</span></div>
               <div><strong>{(ICONS.length * STYLE_VARIANTS_PER_ICON).toLocaleString("en-IN")}+</strong><span>Visual styling combinations · same symbols</span></div>
               <div><strong>{Object.keys(assignments).length}</strong><span>Logo assignments</span></div>
               <div><strong>{presets.length.toLocaleString("en-IN")}</strong><span>Saved style presets</span></div>
