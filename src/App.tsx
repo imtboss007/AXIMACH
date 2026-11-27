@@ -104,11 +104,13 @@ function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:
   const demoLoaded = activeDemoCount > 0;
   const demoCounts = {
     companies:data.companies.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    customers:data.customers.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
     factories:data.factories.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
     vendors:data.vendors.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
     components:data.components.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
     orders:data.purchaseOrders.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
     operations:data.operations.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    processTypes:data.processDefinitions.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
     materials:data.materials.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
     bom:data.bomLines.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
     links:data.materialProcessLinks.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
@@ -117,9 +119,9 @@ function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:
     relationships:data.routeRelationships.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length
   };
   const loadDemo = () => {
-    if (demoLoaded) { onNotice("The one-company ASTER example is already loaded across AXIMACH modules. Use the regular company, PO, component, material, Process Map, Route Flow and costing selectors."); return; }
+    if (demoLoaded) { onNotice("The one-company ASTER example is already loaded across AXIMACH modules. Use the regular customer/company, PO, component, Process Directory, Process Map, Route Flow and costing selectors."); return; }
     update(current => importAsterPrecisionExample(current));
-    onNotice("ASTER example loaded into shared AXIMACH records: 1 company, 1 PO, 1 component, 28 operations, 18 process categories, 6 materials, BOM/material links, 10 transport legs and route relationships. All records are synthetic; real records are preserved.");
+    onNotice("ASTER example loaded into shared AXIMACH records: 1 company, 1 PO, 1 component, 28 operations, 18 process categories, 6 materials, 1 synthetic buyer, 28 linked Process Directory definitions, BOM/material links, 10 transport legs and route relationships. All records are synthetic; real records are preserved.");
   };
   const deleteDemo = () => {
     if (!demoLoaded) { onNotice("No active ASTER example records to remove."); return; }
@@ -138,11 +140,11 @@ function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:
       </div>
       <section className="workspace-card" aria-label="One-company linked ASTER example" style={{marginBottom:20,border:"1px solid var(--line, #d9e0e8)"}}>
         <div className="workspace-title-row" style={{alignItems:"center"}}>
-          <div><div className="eyebrow"><span className="eyebrow-mark"/> DATA CENTRE / REVERSIBLE EXAMPLE</div><h2 style={{margin:"4px 0"}}>ASTER · One-company linked demo example</h2><p>Load one synthetic company, one purchase order, one component, six materials, BOM, 28 operations across 18 process categories, material-to-process links, ten transport legs and route relationships into the same shared records used by the real modules. The complete example can be removed later.</p></div>
+          <div><div className="eyebrow"><span className="eyebrow-mark"/> DATA CENTRE / REVERSIBLE EXAMPLE</div><h2 style={{margin:"4px 0"}}>ASTER · One-company linked demo example</h2><p>Load one synthetic company, one purchase order, one component, six materials, a linked buyer account, 28 operations across 18 categories with matching Process Directory definitions, BOM, material-to-process links, ten transport legs and route relationships into the same shared records used by the real modules. The complete example can be removed later.</p></div>
           <span className="demo-pill"><i/> {demoLoaded?"EXAMPLE LOADED IN SHARED MODULES":"READY TO LOAD"}</span>
         </div>
         <div className="metric-grid" style={{margin:"14px 0"}}>
-          <div className="metric-card"><small>Companies</small><strong>{demoCounts.companies}</strong></div><div className="metric-card"><small>Factories</small><strong>{demoCounts.factories}</strong></div><div className="metric-card"><small>Vendors</small><strong>{demoCounts.vendors}</strong></div><div className="metric-card"><small>Components</small><strong>{demoCounts.components}</strong></div><div className="metric-card"><small>Purchase orders</small><strong>{demoCounts.orders}</strong></div><div className="metric-card"><small>Process operations</small><strong>{demoCounts.operations}</strong></div>
+          <div className="metric-card"><small>Companies</small><strong>{demoCounts.companies}</strong></div><div className="metric-card"><small>Customer accounts</small><strong>{demoCounts.customers}</strong></div><div className="metric-card"><small>Factories</small><strong>{demoCounts.factories}</strong></div><div className="metric-card"><small>Vendors</small><strong>{demoCounts.vendors}</strong></div><div className="metric-card"><small>Components</small><strong>{demoCounts.components}</strong></div><div className="metric-card"><small>Purchase orders</small><strong>{demoCounts.orders}</strong></div><div className="metric-card"><small>Process operations</small><strong>{demoCounts.operations}</strong></div><div className="metric-card"><small>Process Directory definitions</small><strong>{demoCounts.processTypes}</strong></div>
           <div className="metric-card"><small>Material masters</small><strong>{demoCounts.materials}</strong></div><div className="metric-card"><small>BOM lines</small><strong>{demoCounts.bom}</strong></div><div className="metric-card"><small>Material → process links</small><strong>{demoCounts.links}</strong></div><div className="metric-card"><small>Transport legs</small><strong>{demoCounts.legs}</strong></div><div className="metric-card"><small>Transport routes</small><strong>{demoCounts.routes}</strong></div><div className="metric-card"><small>Route relationships</small><strong>{demoCounts.relationships}</strong></div>
         </div>
         <div className="linked-route-actions">
@@ -151,15 +153,17 @@ function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:
           <span className="muted-copy">Sync: {syncStatus} · Real records remain untouched</span>
         </div>
         <div className="linked-route-actions" style={{marginTop:10}}>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("customers")}><Users size={14}/> Customer Directory</button>
           <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("companies")}><Factory size={14}/> Companies / factories</button>
           <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("purchasing")}><Package size={14}/> Purchase orders</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("process-master")}><Layers3 size={14}/> Process Directory</button>
           <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("process-map")}><Workflow size={14}/> Process Map</button>
           <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("inventory")}><Boxes size={14}/> Materials / BOM</button>
           <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("route-flow")}><GitBranch size={14}/> Route Flow</button>
           <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("manufacturing-universe")}><Network size={14}/> Manufacturing Universe</button>
           <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("costing")}><CircleDollarSign size={14}/> Costing</button>
         </div>
-        <p className="muted-copy" style={{marginTop:10}}>This is not an isolated preview. The same ASTER company, PO, component, materials, BOM, operations and transport records appear in each module’s regular selectors. “Remove ASTER example” archives only ASTER-EXAMPLE- IDs; you can reload it whenever you need to test.</p>
+        <p className="muted-copy" style={{marginTop:10}}>This is not an isolated preview. The same ASTER buyer, company, PO, component, material grades, BOM, Process Directory definitions, operations and transport records appear in each module’s regular selectors. “Remove ASTER example” archives only ASTER-EXAMPLE- IDs; you can reload it whenever you need to test.</p>
       </section>
       <div className="linked-route-actions" role="tablist" aria-label="Data exchange mode">
         <button type="button" role="tab" aria-selected={mode==="export"} className={(mode==="export"?"button-primary":"button-quiet")+" compact-button"} onClick={()=>setMode("export")}><FileDown size={14}/> Export records</button>
