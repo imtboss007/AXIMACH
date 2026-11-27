@@ -233,7 +233,7 @@ export type SupplierPaymentAllocationRecord = {
 export type MaterialRecord = {
   id: string; code: string; name: string; grade: string; unit: string; specification: string;
   preferredVendorId: string; ratePerUnit: number; notes: string;
-  materialType?: string; shapeType?: string; dimensions?: Record<string, number>; dimensionUnit?: "mm" | "inch"; densityKgM3?: number; densityUnit?: "kg/m3" | "g/cm3"; priceUnit?: "kg" | "lb";
+  materialType?: string; shapeType?: string; dimensions?: Record<string, number>; dimensionUnit?: "mm" | "inch"; densityKgM3?: number; densityUnit?: "kg/m3" | "g/cm3"; priceUnit?: "kg" | "lb" | "piece";
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type ComponentPartRecord = {
