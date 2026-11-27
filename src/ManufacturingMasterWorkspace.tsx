@@ -687,7 +687,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
         <label>Drawing revision<input value={componentDraft.revision} onChange={e => setComponentDraft({ ...componentDraft, revision: e.target.value })} placeholder="e.g. Rev A"/></label>
         
         <label>Drawing number / file reference<input value={componentDraft.drawingReference} onChange={e => setComponentDraft({ ...componentDraft, drawingReference: e.target.value })} placeholder="Drawing reference"/></label>
-        <label>Component price (₹)<input type="number" min="0" step="0.01" value={componentPriceInput} onChange={e=>setComponentPriceInput(e.target.value)} placeholder="Enter amount"/></label>
+        <label>Component price (₹)<input type="text" inputMode="decimal" value={componentPriceInput} onChange={e=>setComponentPriceInput(e.target.value)} placeholder="Enter price; leave blank if not quoted"/></label>
         <label>Price unit<select value={componentDraft.salePriceUnit || "piece"} onChange={e=>setComponentDraft({...componentDraft,salePriceUnit:e.target.value as "piece"|"set"})}><option value="piece">Per piece</option><option value="set">Per set</option></select></label>
         
         
