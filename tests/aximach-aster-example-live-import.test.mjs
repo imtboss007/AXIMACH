@@ -7,6 +7,8 @@ const fixture = JSON.parse(read("../src/single-component-route-demo.json"));
 const importer = read("../src/asterPrecisionExample.ts");
 const route = read("../src/RouteFlowWorkspace.tsx");
 const app = read("../src/App.tsx");
+const iconSource = read("../src/MechanicalOperationIcon.tsx");
+const iconStudio = read("../src/IconStudio.tsx");
 
 const routeTypes = ["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"];
 
@@ -19,12 +21,13 @@ test("ASTER fixture is loaded into the normal AXIMACH manufacturing records on e
   assert.ok(importer.includes("operations: mergeById(current.operations"));
   assert.ok(importer.includes("transportLegs: mergeById(current.transportLegs"));
   assert.ok(importer.includes("routeRelationships: mergeById(current.routeRelationships"));
-  assert.ok(route.includes("import { ASTER_EXAMPLE_IDS, importAsterPrecisionExample } from \"./asterPrecisionExample\""));
-  assert.ok(route.includes("update(current=>importAsterPrecisionExample(current))"));
-  assert.ok(route.includes("setCompanyPick(ASTER_EXAMPLE_IDS.company)"));
-  assert.ok(route.includes("setPoPick(ASTER_EXAMPLE_IDS.purchaseOrder)"));
-  assert.ok(route.includes("setLinePick(ASTER_EXAMPLE_IDS.poLine)"));
-  assert.ok(route.includes("Load ASTER example into AXIMACH"));
+  assert.ok(app.includes("loadAsterExampleFromWorkspace"));
+  assert.ok(app.includes("removeAsterExampleFromWorkspace"));
+  assert.ok(app.includes("Load full demo"));
+  assert.ok(app.includes("Remove test data"));
+  assert.ok(app.includes('className="status-ribbon"'));
+  assert.ok(!route.includes("importAsterPrecisionExample"), "Route Flow must not own a separate demo loader.");
+  assert.ok(!route.includes("Load ASTER example into AXIMACH"), "Only the global cross-module demo control should load the full dataset.");
 });
 
 test("ASTER example is visible in regular company, PO and component selectors without replacing real records", () => {
@@ -108,4 +111,21 @@ test("the shared ASTER example includes removable machine, tooling, fixture, sto
   assert.ok(importer.includes("machineCount:1"));
   assert.ok(importer.includes("inventoryOpeningRows:6"));
   assert.ok(importer.includes("row.id?.startsWith(ASTER_EXAMPLE_PREFIX)"));
+});
+
+
+test("the global load/remove test-data control is visible in the shared application shell", () => {
+  const styles = read("../src/aximach-ui.css");
+  assert.match(styles, /\\.status-ribbon\\{[\\s\\S]*?display:flex!important/);
+  assert.doesNotMatch(styles, /\\.status-ribbon\\{\\s*display:none!important/);
+});
+
+test("the logo catalogue uses distinct SVG drawings rather than palette variants", () => {
+  const inventory = [...iconSource.matchAll(/\\{glyph:"([^"]+)"/g)].map(match => match[1]);
+  const rendered = [...iconSource.matchAll(/case "([^"]+)": return/g)].map(match => match[1]);
+  assert.ok(inventory.length >= 90, "The manufacturing icon catalogue must contain the expanded set of unique symbols.");
+  assert.equal(new Set(inventory).size, inventory.length, "One symbol glyph must not be duplicated as another logo.");
+  assert.deepEqual([...new Set(rendered)].sort(), [...new Set(inventory)].sort(), "Every catalogue symbol must have its own SVG drawing.");
+  assert.ok(iconStudio.includes("Unique engineering SVG symbols · not colour variants"));
+  assert.ok(iconStudio.includes("not new logos"));
 });
