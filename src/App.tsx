@@ -190,7 +190,7 @@ type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: s
 
 function App() {
   useState(() => { removeLegacyDemoData(); return true; });
-  const { data: appData } = useManufacturingData();
+  const { data: appData, update: updateAppData } = useManufacturingData();
   const activeDemoRecordCount = Object.values(appData).filter(value => Array.isArray(value)).flatMap(value => value as Array<{id?:string;deletedAt?:string}>).filter(row => row.id?.startsWith(ASTER_EXAMPLE_PREFIX) && !row.deletedAt).length;
   const [activeModuleId, setActiveModuleId] = useState("dashboard");
   const [moduleContext, setModuleContext] = useState<LinkedNavigationContext>({});
@@ -206,6 +206,17 @@ function App() {
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [notice, setNotice] = useState("");
+  const loadAsterExampleFromWorkspace = () => {
+    if (activeDemoRecordCount > 0) { setNotice("The ASTER synthetic example is already loaded in shared AXIMACH records. Open its company, PO, component, materials, Process Map, Route Flow, Costing or Quality records from their normal modules."); return; }
+    updateAppData(current => importAsterPrecisionExample(current));
+    setNotice("ASTER synthetic test records loaded into shared AXIMACH modules. Select ASTER Precision Works in the normal Company, PO and Component selectors. No real records were replaced.");
+  };
+  const removeAsterExampleFromWorkspace = () => {
+    if (!activeDemoRecordCount) { setNotice("No ASTER example records are currently loaded."); return; }
+    if (!window.confirm("Remove the reversible ASTER synthetic test dataset from all shared modules? Only ASTER-EXAMPLE records will be archived; all real company, customer, supplier, PO, component, material and production records remain untouched.")) return;
+    updateAppData(current => archiveAsterPrecisionExample(current));
+    setNotice("ASTER synthetic example archived across the shared modules. Real records remain untouched; you can load the example again.");
+  };
   const [themePreference,setThemePreference] = useState<ThemePreference>(()=>readThemePreference());
   const [themeDraft,setThemeDraft] = useState<ThemePreference|null>(null);
   const [themeStudioOpen,setThemeStudioOpen] = useState(false);
@@ -424,7 +435,10 @@ function App() {
       <div className="status-ribbon">
         <span className="ribbon-dot" /> AXIMACH WORKSPACE
         <span className="ribbon-separator">/</span>
-        <span>{activeDemoRecordCount ? `ASTER EXAMPLE ACTIVE · ${activeDemoRecordCount} shared sample records` : "No example records loaded · production metrics populate from saved records"}</span>
+        <span>{activeDemoRecordCount ? `ASTER EXAMPLE ACTIVE · ${activeDemoRecordCount} shared sample records` : "No shared example loaded · live metrics use saved records"}</span>
+        {activeDemoRecordCount
+          ? <button type="button" className="button-danger compact-button" onClick={removeAsterExampleFromWorkspace} title="Archive only the synthetic ASTER example across all shared modules"><Trash2 size={12}/> Remove test data</button>
+          : <button type="button" className="button-quiet compact-button" onClick={loadAsterExampleFromWorkspace} title="Load a removable synthetic example into the normal AXIMACH modules"><Plus size={12}/> Load full demo</button>}
         <span className="ribbon-right"><ShieldCheck size={13} /> Safety gates are design requirements</span>
       </div>
 
