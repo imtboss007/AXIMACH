@@ -162,7 +162,6 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [routeFullscreen,setRouteFullscreen]=useState(false);
   const [showTransportDemo,setShowTransportDemo]=useState(false);
   const [showEditor, setShowEditor] = useState(false);
-  useEffect(()=>{if(!showEditor)setDraftMoneyInputs({});},[showEditor]);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [addMenuDefinitionId, setAddMenuDefinitionId] = useState("");
   const [showTransportEditor, setShowTransportEditor] = useState(false);
@@ -190,6 +189,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     setDraftMoneyInputs(current=>({...current,[key]:value}));
     setDraft(current=>({...current,...patch}));
   };
+  useEffect(()=>{if(!showEditor)setDraftMoneyInputs({});},[showEditor]);
   useEffect(() => {
     const updateFullscreen = () => setRouteFullscreen(document.fullscreenElement === document.querySelector(".linked-process-page .linked-route-canvas"));
     document.addEventListener("fullscreenchange", updateFullscreen);
