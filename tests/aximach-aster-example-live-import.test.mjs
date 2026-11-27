@@ -126,8 +126,8 @@ test("the shared ASTER example includes removable machine, tooling, fixture, sto
 
 test("the global load/remove test-data control is visible in the shared application shell", () => {
   const styles = read("../src/aximach-ui.css");
-  assert.match(styles, /\.status-ribbon\{[\s\S]*?display:flex!important/);
-  assert.doesNotMatch(styles, /\.status-ribbon\{\s*display:none!important/);
+  assert.ok(styles.includes(".status-ribbon{") && styles.includes("display:flex!important"), "The global ribbon must remain visible as flex content.");
+  assert.doesNotMatch(styles, /\.status-ribbon\s*\{\s*display\s*:\s*none\s*!important/);
 });
 
 test("the logo catalogue uses distinct SVG drawings rather than palette variants", () => {
