@@ -431,7 +431,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   const editComponent = (row: ComponentRecord) => {
     resetForms();
     const { id, createdAt, updatedAt, deletedAt, ...draft } = row;
-    setComponentDraft(draft); setComponentPriceInput(String(row.salePrice ?? "")); setComponentEditingId(row.id); setShowForm(true);
+    setComponentDraft(draft); setComponentPriceInput(Number(row.salePrice)>0?String(row.salePrice):""); setComponentEditingId(row.id); setShowForm(true);
   };
   const editPO = (row: PurchaseOrderRecord) => {
     resetForms();
