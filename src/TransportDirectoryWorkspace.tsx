@@ -96,7 +96,7 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
   };
   const edit = (route: TransportRouteRecord) => {
     setEditingId(route.id); setVendorId(route.vendorId); setFromLocation(route.fromLocation); setToLocation(route.toLocation);
-    setTripDirection(route.tripDirection); setVehicleType(route.vehicleType); setFixedAmount(String(route.fixedAmount)); setNotes(route.notes || "");
+    setTripDirection(route.tripDirection); setVehicleType(route.vehicleType); setFixedAmount(String(route.fixedAmount || "")); setNotes(route.notes || "");
   };
   const archive = (route: TransportRouteRecord) => {
     if (!window.confirm("Archive this transport route? Existing component transport entries and their saved rates will remain unchanged.")) return;
