@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Save, X } from "lucide-react";
 import { makeId, nowIso, type OperationRecord, type ProcessDefinitionRecord } from "./manufacturingData";
 
@@ -9,8 +9,10 @@ type Props={
 };
 const asIso=(value:string)=>value?new Date(value).toISOString():"";
 export default function OperationQuickCreate({poId,poLineId,componentId,sequence,branch,vendors,processDefinitions,onSave,onCancel}:Props){
- const [name,setName]=useState("");const [category,setCategory]=useState("Machining");const [subcategory,setSubcategory]=useState("");const [processDefinitionId,setProcessDefinitionId]=useState("");
+ const [name,setName]=useState("");const [category,setCategory]=useState("");const [subcategory,setSubcategory]=useState("");const [processDefinitionId,setProcessDefinitionId]=useState("");
  const categories=Array.from(new Set(processDefinitions.map(item=>item.category).filter(Boolean))).sort();
+ const categoryKey=categories.join("|");
+ useEffect(()=>{if(categories.length&&!categories.includes(category)){setCategory(categories[0]);setProcessDefinitionId("");setSubcategory("");}},[categoryKey,category]);
  const availableDefinitions=processDefinitions.filter(item=>item.category===category);
  const selectedDefinition=processDefinitions.find(item=>item.id===processDefinitionId);
  const subcategories=selectedDefinition?.subcategories||[];
@@ -34,12 +36,12 @@ export default function OperationQuickCreate({poId,poLineId,componentId,sequence
   <div className="ax-inline-editor-grid">
    <label>Process from Process Directory<select value={processDefinitionId} onChange={e=>{const id=e.target.value;const definition=processDefinitions.find(item=>item.id===id);setProcessDefinitionId(id);if(definition){setName(definition.processType);setCategory(definition.category);setSubcategory("");}}}><option value="">Custom operation / process…</option>{availableDefinitions.map(item=><option key={item.id} value={item.id}>{item.processType}</option>)}</select></label>
    <label>Operation / process<input value={name} onChange={e=>{setName(e.target.value);if(processDefinitionId)setProcessDefinitionId("");}} placeholder="e.g. CNC finish turning"/></label>
-   <label>Process category{categories.length?<select value={category} onChange={e=>{setCategory(e.target.value);setProcessDefinitionId("");}}>{categories.map(item=><option key={item}>{item}</option>)}{!categories.includes(category)&&<option>{category}</option>}</select>:<input value={category} onChange={e=>setCategory(e.target.value)} placeholder="Machining, Grinding, Heat treatment…"/>}</label>
+   <label>Process category{categories.length?<select value={category} onChange={e=>{setCategory(e.target.value);setProcessDefinitionId("");setSubcategory("");}}>{categories.map(item=><option key={item}>{item}</option>)}</select>:<input value={category} onChange={e=>setCategory(e.target.value)} placeholder="Add the category to Process Directory first"/></label>
    <label>Sub-process{selectedDefinition?.subcategories?.length?<select value={subcategory} onChange={e=>setSubcategory(e.target.value)}><option value="">No sub-process</option>{subcategories.map(item=><option key={item}>{item}</option>)}</select>:<input value={subcategory} onChange={e=>setSubcategory(e.target.value)} placeholder="Optional process detail"/>}</label>
    <label>Machine / station<input value={machine} onChange={e=>setMachine(e.target.value)} placeholder="Machine or work centre"/></label>
    <label>Vendor<select value={vendorId} onChange={e=>setVendorId(e.target.value)}><option value="">Not assigned</option>{vendors.map(v=><option key={v.id} value={v.id}>{v.company}</option>)}</select></label>
    <label>Quantity<input type="number" min="1" value={quantity} onChange={e=>setQuantity(e.target.value)}/></label>
-   <label>Rate per part (₹)<input type="number" min="0" step="0.01" value={rate} onChange={e=>setRate(e.target.value)}/></label>
+   <label>Rate per part (₹)<input type="text" inputMode="decimal" value={rate} onChange={e=>setRate(e.target.value)} placeholder="Enter rate; leave blank if unknown"/></label>
    <label>Planned start<input type="datetime-local" value={start} onChange={e=>setStart(e.target.value)}/></label>
    <label>Planned delivery / due<input type="datetime-local" value={end} onChange={e=>setEnd(e.target.value)}/></label>
    <label className="ax-inline-wide">Notes<input value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Operation, quality or handling notes"/></label>
