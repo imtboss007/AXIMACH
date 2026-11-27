@@ -4,6 +4,7 @@ import {
   type ManufacturingData, type RouteRelationshipRecord, type RouteRelationshipType
 } from "./manufacturingData";
 import { validateOperationResourceAssignments } from "./manufacturingResourceCompatibility.mjs";
+import { validateRouteRelationshipCriteria } from "./routeRelationshipValidation.mjs";
 
 export type ManufacturingGraphScope = {
   companyId?:string;
@@ -112,11 +113,17 @@ export function connectManufacturingGraphNodes({
       &&row.relationshipType===type&&row.status!=="Disabled"&&inScope(row,scope)
     );
     if(duplicate){onNotice("That typed route relationship already exists.");return;}
+    const status=type==="rework"||type==="conditional"?"Conditional":"Active";
+    const criteria=validateRouteRelationshipCriteria({relationshipType:type,status,condition:""});
+    if(!criteria.ok){
+      onNotice("This conditional/rework connection needs a written condition or acceptance rule. Use Add selected relationship to enter the rule; no blank link was saved.");
+      return;
+    }
     const stamp=nowIso();
     const record:RouteRelationshipRecord={
       id:makeId("route-relationship"),poId:scope.poId,poLineId:scope.poLineId,componentId:scope.componentId,
       fromOperationId:sourceOperation.id,toOperationId:targetOperation.id,relationshipType:type,
-      status:type==="rework"||type==="conditional"?"Conditional":"Active",
+      status,
       condition:"",label:type.toUpperCase(),notes:"Created from the shared manufacturing graph connector.",
       createdAt:stamp,updatedAt:stamp
     };
