@@ -229,6 +229,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     ?ROUTE_FLOW_GRAPH_LAYOUT_PREFIX+encodeURIComponent([companyId,poId,poLineId].join("|"))
     :"";
   const [routeGraphLayoutRevision,setRouteGraphLayoutRevision]=useState(0);
+  const [routeGraphResetRevision,setRouteGraphResetRevision]=useState(0);
   const routeGraphSavedPositions=useMemo(()=>{
     if(!routeGraphLayoutStorageKey||typeof window==="undefined")return {};
     try{return loadRouteFlowGraphLayout(window.localStorage.getItem(routeGraphLayoutStorageKey));}
@@ -238,6 +239,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     if(!routeGraphLayoutStorageKey||typeof window==="undefined")return;
     try{window.localStorage.removeItem(routeGraphLayoutStorageKey);}catch{/* Reset still applies to the current in-memory graph. */}
     setRouteGraphLayoutRevision(value=>value+1);
+    setRouteGraphResetRevision(value=>value+1);
     onNotice("Route Flow node positions reset to the selected automatic layout.");
   };
   const componentLineCount=lineOptions.filter(row=>row.componentId===componentId).length;
@@ -743,6 +745,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         <div className="route-flow-graph-toolbar"><span>MAIN · ALTERNATE · REWORK · TRANSPORT</span><small>Drag nodes to arrange · drag from a node handle to another to save a connection · pinch / wheel to zoom</small><button type="button" className="button-quiet compact-button" onClick={resetRouteGraphLayout} disabled={!routeGraphLayoutStorageKey}>Reset node layout</button></div>
         <RouteConnectorLegend/>
         <ManufacturingGraphCanvas
+          key={routeGraphResetRevision}
           nodes={routeFlowGraph.nodes}
           edges={routeFlowGraph.edges}
           nodeTypes={ROUTE_FLOW_NODE_TYPES}
