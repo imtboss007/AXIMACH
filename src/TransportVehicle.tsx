@@ -23,10 +23,10 @@ const VEHICLE_VISUALS:Record<VehicleKind,VehicleVisual>={
  taxi:{Icon:null,kind:"taxi",className:"taxi",color:"#C18A18"},
  "light-van":{Icon:null,kind:"light-van",className:"light-van",color:"#4E9C74"},
  "mini-truck":{Icon:null,kind:"mini-truck",className:"mini-truck",color:"#C17A2C"},
- pickup:{Icon:Truck,kind:"pickup",className:"pickup",color:"#4A8BBD"},
+ pickup:{Icon:null,kind:"pickup",className:"pickup",color:"#4A8BBD"},
  lorry:{Icon:null,kind:"lorry",className:"lorry",color:"#D45E52"},
  "heavy-lorry":{Icon:null,kind:"heavy-lorry",className:"heavy-lorry",color:"#923F60"},
- "heavy-truck":{Icon:Truck,kind:"heavy-truck",className:"heavy-truck",color:"#BA4D3F"},
+ "heavy-truck":{Icon:null,kind:"heavy-truck",className:"heavy-truck",color:"#BA4D3F"},
  container:{Icon:null,kind:"container",className:"container",color:"#7B8BA5"},
  trailer:{Icon:null,kind:"trailer",className:"trailer",color:"#C46A42"},
  bus:{Icon:Bus,kind:"bus",className:"bus",color:"#9869D5"},
@@ -78,6 +78,8 @@ function VehicleSilhouette({kind,size=17}:{kind:VehicleKind;size?:number}){
  if(kind==="heavy-tempo")return <Svg><path d="M2 7h39v19H2zM41 12h10l9 10v4H41z"/><path d="M45 14v8h12M6 10h31M2 26h58"/><circle cx="14" cy="29" r="5"/><circle cx="43" cy="29" r="5"/><circle cx="55" cy="29" r="4"/></Svg>;
  if(kind==="taxi")return <Svg><path d="M8 25l3-10c1-3 3-5 7-5h25c4 0 7 2 8 5l4 10v3H8z"/><path d="M22 10l4-6h14l4 6M28 4h8v3h-8M14 16h36"/><circle cx="18" cy="28" r="5"/><circle cx="47" cy="28" r="5"/></Svg>;
  if(kind==="light-van"||kind==="courier-van")return <Svg><path d="M5 9h35c4 0 6 2 6 6v11H5zM46 16h8l7 8v2H46z"/><path d="M11 13h25v10H11zM49 18h5l5 6H49zM5 26h56"/><circle cx="17" cy="29" r="5"/><circle cx="50" cy="29" r="5"/>{kind==="courier-van"&&<path d="M19 16h10v7H19zM22 14h4"/>}</Svg>;
+ if(kind==="pickup")return <Svg><path d="M3 13h25v13H3zM28 16h15l8 8v2H28z"/><path d="M7 16h17v7H7zM30 18h11l6 6H30zM3 26h51"/><circle cx="13" cy="29" r="5"/><circle cx="42" cy="29" r="5"/><path d="M4 10h22M4 10v3M26 10v3"/></Svg>;
+ if(kind==="heavy-truck")return <Svg><path d="M2 6h40v20H2zM42 13h10l9 9v4H42z"/><path d="M6 10h32v12H6zM46 15v8h12M2 26h60"/><circle cx="12" cy="29" r="4"/><circle cx="30" cy="29" r="4"/><circle cx="48" cy="29" r="4"/><circle cx="58" cy="29" r="4"/></Svg>;
  if(kind==="mini-truck")return <Svg><path d="M4 11h32v15H4zM36 15h12l9 8v3H36z"/><path d="M8 14h24M40 16v7h14M4 26h54"/><circle cx="15" cy="29" r="5"/><circle cx="45" cy="29" r="5"/></Svg>;
  if(kind==="lorry"||kind==="heavy-lorry")return <Svg><path d={kind==="heavy-lorry"?"M2 6h42v20H2zM44 12h11l7 9v5H44z":"M3 9h36v17H3zM39 13h12l9 8v5H39z"}/><path d="M47 14v8h12M6 12h29M2 26h60"/><circle cx="13" cy="29" r="4"/><circle cx="39" cy="29" r="4"/><circle cx="55" cy="29" r="4"/>{kind==="heavy-lorry"&&<circle cx="27" cy="29" r="4"/>}</Svg>;
  if(kind==="container")return <Svg><path d="M2 8h43v18H2zM45 15h9l8 8v3H45z"/><path d="M7 11v12M13 11v12M19 11v12M25 11v12M31 11v12M37 11v12M47 17h7l6 6H47zM2 26h60"/><circle cx="13" cy="29" r="4"/><circle cx="43" cy="29" r="4"/><circle cx="55" cy="29" r="4"/></Svg>;
