@@ -6,7 +6,7 @@ import {
   ClipboardCheck, Clock3, Command, Cpu, Factory, FileDown, FileUp, Gauge, GitBranch, Network, Route,
   HardDrive, LayoutGrid, Handshake, Layers3, Menu, MessageCircle,
   Package, Pause, Play, Plug, Plus, RotateCcw, ScanLine, Search, Settings2,
-  ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Target, Truck, Users,
+  ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, Truck, Users,
   Wallet, Workflow, Wrench, X, Zap, Palette
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
