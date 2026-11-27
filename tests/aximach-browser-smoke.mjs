@@ -808,6 +808,28 @@ try {
   await page.locator(".route-flow-editor-title button.close-round").evaluate(element => element.click());
   console.log("PASS Route Flow vehicle picker: all 21 categories, 21 icons, searchable keyboard selection");
 
+  // The ASTER example must be imported into normal company / PO / component
+  // selectors and rendered by the live Route Flow graph, not an isolated demo.
+  await page.getByRole("button", { name: /Load ASTER example into AXIMACH/ }).click();
+  const routeScopeSelects = page.locator(".route-flow-scope-bar select");
+  await page.waitForFunction(() => {
+    const selects = [...document.querySelectorAll(".route-flow-scope-bar select")];
+    return selects.length >= 3
+      && selects[0].value === "ASTER-EXAMPLE-COMPANY"
+      && selects[1].value === "ASTER-EXAMPLE-PO"
+      && selects[2].value === "ASTER-EXAMPLE-PO-LINE";
+  }, null, { timeout: 10000 });
+  const routeStats = await page.locator(".route-flow-scope-stats").innerText();
+  if (!routeStats.includes("10") || !routeStats.includes("TRANSPORT LEGS")) {
+    throw new Error("ASTER live import did not populate all 10 transport legs in the normal Route Flow scope: " + routeStats);
+  }
+  const routeScopeValues = await routeScopeSelects.evaluateAll(selects => selects.slice(0, 3).map(select => select.value));
+  if (routeScopeValues.join("|") !== "ASTER-EXAMPLE-COMPANY|ASTER-EXAMPLE-PO|ASTER-EXAMPLE-PO-LINE") {
+    throw new Error("ASTER example did not appear in the regular company, PO and component selectors: " + routeScopeValues.join("|"));
+  }
+  console.log("PASS ASTER example live import: normal company / PO / component selectors selected; 10 transport legs visible");
+
+
   await page.getByRole("button", { name: "Open Process Plan" }).click();
   await page.locator(".linked-process-page > .workspace-title-row h1").waitFor({ timeout: 10000 });
 
