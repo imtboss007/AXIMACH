@@ -7078,3 +7078,31 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
  .single-component-route-demo{overflow-x:auto}
  .single-component-route-demo-canvas{width:1120px!important;max-width:none!important;height:900px!important;min-height:900px!important}
 }
+
+
+/* Shared icon-led vehicle selector. The menu is portalled and viewport-positioned
+   so all 21 vehicle types remain reachable inside compact Android workspaces. */
+.vehicle-type-picker{position:relative;display:flex;flex-direction:column;gap:6px;min-width:0;color:var(--muted,#71839a);font-size:10px}
+.vehicle-type-picker>label{font-weight:700;color:var(--muted,#71839a)}
+.vehicle-type-picker-control{display:flex;align-items:center;gap:7px;min-width:0;min-height:38px;padding:3px 7px;border:1px solid var(--line,#dbe4f0);border-radius:8px;background:var(--surface,#fff);color:var(--text,#263e5b)}
+.vehicle-type-picker-control:focus-within,.vehicle-type-picker-control.is-open{border-color:#7eadef;box-shadow:0 0 0 3px rgba(60,126,220,.12)}
+.vehicle-type-picker-current-icon{display:grid;place-items:center;flex:0 0 26px;width:26px;height:26px}
+.vehicle-type-picker-control>input{flex:1 1 auto;width:0;min-width:0;min-height:30px;padding:0 2px;border:0;outline:0;background:transparent;color:var(--text,#263e5b);font:inherit;font-size:11px}
+.vehicle-type-picker-control>button{display:grid;place-items:center;flex:0 0 27px;width:27px;height:27px;border:0;border-radius:6px;background:transparent;color:#74869b;cursor:pointer}
+.vehicle-type-picker-control>button:hover{background:#edf4ff;color:#245f9c}
+.vehicle-type-picker-menu{overflow:auto;padding:5px;border:1px solid #cbd9eb;border-radius:10px;background:#fff;box-shadow:0 14px 36px rgba(25,53,90,.22);overscroll-behavior:contain}
+.vehicle-type-picker-count{display:flex;align-items:center;gap:6px;padding:7px 9px;border-bottom:1px solid #edf1f6;color:#71849a;font:700 9px 'DM Mono',monospace;letter-spacing:.025em}
+.vehicle-type-picker-menu>button{display:flex;width:100%;align-items:center;gap:9px;min-height:36px;padding:6px 9px;border:0;border-radius:7px;background:#fff;color:#2c4562;text-align:left;font-size:11px;cursor:pointer}
+.vehicle-type-picker-menu>button:hover,.vehicle-type-picker-menu>button[aria-selected=true]{background:#edf4ff;color:#1f5fb7}
+.vehicle-type-picker-option-icon{display:grid;place-items:center;flex:0 0 32px;width:32px;height:27px}
+.vehicle-type-picker-option-label{flex:1 1 auto;min-width:0}
+.vehicle-type-picker-selected{flex:0 0 auto;color:#267a63}
+.vehicle-type-picker-empty{padding:12px 9px;color:#8797ad;font-size:10px}
+.vehicle-type-picker-menu::-webkit-scrollbar{width:7px}
+.vehicle-type-picker-menu::-webkit-scrollbar-thumb{border-radius:8px;background:#c6d3e1}
+.route-flow-vehicle-chip.vehicle-motorcycle,.route-flow-vehicle-marker.vehicle-motorcycle,.ax-transport-icon-trigger.vehicle-motorcycle{color:#8f651d!important}
+.route-flow-vehicle-chip.vehicle-scooter,.route-flow-vehicle-marker.vehicle-scooter,.ax-transport-icon-trigger.vehicle-scooter{color:#7259ad!important}
+.route-flow-vehicle-chip.vehicle-taxi,.route-flow-vehicle-marker.vehicle-taxi,.ax-transport-icon-trigger.vehicle-taxi{color:#966d12!important}
+.route-flow-vehicle-chip.vehicle-light-van,.route-flow-vehicle-marker.vehicle-light-van,.ax-transport-icon-trigger.vehicle-light-van{color:#367c58!important}
+.route-flow-vehicle-chip.vehicle-courier-van,.route-flow-vehicle-marker.vehicle-courier-van,.ax-transport-icon-trigger.vehicle-courier-van{color:#247b58!important}
+.ax-transport-inspector.vehicle-motorcycle{--ax-vehicle:#b17a25}.ax-transport-inspector.vehicle-scooter{--ax-vehicle:#8b72c9}.ax-transport-inspector.vehicle-taxi{--ax-vehicle:#c18a18}.ax-transport-inspector.vehicle-light-van{--ax-vehicle:#4e9c74}.ax-transport-inspector.vehicle-courier-van{--ax-vehicle:#299a70}
