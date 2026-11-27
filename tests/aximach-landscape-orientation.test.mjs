@@ -40,7 +40,7 @@ test("phone Process Map defaults to the compact graph and restores 3D in landsca
 
 test("leaving a spatial workspace resets the optional landscape mode and restores portrait", () => {
   const app = read("../src/App.tsx");
-  assert.ok(app.includes('setLandscapeCanvasOpen(false);\n    setOrientationLockUnavailable(false);\n    setModuleContext(context);'));
+  assert.ok(app.includes('setLandscapeCanvasOpen(false);\n    setOrientationLockUnavailable(false);\n    setModuleContext(context ?? (activeDemoRecordCount > 0 ? ASTER_EXAMPLE_CONTEXT : {}));'));
   assert.ok(app.includes('needsLandscapeOrientation && landscapeCanvasOpen ? "landscape-primary" : "portrait-primary"'));
   assert.ok(app.includes('void CapacitorScreenOrientation.unlock().catch(() => undefined)'));
 });
