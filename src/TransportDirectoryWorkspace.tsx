@@ -3,6 +3,7 @@ import { ArrowRight, Edit3, MapPin, Plus, Search, ShieldCheck, Truck, Users, X }
 import { activeRows, makeId, nowIso, useManufacturingData, type TransportRouteRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
+import VehicleTypePicker from "./VehicleTypePicker";
 import { VehicleBadge, VEHICLE_TYPES } from "./TransportVehicle";
 import TransportRoutingDemo from "./TransportRoutingDemo";
 
@@ -132,7 +133,7 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
         <label>From location *<input value={fromLocation} onChange={event => setFromLocation(event.target.value)} placeholder="Pickup location"/></label>
         <label>To location *<input value={toLocation} onChange={event => setToLocation(event.target.value)} placeholder="Delivery location"/></label>
         <SearchablePicker id="transport-route-direction" label="Trip direction *" value={tripDirection} options={["One-way","Two-way"].map(value=>({id:value,label:value}))} onChange={value=>setTripDirection(value as "One-way"|"Two-way")}/>
-        <SearchablePicker id="transport-route-vehicle" label="Vehicle type *" value={vehicleType} placeholder="Search vehicle class…" options={vehicleOptions.map(value=>({id:value,label:value}))} onChange={setVehicleType}/>
+        <VehicleTypePicker id="transport-route-vehicle" label="Vehicle type *" value={vehicleType} placeholder="Search vehicle class…" options={vehicleOptions} onChange={setVehicleType}/>
         <label>Fixed amount (₹) *<input inputMode="decimal" type="number" min="0" step="0.01" value={fixedAmount} onChange={event => setFixedAmount(event.target.value)} placeholder="Enter agreed route rate"/></label>
         <label className="editor-wide">Notes<input value={notes} onChange={event => setNotes(event.target.value)} placeholder="Validity, loading terms, waiting charges or agreement reference"/></label>
       </div>
