@@ -58,8 +58,8 @@ test("Logo Studio counts actual distinct manufacturing pictograms rather than st
   const glyphs = new Set(entries.map(match=>match[1]));
   assert.ok(glyphs.size >= 97);
   assert.equal(glyphs.size, entries.length);
-  assert.ok(iconStudio.includes("Distinct manufacturing pictograms"));
-  assert.ok(iconStudio.includes("Visual styling combinations · same symbols"));
+  assert.ok(iconStudio.includes("Unique engineering SVG symbols · not colour variants"));
+  assert.ok(iconStudio.includes("Colour / finish combinations · same symbols, not new logos"));
   assert.ok(iconStudio.includes("Drilling / Boring"));
   assert.ok(iconStudio.includes("Gear Manufacturing"));
   assert.ok(icons.includes('glyph:"component-block"'));
