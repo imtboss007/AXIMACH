@@ -33,6 +33,9 @@ test("ASTER fixture is loaded into the normal AXIMACH manufacturing records on e
   assert.ok(app.includes("Load full demo"));
   assert.ok(app.includes("Remove test data"));
   assert.ok(app.includes('className="status-ribbon"'));
+  assert.ok(app.includes("ASTER_EXAMPLE_CONTEXT"), "One shared demo scope must be available to every connected module.");
+  assert.ok(app.includes("setModuleContext(ASTER_EXAMPLE_CONTEXT)"), "Loading the demo must preselect its Company, PO and Component.");
+  assert.ok(app.includes("context ?? (activeDemoRecordCount > 0 ? ASTER_EXAMPLE_CONTEXT : {})"), "Module navigation must preserve the shared demo scope until removal.");
   assert.ok(!route.includes("importAsterPrecisionExample"), "Route Flow must not own a separate demo loader.");
   assert.ok(!route.includes("Load ASTER example into AXIMACH"), "Only the global cross-module demo control should load the full dataset.");
 });
