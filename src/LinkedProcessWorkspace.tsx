@@ -162,6 +162,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [routeFullscreen,setRouteFullscreen]=useState(false);
   const [showTransportDemo,setShowTransportDemo]=useState(false);
   const [showEditor, setShowEditor] = useState(false);
+  useEffect(()=>{if(!showEditor)setDraftMoneyInputs({});},[showEditor]);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [addMenuDefinitionId, setAddMenuDefinitionId] = useState("");
   const [showTransportEditor, setShowTransportEditor] = useState(false);
