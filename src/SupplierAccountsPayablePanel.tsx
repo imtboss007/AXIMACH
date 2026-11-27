@@ -158,7 +158,7 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
     setInvoiceCompanyId(invoice.companyId); setInvoiceFactoryId(invoice.factoryId); setInvoiceVendorId(invoice.vendorId);
     setInvoicePoId(invoice.poId || ""); setInvoicePoLineId(invoice.poLineId || "");
     setInvoiceNumber(invoice.invoiceNumber); setInvoiceDate(invoice.invoiceDate); setInvoiceDueDate(invoice.dueDate);
-    setInvoiceSubtotal(String(invoice.subtotal)); setInvoiceTax(String(invoice.taxAmount)); setInvoiceNotes(invoice.notes || "");
+    setInvoiceSubtotal(String(invoice.subtotal || "")); setInvoiceTax(String(invoice.taxAmount || "")); setInvoiceNotes(invoice.notes || "");
     if (invoice.status === "Submitted") {
       update(current => ({ ...current, supplierInvoices: current.supplierInvoices.map(row => row.id === invoice.id ? { ...row, status: "Draft", updatedAt: nowIso() } : row) }));
     }
@@ -219,7 +219,7 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
     setEditingPaymentId(payment.id);
     setPaymentCompanyId(payment.companyId); setPaymentFactoryId(payment.factoryId); setPaymentVendorId(payment.vendorId);
     setPaymentDate(payment.paymentDate); setPaymentMethod(payment.method); setPaymentReference(payment.bankReference || "");
-    setPaymentAmount(String(payment.amount)); setPaymentNotes(payment.notes || "");
+    setPaymentAmount(String(payment.amount || "")); setPaymentNotes(payment.notes || "");
     if (payment.status === "Submitted") {
       update(current => ({ ...current, supplierPayments: current.supplierPayments.map(row => row.id === payment.id ? { ...row, status: "Draft", updatedAt: nowIso() } : row) }));
     }
