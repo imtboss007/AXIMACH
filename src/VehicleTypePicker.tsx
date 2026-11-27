@@ -1,6 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, type FocusEvent } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown, Search, Truck } from "lucide-react";
 import { VehicleIcon, VEHICLE_TYPES } from "./TransportVehicle";
+import { useFloatingMenuPosition } from "./useFloatingMenuPosition";
 
 type Props = {
   id: string;
@@ -18,6 +20,9 @@ export default function VehicleTypePicker({
 }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const controlRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuPosition = useFloatingMenuPosition(controlRef, open && !disabled, 280);
   const choices = useMemo(() => [...new Set([...VEHICLE_TYPES, ...options, value].filter(item => typeof item === "string" && item.trim()))], [options, value]);
   const matches = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
@@ -28,9 +33,15 @@ export default function VehicleTypePicker({
     setQuery("");
     setOpen(false);
   };
-  return <div className="vehicle-type-picker">
+  const handleBlur = (event: FocusEvent<HTMLDivElement>) => {
+    const nextTarget = event.relatedTarget as Node | null;
+    if (event.currentTarget.contains(nextTarget) || (nextTarget && menuRef.current?.contains(nextTarget))) return;
+    setOpen(false);
+    setQuery("");
+  };
+  return <div className="vehicle-type-picker" onBlur={handleBlur}>
     <label htmlFor={id}>{label}</label>
-    <div className={"vehicle-type-picker-control" + (open ? " is-open" : "")}>
+    <div ref={controlRef} className={"vehicle-type-picker-control" + (open ? " is-open" : "")}>
       <span className="vehicle-type-picker-current-icon" aria-hidden="true">
         {value ? <VehicleIcon vehicleType={value} size={20}/> : <Truck size={19}/>}
       </span>
@@ -57,16 +68,18 @@ export default function VehicleTypePicker({
         <ChevronDown size={15}/>
       </button>
     </div>
-    {open && !disabled && <div className="vehicle-type-picker-menu" id={id + "-options"} role="listbox" aria-label="Transport vehicle types">
-      <div className="vehicle-type-picker-count"><Search size={12}/><span>{matches.length} of {choices.length} vehicle types</span></div>
-      {matches.length ? matches.map(item => {
-        return <button type="button" role="option" aria-selected={item === value} key={item}
+    {open && !disabled && menuPosition && createPortal(
+      <div ref={menuRef} className="vehicle-type-picker-menu" id={id + "-options"} role="listbox" aria-label="Transport vehicle types"
+        style={{position:menuPosition.position,top:menuPosition.top,left:menuPosition.left,width:menuPosition.width,maxHeight:menuPosition.maxHeight,boxSizing:"border-box",zIndex:2147483300}}>
+        <div className="vehicle-type-picker-count"><Search size={12}/><span>{matches.length} of {choices.length} vehicle types</span></div>
+        {matches.length ? matches.map(item => <button type="button" role="option" aria-selected={item === value} key={item}
           onMouseDown={event => event.preventDefault()} onClick={() => select(item)}>
           <span className="vehicle-type-picker-option-icon"><VehicleIcon vehicleType={item} size={22}/></span>
           <span className="vehicle-type-picker-option-label">{item}</span>
           {item === value && <Check size={14} className="vehicle-type-picker-selected"/>}
-        </button>;
-      }) : <div className="vehicle-type-picker-empty">No matching vehicle type. Choose one of the supported types.</div>}
-    </div>}
+        </button>) : <div className="vehicle-type-picker-empty">No matching vehicle type. Choose one of the supported types.</div>}
+      </div>,
+      document.body
+    )}
   </div>;
 }
