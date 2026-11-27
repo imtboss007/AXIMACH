@@ -87,7 +87,6 @@ const materialRows: MaterialRecord[] = (source.materials as any[]).map(row => ({
   createdAt, updatedAt: createdAt
 }));
 const materialBySource = new Map((source.materials as any[]).map(row => [row.id, row]));
-const operationBySource = new Map((source.operations as any[]).map(row => [row.id, operationId(row.id)]));
 const bomRows: BomLineRecord[] = (source.bomLines as any[]).map(row => ({
   id: bomId(row.id), componentId, materialId: materialId(row.materialId), revision: row.revision || "A",
   quantityPerPart: Number(row.quantityPerPart) || 0, unit: materialBySource.get(row.materialId)?.unit || "kg",
