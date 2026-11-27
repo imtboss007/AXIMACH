@@ -12,6 +12,7 @@ test("one-company ASTER example imports into shared module records and preserves
   assert.ok(demo.includes("export const ASTER_EXAMPLE_PREFIX = \"ASTER-EXAMPLE-\";"));
   assert.ok(demo.includes("mergeById(current.companies, [{ ...company, updatedAt }])"), "real company records must remain");
   assert.ok(demo.includes("mergeById(current.customers, [{ ...customer, updatedAt }])"), "the customer module must have a linked synthetic buyer");
+  assert.ok(demo.includes("customerId: customer.id"), "the synthetic PO must point to the synthetic buyer");
   assert.ok(demo.includes("ASTER_EXAMPLE_EXPECTED = {"));
   assert.ok(demo.includes("companyCount: 1, purchaseOrderCount: 1, componentCount: 1, operationCount: 28"));
   assert.ok(demo.includes("processCategoryCount: 18, transportLegCount: 10"));
@@ -38,15 +39,19 @@ test("demo data is opened from the regular module workflows, not an isolated Rou
     assert.ok(app.includes('onSelectModule("' + moduleId + '")'), "Demo Factory needs a direct link to " + label);
   }
   const source = read("../src/asterPrecisionExample.ts");
+  const poWorkspace = read("../src/ManufacturingMasterWorkspace.tsx");
+  assert.ok(source.includes("customerId: customer.id"));
+  assert.ok(poWorkspace.includes('id="po-customer"'));
+  assert.ok(poWorkspace.includes("purchase-order-customer-filter"));
   for (const key of [
-    "companies: mergeById(current.companies", "factories: mergeById(current.factories", "purchaseOrders: mergeOrders",
+    "companies: mergeById(current.companies", "customers: mergeById(current.customers", "factories: mergeById(current.factories", "purchaseOrders: mergeOrders",
     "components: mergeById(current.components", "materials: mergeById(current.materials", "processDefinitions: mergeById(current.processDefinitions", "operations: mergeById(current.operations",
     "bomLines: mergeById(current.bomLines", "materialProcessLinks: mergeById(current.materialProcessLinks",
     "transportRoutes: mergeById(current.transportRoutes", "transportLegs: mergeById(current.transportLegs", "routeRelationships: mergeById(current.routeRelationships"
   ]) assert.ok(source.includes(key), "The shared example should seed linked records including " + key);
 });
 
-test("removing the Demo Factory archives DEMO IDs across all record collections and can be re-imported", () => {
+test("removing the ASTER example archives only its namespaced records and can be re-imported", () => {
   const demo = read("../src/asterPrecisionExample.ts");
   assert.ok(demo.includes("export function archiveAsterPrecisionExample(current: ManufacturingData"));
   assert.ok(demo.includes('if (key === "purchaseOrders")'));
@@ -60,6 +65,7 @@ test("optional money fields do not force a visible zero while typing", () => {
   const quick = read("../src/OperationQuickCreate.tsx");
   const inline = read("../src/OperationInlineEditor.tsx");
   const master = read("../src/ManufacturingMasterWorkspace.tsx");
+  const linkedCosting = read("../src/LinkedCostingWorkspace.tsx");
   const inventory = read("../src/InventoryWorkspace.tsx");
   assert.ok(quick.includes('const [rate,setRate]=useState("")'));
   for (const field of ["ratePerPart","actualRatePerPart","paidAmount","transportCost"]) {
@@ -69,22 +75,27 @@ test("optional money fields do not force a visible zero while typing", () => {
   assert.ok(master.includes("value={componentPriceInput}"));
   assert.ok(inventory.includes('const [materialRateInput,setMaterialRateInput]=useState("");'));
   assert.ok(inventory.includes("value={materialRateInput}"));
+  assert.ok(linkedCosting.includes("const [extraInputValues,setExtraInputValues]"));
+  assert.ok(linkedCosting.includes('updateExtraInput("materialQty",e.target.value)'));
 });
 
 test("material directory uses fixed material families, known grade density in kg/m3 and kg/piece pricing units", () => {
   const inventory = read("../src/InventoryWorkspace.tsx");
   const types = read("../src/manufacturingData.ts");
-  assert.ok(inventory.includes("const STANDARD_MATERIAL_TYPES = ["));
+  assert.ok(types.includes("export const STANDARD_MANUFACTURING_MATERIAL_TYPES = ["));
+  assert.ok(inventory.includes("const STANDARD_MATERIAL_TYPES = STANDARD_MANUFACTURING_MATERIAL_TYPES;"));
   assert.ok(inventory.includes('"Tool steel"'));
   assert.ok(inventory.includes('"Cutting fluid / coolant"'));
   assert.ok(inventory.includes("STANDARD_MATERIAL_TYPES.map(type=>"));
   assert.ok(inventory.includes('densityUnit:"kg/m3"'));
-  assert.ok(inventory.includes("Auto-filled from grade"));
+  assert.ok(inventory.includes("handleMaterialGradeChange"));
   assert.ok(inventory.includes('<option value="kg">kg</option>'));
   assert.ok(inventory.includes('<option value="piece">piece</option>'));
   assert.ok(inventory.includes('value="piece">₹ / piece'));
   assert.ok(types.includes('"kg" | "lb" | "piece"'));
   const costing = read("../src/PartMaterialCostingPanel.tsx");
+  assert.ok(costing.includes("STANDARD_MANUFACTURING_MATERIAL_TYPES.map(type=>"));
+  assert.ok(types.includes('material.priceUnit === "piece" ? "piece" as const'));
   assert.ok(costing.includes('useState<"kg"|"lb"|"piece">("kg")'));
   assert.ok(costing.includes("priceUnit===\"piece\"?totalMaterialPieces*rate"));
   assert.ok(costing.includes("piecesPerFinishedPart:priceUnit===\"piece\"?piecesPerPart:undefined"));
@@ -108,5 +119,16 @@ test("manufacturing logo picker contains genuinely distinct SVG glyphs rather th
   assert.equal(new Set(names).size, names.length, "Every displayed manufacturing glyph must have its own unique ID");
   for (const glyph of ["robot-arm","five-axis-cnc","injection-molding","forging-press","profilometer","forklift","sea-freight","warehouse-rack","electric-motor"]) {
     assert.ok(icons.includes('case "' + glyph + '"'), "Missing distinct SVG symbol: " + glyph);
+  }
+});
+
+test("ASTER fixture count and permanent relationships match the requested manufacturing example", () => {
+  const fixture = JSON.parse(read("../src/single-component-route-demo.json"));
+  assert.equal(fixture.operations.length, 28);
+  assert.equal(new Set(fixture.operations.map(item => item.category)).size, 18);
+  assert.equal(fixture.materials.length, 6);
+  assert.equal(fixture.transportLegs.length, 10);
+  for (const type of ["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor","material","transport"]) {
+    assert.ok(fixture.edges.some(edge => edge.type === type), "Missing route edge type: " + type);
   }
 });
