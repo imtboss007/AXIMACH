@@ -112,6 +112,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   const [resourceEventDraft,setResourceEventDraft]=useState(blankResourceEvent());
   const [showResourceEventForm,setShowResourceEventForm]=useState(false);
   const [componentDraft, setComponentDraft] = useState(blankComponent);
+  const [componentPriceInput,setComponentPriceInput]=useState("");
   const [poDraft, setPoDraft] = useState(blankPO);
   const [poLines, setPoLines] = useState<Array<PurchaseOrderLine>>([]);
   const [companyEditingId, setCompanyEditingId] = useState("");
@@ -241,7 +242,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
 
   const resetForms = () => {
     setShowForm(false); setCompanyEditingId(""); setFactoryEditingId(""); setMachineEditingId(""); setComponentEditingId(""); setPoEditingId("");
-    setCompanyDraft(blankCompany()); setFactoryDraft(blankFactory()); setMachineDraft(blankMachine()); setToolingDraft(blankTooling()); setToolingEditingId(""); setFixtureDraft(blankFixture()); setFixtureEditingId(""); setResourceEventDraft(blankResourceEvent()); setShowResourceEventForm(false); setComponentDraft(blankComponent()); setPoDraft(blankPO()); setPoLines([]);
+    setCompanyDraft(blankCompany()); setFactoryDraft(blankFactory()); setMachineDraft(blankMachine()); setToolingDraft(blankTooling()); setToolingEditingId(""); setFixtureDraft(blankFixture()); setFixtureEditingId(""); setResourceEventDraft(blankResourceEvent()); setShowResourceEventForm(false); setComponentDraft(blankComponent()); setComponentPriceInput(""); setPoDraft(blankPO()); setPoLines([]);
   };
   const beginAdd = () => {
     resetForms();
@@ -408,7 +409,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   const saveComponent = () => {
     if (!componentDraft.companyId || !componentDraft.partNumber.trim() || !componentDraft.name.trim()) { onNotice("Select a company and enter component number and name."); return; }
     const stamp = nowIso(); const id = componentEditingId || makeId("component");
-    update(current => ({ ...current, components: [...current.components.filter(x => x.id !== id), { ...componentDraft, partNumber: componentDraft.partNumber.trim(), name: componentDraft.name.trim(), revision: componentDraft.revision.trim(), id, createdAt: current.components.find(x => x.id === id)?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined }] }));
+    update(current => ({ ...current, components: [...current.components.filter(x => x.id !== id), { ...componentDraft, salePrice: Math.max(0, Number(componentPriceInput) || 0), partNumber: componentDraft.partNumber.trim(), name: componentDraft.name.trim(), revision: componentDraft.revision.trim(), id, createdAt: current.components.find(x => x.id === id)?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined }] }));
     resetForms(); onNotice("Component master saved. Purchase-order lines, operations and quotations can link to this component ID.");
   };
   const savePO = () => {
@@ -425,7 +426,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   const editComponent = (row: ComponentRecord) => {
     resetForms();
     const { id, createdAt, updatedAt, deletedAt, ...draft } = row;
-    setComponentDraft(draft); setComponentEditingId(row.id); setShowForm(true);
+    setComponentDraft(draft); setComponentPriceInput(String(row.salePrice ?? "")); setComponentEditingId(row.id); setShowForm(true);
   };
   const editPO = (row: PurchaseOrderRecord) => {
     resetForms();
@@ -681,7 +682,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
         <label>Drawing revision<input value={componentDraft.revision} onChange={e => setComponentDraft({ ...componentDraft, revision: e.target.value })} placeholder="e.g. Rev A"/></label>
         
         <label>Drawing number / file reference<input value={componentDraft.drawingReference} onChange={e => setComponentDraft({ ...componentDraft, drawingReference: e.target.value })} placeholder="Drawing reference"/></label>
-        <label>Component price (₹)<input type="number" min="0" step="0.01" value={componentDraft.salePrice || ""} onChange={e => setComponentDraft({ ...componentDraft, salePrice: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value) || 0) })}/></label>
+        <label>Component price (₹)<input type="number" min="0" step="0.01" value={componentPriceInput} onChange={e=>setComponentPriceInput(e.target.value)} placeholder="Enter amount"/></label>
         <label>Price unit<select value={componentDraft.salePriceUnit || "piece"} onChange={e=>setComponentDraft({...componentDraft,salePriceUnit:e.target.value as "piece"|"set"})}><option value="piece">Per piece</option><option value="set">Per set</option></select></label>
         
         
