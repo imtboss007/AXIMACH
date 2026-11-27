@@ -60,7 +60,6 @@ export default function VehicleTypePicker({
     {open && !disabled && <div className="vehicle-type-picker-menu" id={id + "-options"} role="listbox" aria-label="Transport vehicle types">
       <div className="vehicle-type-picker-count"><Search size={12}/><span>{matches.length} of {choices.length} vehicle types</span></div>
       {matches.length ? matches.map(item => {
-        const visual = undefined;
         return <button type="button" role="option" aria-selected={item === value} key={item}
           onMouseDown={event => event.preventDefault()} onClick={() => select(item)}>
           <span className="vehicle-type-picker-option-icon"><VehicleIcon vehicleType={item} size={22}/></span>
