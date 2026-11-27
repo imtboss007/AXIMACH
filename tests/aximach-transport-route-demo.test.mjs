@@ -76,9 +76,11 @@ test("multi-route example is visible and interactive in both Process Map and Tra
   const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
   assert.ok(processMap.includes("<TransportRoutingDemo onClose="));
   assert.ok(directory.includes("<TransportRoutingDemo onClose="));
-  assert.ok(routeFlow.includes('import TransportRoutingDemo from "./TransportRoutingDemo"'));
-  assert.ok(routeFlow.includes("<TransportRoutingDemo onClose="));
-  assert.ok(routeFlow.includes("One company · one PO · one component · complete rate graph"));
+  assert.ok(routeFlow.includes('import { ASTER_EXAMPLE_IDS, importAsterPrecisionExample } from "./asterPrecisionExample"'));
+  assert.ok(routeFlow.includes("Load ASTER example into AXIMACH"));
+  assert.ok(routeFlow.includes("update(current=>importAsterPrecisionExample(current))"));
+  assert.ok(routeFlow.includes("setCompanyPick(ASTER_EXAMPLE_IDS.company)"));
+  assert.ok(!routeFlow.includes("<TransportRoutingDemo onClose="), "Route Flow must load ASTER into the live selectors, not only show an isolated preview.");
   assert.ok(demo.includes("Next process step"));
   assert.ok(demo.includes("Activate alternate supplier route"));
   assert.ok(demo.includes("ProcessRateGraph"));
