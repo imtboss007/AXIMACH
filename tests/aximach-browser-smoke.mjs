@@ -805,7 +805,7 @@ try {
   if (await vehicleTypePicker.inputValue() !== "Heavy-duty tempo") {
     throw new Error("Keyboard selection of Heavy-duty tempo did not update the Route Flow vehicle type.");
   }
-  await page.locator(".route-flow-editor-title button.close-round").evaluate(element => (element as HTMLButtonElement).click());
+  await page.locator(".route-flow-editor-title button.close-round").evaluate(element => element.click());
   console.log("PASS Route Flow vehicle picker: all 21 categories, 21 icons, searchable keyboard selection");
 
   await page.getByRole("button", { name: "Open Process Plan" }).click();
