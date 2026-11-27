@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowRight, Boxes, Check, ClipboardList, Factory, FileText, Package, Plus, Search, ShieldCheck, Trash2, Truck, Users, Warehouse, X } from "lucide-react";
-import { activeRows, makeId, nowIso, useManufacturingData, type BomLineRecord, type InventoryTransactionRecord, type MaterialProcessLinkRecord, type MaterialConsumptionRecord, type MaterialRecord, type StockTransactionKind } from "./manufacturingData";
+import { activeRows, makeId, nowIso, useManufacturingData, type BomLineRecord, type InventoryTransactionRecord, type MaterialProcessLinkRecord, type MaterialConsumptionRecord, type MaterialRecord, type StockTransactionKind, STANDARD_MANUFACTURING_MATERIAL_TYPES } from "./manufacturingData";
 import { getFinalProductionOperation, getRequiredRouteOperations } from "./productionRouteMetrics.mjs";
 import { buildBomMaterialIssuePlan, buildMaterialConsumptionPlan, getInventoryStockBalance, validateMaterialConsumptionQuantities } from "./inventoryLedger.mjs";
 import SearchablePicker from "./SearchablePicker";
@@ -50,15 +50,7 @@ const STANDARD_MATERIAL_GRADES = [
   ["Aluminium","Aluminium 1050",2710,"Aluminium"],["Aluminium","Aluminium 6061",2700,"Aluminium"],["Aluminium","Aluminium 6063",2700,"Aluminium"],["Aluminium","Aluminium 6082",2700,"Aluminium"],["Aluminium","Aluminium 7075",2810,"Aluminium"],
   ["Copper","Copper C11000 / ETP",8960,"Copper"],["Brass","Brass C26000",8530,"Brass"],["Brass","Brass C36000",8500,"Brass"],["Bronze","Tin bronze",8800,"Bronze"],["Cast iron","Grey cast iron",7200,"Cast iron"],["Zinc","Zinc",7140,"Non-ferrous"],["Titanium","Titanium Grade 2",4510,"Titanium"],["Alloy steel","AISI 4140 / EN19",7850,"Steel"],["Alloy steel","AISI 4340 / EN24",7850,"Steel"],["Stainless steel","SS 304L",7930,"Stainless steel"],["Stainless steel","SS 316L",8000,"Stainless steel"],["Stainless steel","Duplex 2205",7850,"Stainless steel"],["Aluminium","Aluminium 5052",2680,"Aluminium"],["Aluminium","Aluminium 5083",2660,"Aluminium"],["Aluminium","Aluminium 2014",2800,"Aluminium"],["Copper","Copper C10100",8890,"Copper"],["Copper alloy","Phosphor bronze",8800,"Bronze"],["Nickel alloy","Inconel 625",8440,"Nickel alloy"],["Nickel alloy","Monel 400",8800,"Nickel alloy"],["Magnesium","Magnesium AZ31B",1770,"Magnesium"],["Engineering plastic","Nylon 6 (PA6)",1140,"Plastic"],["Engineering plastic","Acetal / POM",1410,"Plastic"],["Engineering plastic","HDPE",950,"Plastic"],["Engineering plastic","UHMWPE",940,"Plastic"],["Engineering plastic","PTFE",2200,"Plastic"],["Engineering plastic","PVC rigid",1400,"Plastic"],["Engineering plastic","Polycarbonate",1200,"Plastic"],["Engineering plastic","ABS",1070,"Plastic"],["Engineering plastic","Acrylic / PMMA",1190,"Plastic"],["Engineering plastic","Polypropylene (PP)",900,"Plastic"],["Carbon steel","AISI 1018",7870,"Steel"],["Carbon steel","S355 / IS 2062 E350",7850,"Steel"],["Alloy steel","AISI 4130",7850,"Steel"],["Alloy steel","AISI 52100 / 100Cr6",7810,"Steel"],["Stainless steel","SS 201",7800,"Stainless steel"],["Stainless steel","SS 303",7900,"Stainless steel"],["Stainless steel","SS 430",7700,"Stainless steel"],["Stainless steel","17-4PH",7800,"Stainless steel"],["Aluminium","Aluminium 1100",2710,"Aluminium"],["Aluminium","Aluminium 3003",2730,"Aluminium"],["Aluminium","Aluminium 6061-T6",2700,"Aluminium"],["Aluminium","Aluminium 7075-T6",2810,"Aluminium"],["Copper alloy","Cupronickel 70/30",8960,"Copper alloy"],["Nickel alloy","Hastelloy C276",8410,"Nickel alloy"],["Engineering plastic","Polyetheretherketone (PEEK)",1300,"Plastic"],["Engineering plastic","Polyamide 66 (PA66)",1140,"Plastic"]
 ] as const;
-const STANDARD_MATERIAL_TYPES = [
-  "Steel","Carbon steel","Mild steel","Structural steel","Alloy steel","Tool steel","Spring steel","Bearing steel","Stainless steel",
-  "Cast iron","Ductile iron","Aluminium","Copper","Copper alloy","Brass","Bronze","Non-ferrous",
-  "Nickel alloy","Titanium","Magnesium","Zinc","Lead","Tin","Plastic","Engineering plastic",
-  "Nylon","Polycarbonate","Acetal / POM","PTFE","PEEK","Polyethylene","Polypropylene",
-  "Ceramic","Composite","CFRP / GFRP","Rubber","Graphite","Wood",
-  "Coating / finishing consumable","Paint / powder coating","Cutting fluid / coolant","Lubricant / oil",
-  "Adhesive / sealant","Chemical / treatment","Packaging material","Electrical / electronic","Other"
-] as const;
+const STANDARD_MATERIAL_TYPES = STANDARD_MANUFACTURING_MATERIAL_TYPES;
 
 export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectModule, initialContext }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
