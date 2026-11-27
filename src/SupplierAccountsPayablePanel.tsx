@@ -303,8 +303,8 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
         <label>Supplier invoice number<input value={invoiceNumber} onChange={event=>setInvoiceNumber(event.target.value)} placeholder="As printed on supplier invoice"/></label>
         <label>Invoice date<input type="date" value={invoiceDate} onChange={event=>setInvoiceDate(event.target.value)}/></label>
         <label>Due date<input type="date" value={invoiceDueDate} onChange={event=>setInvoiceDueDate(event.target.value)}/></label>
-        <label>Subtotal (₹)<input type="number" min="0" step="0.01" value={invoiceSubtotal} onChange={event=>setInvoiceSubtotal(event.target.value)}/></label>
-        <label>Tax / GST (₹)<input type="number" min="0" step="0.01" value={invoiceTax} onChange={event=>setInvoiceTax(event.target.value)}/></label>
+        <label>Subtotal (₹)<input type="text" inputMode="decimal" value={invoiceSubtotal} onChange={event=>setInvoiceSubtotal(event.target.value)} placeholder="Enter subtotal"/></label>
+        <label>Tax / GST (₹)<input type="text" inputMode="decimal" value={invoiceTax} onChange={event=>setInvoiceTax(event.target.value)} placeholder="Enter tax / gst"/></label>
         <label>Total invoice amount (₹)<input readOnly value={invoiceTotal.toFixed(2)}/></label>
         <label className="module-form-wide">Notes / terms<input value={invoiceNotes} onChange={event=>setInvoiceNotes(event.target.value)} placeholder="Payment terms, tax notes, supplier remarks…"/></label>
         <div className="module-form-actions">
@@ -356,7 +356,7 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
         <label>Payment date<input type="date" value={paymentDate} onChange={event=>setPaymentDate(event.target.value)}/></label>
         <label>Method<select value={paymentMethod} onChange={event=>setPaymentMethod(event.target.value as SupplierPaymentRecord["method"])}>{["Bank transfer","UPI","Cheque","Cash","Other"].map(value=><option key={value}>{value}</option>)}</select></label>
         <label>Bank / UTR / cheque reference<input value={paymentReference} onChange={event=>setPaymentReference(event.target.value)} placeholder="Required for transfer, UPI or cheque"/></label>
-        <label>Payment amount (₹)<input type="number" min="0.01" step="0.01" value={paymentAmount} onChange={event=>setPaymentAmount(event.target.value)}/></label>
+        <label>Payment amount (₹)<input type="text" inputMode="decimal" value={paymentAmount} onChange={event=>setPaymentAmount(event.target.value)} placeholder="Enter payment amount"/></label>
         <label className="module-form-wide">Payment notes<input value={paymentNotes} onChange={event=>setPaymentNotes(event.target.value)} placeholder="Remittance, bank confirmation, cheque number…"/></label>
         <div className="module-form-actions">
           <button className="button-quiet" type="button" disabled={!canWrite} onClick={()=>savePayment(false)}>Save draft</button>
@@ -393,7 +393,7 @@ export default function SupplierAccountsPayablePanel({ data, update, onNotice }:
       <div className="module-record-form supplier-ap-form">
         <label>Approved supplier payment<select value={allocationPaymentId} onChange={event=>{setAllocationPaymentId(event.target.value);setAllocationInvoiceId("");}}><option value="">Select payment…</option>{approvedPayments.map(row=><option key={row.id} value={row.id}>{row.bankReference||row.id.slice(0,12)} · {vendors.find(v=>v.id===row.vendorId)?.company} · remaining {money(row.amount-paymentAllocated(row.id))}</option>)}</select></label>
         <label>Approved invoice<select value={allocationInvoiceId} onChange={event=>setAllocationInvoiceId(event.target.value)}><option value="">Select matching invoice…</option>{compatibleInvoices.map(row=><option key={row.id} value={row.id}>{row.invoiceNumber} · balance {money(row.totalAmount-invoicePaid(row.id))}</option>)}</select></label>
-        <label>Allocation amount (₹)<input type="number" min="0.01" max={allocationMax} step="0.01" value={allocationAmount} onChange={event=>setAllocationAmount(event.target.value)}/></label>
+        <label>Allocation amount (₹)<input type="text" inputMode="decimal" value={allocationAmount} onChange={event=>setAllocationAmount(event.target.value)} placeholder="Enter allocation amount"/></label>
         <label>Maximum allocatable (₹)<input readOnly value={allocationMax.toFixed(2)}/></label>
         <label className="module-form-wide">Allocation notes<input value={allocationNotes} onChange={event=>setAllocationNotes(event.target.value)} placeholder="Invoice settlement / remittance reference…"/></label>
         <div className="module-form-actions"><button className="button-primary" type="button" disabled={!canWrite||!selectedPayment||!selectedInvoice||allocationMax<=0} onClick={addAllocation}><Plus size={14}/> Record allocation</button></div>
