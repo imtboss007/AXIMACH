@@ -322,7 +322,7 @@ function GlyphShape({ glyph }: { glyph: ToolGlyph }): ReactNode {
 
 const componentRules: Array<[RegExp, ToolGlyph]> = [
   // Specific manufacturing identities must precede generic component nouns.
-  [/gear|sprocket|rack|worm wheel|splined/, "hob"],
+  [/\\bgear\\b|\\bsprocket\\b|\\brack\\b|worm wheel|splined/, "hob"],
   [/shaft|spindle|axle|pinion shaft|drive shaft/, "turning-insert"],
   [/fixture|jig|workholding|tooling plate|clamping fixture/, "fixture-jig"],
   [/bracket|clamp|support|mount/, "press-tool"],
