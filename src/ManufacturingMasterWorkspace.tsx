@@ -79,7 +79,7 @@ const blankComponent = (): Omit<ComponentRecord, "id" | "createdAt" | "updatedAt
   overhead: 0, toolingCost: 0, reworkCost: 0, scrapCost: 0, rejectedQty: 0, gstRate: 0
 });
 const blankPO = (): Omit<PurchaseOrderRecord, "id" | "createdAt" | "updatedAt" | "deletedAt"> => ({
-  number: "", companyId: "", factoryId: "", issueDate: new Date().toISOString().slice(0, 10),
+  number: "", companyId: "", factoryId: "", customerId: "", issueDate: new Date().toISOString().slice(0, 10),
   targetDelivery: "", status: "Open", notes: "", lines: []
 });
 const blankLine = (): Omit<PurchaseOrderLine, "id"> => ({ componentId: "", quantity: 0, targetDelivery: "", notes: "", allocationLevel: "component", partId: "" });
@@ -87,6 +87,7 @@ const blankLine = (): Omit<PurchaseOrderLine, "id"> => ({ componentId: "", quant
 export default function ManufacturingMasterWorkspace({ moduleId, navigationContext, onBack, onNotice, notice, onSelectModule, onOpenIconStudio }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
   const companies = activeRows(data.companies);
+  const customers = activeRows(data.customers || []);
   const factories = activeRows(data.factories);
   const machines = activeRows(data.machines || []);
   const toolingAssets=activeRows(data.toolingAssets||[]);
@@ -414,6 +415,7 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
   };
   const savePO = () => {
     if (!poDraft.number.trim() || !poDraft.companyId) { onNotice("Select a company and enter the purchase-order number."); return; }
+    if (poDraft.customerId && !customers.some(customer=>customer.id===poDraft.customerId&&customer.ownerCompanyId===poDraft.companyId)) { onNotice("Select a buyer customer account owned by the selected company."); return; }
     if (!poLines.length || poLines.some(line => !line.componentId || line.quantity <= 0 || (line.allocationLevel === "part" && !componentParts.some(part => part.id === line.partId && part.componentId === line.componentId)))) { onNotice("Add valid PO lines. Every line needs a component and positive quantity; part-level lines must select a saved part belonging to that component. Add separate lines for component-level and part-level quantities when needed."); return; }
     const stamp = nowIso(); const id = poEditingId || makeId("po");
     const lines = poLines.map(line => { const clean = { ...line }; delete clean.unitPrice; return { ...clean, id: line.id || makeId("line"), targetDelivery: line.targetDelivery || poDraft.targetDelivery }; });
@@ -694,6 +696,8 @@ export default function ManufacturingMasterWorkspace({ moduleId, navigationConte
       {moduleId === "purchasing" && <div className="module-record-form">
         <label>PO number *<input value={poDraft.number} onChange={e => setPoDraft({ ...poDraft, number: e.target.value })} placeholder="Enter the customer's actual PO number"/></label>
         <SearchablePicker id="po-company" label="Company *" value={poDraft.companyId} placeholder="Type company name…" options={companies.map(c=>({id:c.id,label:c.name+(c.gstin?" · "+c.gstin:"")}))} onChange={companyId=>{const factoryId=factories.find(f=>f.companyId===companyId)?.id||"";setPoDraft({...poDraft,companyId,factoryId});}}/>
+        <SearchablePicker id="po-customer" label="Customer / buyer account" value={poDraft.customerId||""} placeholder="Select a saved buyer…" options={customers.filter(customer=>customer.ownerCompanyId===poDraft.companyId).map(customer=>({id:customer.id,label:(customer.displayName||customer.legalName)+" · "+customer.customerCode}))} onChange={customerId=>setPoDraft({...poDraft,customerId})}/>
+        
         
         <label>PO issue date<input type="date" value={poDraft.issueDate} onChange={e => setPoDraft({ ...poDraft, issueDate: e.target.value })}/></label>
         <label>Target delivery<input type="date" value={poDraft.targetDelivery} onChange={e => setPoDraft({ ...poDraft, targetDelivery: e.target.value })}/></label>
