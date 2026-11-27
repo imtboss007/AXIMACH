@@ -211,6 +211,7 @@ test("Route Flow applies the selected layout to the live graph, preserves explic
   assert.ok(flow.includes("saveRouteFlowGraphPosition(current,node.id,node.position)"),"Dragged node positions must be written to scoped local storage.");
   assert.ok(flow.includes("onNodeDragStop={persistRouteGraphNodePosition}"),"Route Flow must persist node positions when a drag completes.");
   assert.ok(flow.includes("Reset node layout")&&flow.includes("window.localStorage.removeItem(routeGraphLayoutStorageKey)"),"Users must be able to clear saved positions and restore the selected automatic layout.");
+  assert.ok(flow.includes("setRouteGraphResetRevision(value=>value+1)")&&flow.includes("<ManufacturingGraphCanvas\\n          key={routeGraphResetRevision}"),"Reset must remount the canvas to clear in-memory drag overrides and refit the automatic layout.");
   assert.ok(flow.includes('revision={routeLayout+":"+routeGraphLayoutStorageKey+":"+(compactGraphViewport?"compact":"wide")+":"+routeFlowGraph.nodes.map(node=>node.id).join(";")}'),"Auto-fit must react to scope or node-set changes, not manual position changes.");
   assert.ok(!flow.includes('node.id+"@"+node.position.x'),"Dragging must not retrigger camera auto-fit.");
   assert.ok(flow.includes("routeRelationshipEdgeGeometry(type,nodeCenter(source),nodeCenter(target),routeLayout,parallelIndex)"),"Each edge must adapt to its real node geometry and selected route layout.");
