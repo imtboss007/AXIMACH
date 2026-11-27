@@ -206,7 +206,9 @@ export const MECHANICAL_ICON_INVENTORY: Array<{ glyph: ToolGlyph; label: string;
   {glyph:"fastener",label:"Fastener",application:"Bolts, screws, studs, nuts and washers"},
   {glyph:"valve",label:"Industrial valve",application:"Control, isolation, check and pressure valves"},
   {glyph:"industrial-pump",label:"Industrial pump",application:"Centrifugal and process pumps"},
-  {glyph:"electric-motor",label:"Electric motor",application:"Industrial motors and rotating equipment"}
+  {glyph:"electric-motor",label:"Electric motor",application:"Industrial motors and rotating equipment"},
+  {glyph:"component-block",label:"Machined component block",application:"Machined housings, blocks, manifolds and finished part identity"},
+  {glyph:"material-stock",label:"Raw material stock",application:"Raw bar, billet, plate, sheet and material issue identity"}
 ];
 
 export function MechanicalIconGlyph({ glyph, label, className = "" }: { glyph: ToolGlyph; label?: string; className?: string }) {
