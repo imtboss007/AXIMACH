@@ -11,7 +11,7 @@ const asIso=(value:string)=>value?new Date(value).toISOString():"";
 export default function OperationQuickCreate({poId,poLineId,componentId,sequence,branch,vendors,onSave,onCancel}:Props){
  const [name,setName]=useState("");const [category,setCategory]=useState("Machining");const [subcategory,setSubcategory]=useState("");
  const [machine,setMachine]=useState("");const [vendorId,setVendorId]=useState("");const [quantity,setQuantity]=useState("1");
- const [rate,setRate]=useState("0");const [start,setStart]=useState("");const [end,setEnd]=useState("");const [notes,setNotes]=useState("");
+ const [rate,setRate]=useState("");const [start,setStart]=useState("");const [end,setEnd]=useState("");const [notes,setNotes]=useState("");
  const save=()=>{
   if(!poId||!poLineId||!componentId){return;}
   if(!name.trim()||!category.trim())return;
