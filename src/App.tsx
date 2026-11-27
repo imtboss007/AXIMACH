@@ -109,22 +109,22 @@ function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:
     components:data.components.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
     orders:data.purchaseOrders.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
     operations:data.operations.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
-    materials:data.materials.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
-    bom:data.bomLines.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
-    links:data.materialProcessLinks.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
-    legs:data.transportLegs.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
-    relationships:data.routeRelationships.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length
+    materials:demoCounts.materials,
+    bom:demoCounts.bom,
+    links:demoCounts.links,
+    legs:demoCounts.legs,
+    relationships:demoCounts.relationships
   };
   const loadDemo = () => {
-    if (demoLoaded) { onNotice("The full Demo Factory is already loaded across AXIMACH modules. Use the normal company, PO, component, process, material, costing and transport selectors."); return; }
-    update(current => importAxMachTwoCompanyDemo(current));
-    onNotice("Full synthetic Demo Factory loaded into shared AXIMACH data. Open Company Directory, Purchase Orders, Process Map, Material Directory, Route Flow or Manufacturing Universe to test the linked records. Real records are preserved.");
+    if (demoLoaded) { onNotice("The one-company ASTER example is already loaded across AXIMACH modules. Use the regular company, PO, component, material, Process Map, Route Flow and costing selectors."); return; }
+    update(current => importAsterPrecisionExample(current));
+    onNotice("ASTER example loaded into shared AXIMACH records: 1 company, 1 PO, 1 component, 28 operations, 18 process categories, 6 materials, BOM/material links, 10 transport legs and route relationships. All records are synthetic; real records are preserved.");
   };
   const deleteDemo = () => {
-    if (!demoLoaded) { onNotice("No active Demo Factory records to delete."); return; }
-    if (!window.confirm("Delete the imported Demo Factory? Only records with the reserved DEMO- ID prefix will be archived. Actual factory records will not be changed.")) return;
-    update(current => archiveAxMachTwoCompanyDemo(current));
-    onNotice("Demo Factory records archived. Actual factory records were preserved; the demo can be imported again.");
+    if (!demoLoaded) { onNotice("No active ASTER example records to remove."); return; }
+    if (!window.confirm("Remove the one-company ASTER example? Only ASTER-EXAMPLE- records will be archived. All real company, PO, component and production records remain unchanged.")) return;
+    update(current => archiveAsterPrecisionExample(current));
+    onNotice("ASTER example records archived across the shared modules. Real records remain untouched; you can load the example again.");
   };
   return (
     <section className="workspace-page">
@@ -135,18 +135,18 @@ function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:
       <div className="workspace-title-row">
         <div><div className="eyebrow"><span className="eyebrow-mark"/> DATA / IMPORT &amp; EXPORT</div><h1>Data Exchange Centre<span>.</span></h1><p>One workspace for validated imports, module exports and full AXIMACH backups.</p></div>
       </div>
-      <section className="workspace-card" aria-label="Full linked Demo Factory" style={{marginBottom:20,border:"1px solid var(--line, #d9e0e8)"}}>
+      <section className="workspace-card" aria-label="One-company linked ASTER example" style={{marginBottom:20,border:"1px solid var(--line, #d9e0e8)"}}>
         <div className="workspace-title-row" style={{alignItems:"center"}}>
-          <div><div className="eyebrow"><span className="eyebrow-mark"/> DATA CENTRE / REVERSIBLE SANDBOX</div><h2 style={{margin:"4px 0"}}>Full AXIMACH Demo Factory</h2><p>Load fictional companies, factories, vendors, purchase orders, component lines, process routes, materials, BOM, costing, transport, inventory and quality records into the same shared data used by the real modules. Demo records are clearly namespaced and can be removed later.</p></div>
-          <span className="demo-pill"><i/> {demoLoaded?"DEMO LOADED IN SHARED MODULES":"READY TO LOAD"}</span>
+          <div><div className="eyebrow"><span className="eyebrow-mark"/> DATA CENTRE / REVERSIBLE EXAMPLE</div><h2 style={{margin:"4px 0"}}>ASTER · One-company linked demo example</h2><p>Load one synthetic company, one purchase order, one component, six materials, BOM, 28 operations across 18 process categories, material-to-process links, ten transport legs and route relationships into the same shared records used by the real modules. The complete example can be removed later.</p></div>
+          <span className="demo-pill"><i/> {demoLoaded?"EXAMPLE LOADED IN SHARED MODULES":"READY TO LOAD"}</span>
         </div>
         <div className="metric-grid" style={{margin:"14px 0"}}>
           <div className="metric-card"><small>Companies</small><strong>{demoCounts.companies}</strong></div><div className="metric-card"><small>Factories</small><strong>{demoCounts.factories}</strong></div><div className="metric-card"><small>Vendors</small><strong>{demoCounts.vendors}</strong></div><div className="metric-card"><small>Components</small><strong>{demoCounts.components}</strong></div><div className="metric-card"><small>Purchase orders</small><strong>{demoCounts.orders}</strong></div><div className="metric-card"><small>Process operations</small><strong>{demoCounts.operations}</strong></div>
-          <div className="metric-card"><small>Material masters</small><strong>{data.materials.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>BOM lines</small><strong>{data.bomLines.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Material → process links</small><strong>{data.materialProcessLinks.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Transport legs</small><strong>{data.transportLegs.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Route relationships</small><strong>{data.routeRelationships.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Planned costs</small><strong>{data.plannedCosts.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div>
+          <div className="metric-card"><small>Material masters</small><strong>{data.materials.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>BOM lines</small><strong>{data.bomLines.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Material → process links</small><strong>{data.materialProcessLinks.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Transport legs</small><strong>{data.transportLegs.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Route relationships</small><strong>{data.routeRelationships.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length}</strong></div><div className="metric-card"><small>Planned costs</small><strong>{0}</strong></div>
         </div>
         <div className="linked-route-actions">
-          <button type="button" className="button-primary compact-button" disabled={demoLoaded} onClick={loadDemo}><Plus size={14}/> Load full Demo Factory</button>
-          <button type="button" className="button-danger compact-button" disabled={!demoLoaded} onClick={deleteDemo}><Trash2 size={14}/> Remove demo records</button>
+          <button type="button" className="button-primary compact-button" disabled={demoLoaded} onClick={loadDemo}><Plus size={14}/> Load ASTER example into all modules</button>
+          <button type="button" className="button-danger compact-button" disabled={!demoLoaded} onClick={deleteDemo}><Trash2 size={14}/> Remove ASTER example</button>
           <span className="muted-copy">Sync: {syncStatus} · Real records remain untouched</span>
         </div>
         <div className="linked-route-actions" style={{marginTop:10}}>
@@ -158,7 +158,7 @@ function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:
           <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("manufacturing-universe")}><Network size={14}/> Manufacturing Universe</button>
           <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("costing")}><CircleDollarSign size={14}/> Costing</button>
         </div>
-        <p className="muted-copy" style={{marginTop:10}}>This is not an isolated preview. Imported demo company, PO, component and related records are the same records opened by each module's regular selectors. “Remove demo records” archives only IDs in the reserved DEMO- namespace; the demo can be loaded again.</p>
+        <p className="muted-copy" style={{marginTop:10}}>This is not an isolated preview. The same ASTER company, PO, component, materials, BOM, operations and transport records appear in each module’s regular selectors. “Remove ASTER example” archives only ASTER-EXAMPLE- IDs; you can reload it whenever you need to test.</p>
       </section>
       <div className="linked-route-actions" role="tablist" aria-label="Data exchange mode">
         <button type="button" role="tab" aria-selected={mode==="export"} className={(mode==="export"?"button-primary":"button-quiet")+" compact-button"} onClick={()=>setMode("export")}><FileDown size={14}/> Export records</button>
@@ -409,7 +409,7 @@ function App() {
       <div className="status-ribbon">
         <span className="ribbon-dot" /> AXIMACH WORKSPACE
         <span className="ribbon-separator">/</span>
-        <span>{activeDemoRecordCount ? `DEMO FACTORY ACTIVE · ${activeDemoRecordCount} shared sample records` : "No demo records loaded · production metrics populate from saved records"}</span>
+        <span>{activeDemoRecordCount ? `ASTER EXAMPLE ACTIVE · ${activeDemoRecordCount} shared sample records` : "No example records loaded · production metrics populate from saved records"}</span>
         <span className="ribbon-right"><ShieldCheck size={13} /> Safety gates are design requirements</span>
       </div>
 
