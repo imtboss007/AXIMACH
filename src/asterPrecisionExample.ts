@@ -1,7 +1,7 @@
 import fixture from "./single-component-route-demo.json";
 import type {
   ManufacturingData, CompanyRecord, FactoryRecord, ComponentRecord, PurchaseOrderRecord,
-  VendorRecord, MaterialRecord, BomLineRecord, MaterialCostEntryRecord, MaterialProcessLinkRecord,
+  VendorRecord, CustomerRecord, ProcessDefinitionRecord, MaterialRecord, BomLineRecord, MaterialCostEntryRecord, MaterialProcessLinkRecord,
   OperationRecord, TransportRouteRecord, ComponentTransportLegRecord, RouteRelationshipRecord,
   RouteRelationshipType
 } from "./manufacturingData";
@@ -80,6 +80,16 @@ const vendor: VendorRecord = {
 };
 
 const vendorRows: VendorRecord[] = [vendor];
+const customer: CustomerRecord = {
+  id: id("CUSTOMER", "BUYER-01"), ownerCompanyId: companyId, customerCode: "ASTER-CUST-001",
+  legalName: "ASTER Example Buyer Industries", displayName: "ASTER Example Buyer",
+  industry: "Industrial equipment", primaryContact: "Example purchasing desk",
+  phone: "", email: "buyer@example.invalid", billingAddress: "Bengaluru, Karnataka, India",
+  shippingAddress: "Bengaluru, Karnataka, India", paymentTerms: "Net 30", creditLimit: 500000,
+  currency: "INR", status: "Active",
+  notes: "SYNTHETIC DEMONSTRATION BUYER ONLY — not a real customer or credit account.",
+  createdAt, updatedAt: createdAt
+};
 const materialRows: MaterialRecord[] = (source.materials as any[]).map(row => ({
   id: materialId(row.id), code: row.code, name: row.name, grade: row.grade, unit: row.unit,
   specification: row.specification || "", preferredVendorId: vendorId,
@@ -129,8 +139,26 @@ const materialCostRows: MaterialCostEntryRecord[] = (source.bomLines as any[]).m
     currency: "INR", createdAt, updatedAt: createdAt
   };
 });
+const processDefinitionSources = Array.from(new Map((source.operations as any[]).map(row => [
+  String(row.category || "General") + "|" + String(row.processType || row.name), row
+])).values());
+const processDefinitionRows: ProcessDefinitionRecord[] = processDefinitionSources.map(row => {
+  const processType = String(row.processType || row.name);
+  const category = String(row.category || "General");
+  const related = (source.operations as any[]).filter(item => String(item.category || "General") === category && String(item.processType || item.name) === processType);
+  const subcategories = [...new Set(related.map(item => String(item.subProcess || "").trim()).filter(Boolean))];
+  return {
+    id: id("PROCESS", category + "-" + processType), processType, category, subcategories,
+    subcategoryIds: subcategories.map(sub => id("PROCESS-SUBCATEGORY", category + "-" + processType + "-" + sub)),
+    vendorIds: [vendorId], notes: "SYNTHETIC ASTER EXAMPLE PROCESS DEFINITION — test only.",
+    createdAt, updatedAt: createdAt
+  };
+});
+const processDefinitionByKey = new Map(processDefinitionRows.map(item => [item.category + "|" + item.processType, item]));
 const operations: OperationRecord[] = (source.operations as any[]).map(row => ({
   id: operationId(row.id), poId, poLineId, componentId,
+  processDefinitionId: processDefinitionByKey.get(String(row.category || "General") + "|" + String(row.processType || row.name))?.id,
+  processSubcategoryId: processDefinitionByKey.get(String(row.category || "General") + "|" + String(row.processType || row.name))?.subcategoryIds?.[processDefinitionByKey.get(String(row.category || "General") + "|" + String(row.processType || row.name))?.subcategories.indexOf(String(row.subProcess || "")) ?? -1],
   sequence: Number(row.sequence) || 0, name: row.name, category: row.category,
   machine: row.processType || row.category, vendorId, status: "Planned",
   plannedStart: "", plannedEnd: "", actualStart: "", actualEnd: "",
@@ -216,6 +244,7 @@ export function importAsterPrecisionExample(current: ManufacturingData): Manufac
   return {
     ...current, updatedAt,
     companies: mergeById(current.companies, [{ ...company, updatedAt }]),
+    customers: mergeById(current.customers, [{ ...customer, updatedAt }]),
     factories: mergeById(current.factories, [{ ...factory, updatedAt }]),
     components: mergeById(current.components, [{ ...component, updatedAt }]),
     purchaseOrders: mergeOrders,
@@ -224,6 +253,7 @@ export function importAsterPrecisionExample(current: ManufacturingData): Manufac
     bomLines: mergeById(current.bomLines, bomRows.map(row => ({ ...row, updatedAt }))),
     materialCostEntries: mergeById(current.materialCostEntries, materialCostRows.map(row => ({ ...row, updatedAt }))),
     materialProcessLinks: mergeById(current.materialProcessLinks, materialLinks.map(row => ({ ...row, updatedAt }))),
+    processDefinitions: mergeById(current.processDefinitions, processDefinitionRows.map(row => ({ ...row, updatedAt }))),
     operations: mergeById(current.operations, operations.map(row => ({ ...row, updatedAt }))),
     transportRoutes: mergeById(current.transportRoutes, routeRows.map(row => ({ ...row, updatedAt }))),
     transportLegs: mergeById(current.transportLegs, transportLegRows.map(row => ({ ...row, updatedAt }))),
