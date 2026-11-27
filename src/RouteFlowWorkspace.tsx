@@ -762,7 +762,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
           className="route-flow-shared-graph-layer"
           testId="route-flow-shared-canvas"
         >
-          <RouteFlowFitController revision={routeLayout+":"+routeGraphLayoutStorageKey+":"+routeFlowGraph.nodes.map(node=>node.id).join(";")}/>
+          <RouteFlowFitController revision={routeLayout+":"+routeGraphLayoutStorageKey+":"+(compactGraphViewport?"compact":"wide")+":"+routeFlowGraph.nodes.map(node=>node.id).join(";")}/>
         </ManufacturingGraphCanvas>
       </div>:
       <div className="route-flow-stage-scroll" ref={routeViewportRef}><div className="route-flow-stage-zoom-content" style={{zoom:routeZoom}}>{relationshipOverlaySize.width>0&&<svg className="route-flow-relationship-overlay" width={relationshipOverlaySize.width} height={relationshipOverlaySize.height} aria-hidden="true">{relationshipOverlay.map(item=><g key={item.id} className={"route-flow-curve-"+item.type}><path className="route-flow-curve-shadow" d={item.path}/><path className="route-flow-curve-path" d={item.path}/><path className="route-flow-curve-head" d={item.arrow}/><text className="route-flow-overlay-label" x={item.x} y={item.y}>{item.label}</text></g>)}</svg>}<RouteConnectorLegend/><div className="route-flow-stage-track" data-route-layout={routeLayout}>
