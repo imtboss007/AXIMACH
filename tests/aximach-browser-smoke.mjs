@@ -158,7 +158,11 @@ try {
   const pageErrors = [];
   page.on("pageerror", error => pageErrors.push(error.message));
   const browserManufacturingFixture=makeBrowserManufacturingFixture();
-  await page.addInitScript(({key,value})=>localStorage.setItem(key,JSON.stringify(value)),{
+  await page.addInitScript(({key,value})=>{
+    // Seed only a fresh browser context. A reload must read the app's saved
+    // manufacturing records rather than overwrite them with the initial fixture.
+    if(localStorage.getItem(key)===null)localStorage.setItem(key,JSON.stringify(value));
+  },{
     key:"aximach.manufacturingData.v1",value:browserManufacturingFixture
   });
 
