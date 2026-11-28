@@ -7134,18 +7134,3 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
  .app-shell .status-ribbon .ribbon-right{display:none!important}
  .app-shell .status-ribbon>button{flex:0 0 auto!important;min-height:20px!important;padding:2px 6px!important;font-size:8px!important}
 }
-
-/* Manufacturing Universe keeps the complete synthetic preview available without coupling it to live records. */
-.manufacturing-universe-preview-launcher{display:grid;gap:10px;margin:0 0 14px;padding:11px 13px;border:1px solid #d8e5f0;border-radius:12px;background:linear-gradient(120deg,#fbfdff,#f0f6fb);min-width:0}
-.manufacturing-universe-preview-launcher-head{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
-.manufacturing-universe-preview-launcher-head>div{display:grid;gap:4px;min-width:0}
-.manufacturing-universe-preview-launcher-head strong{color:#294768;font:600 12px "Space Grotesk",sans-serif}
-#aximach-one-component-preview{min-width:0;width:100%;overflow:hidden}
-#aximach-one-component-preview .single-component-route-demo{margin:0;max-width:100%;min-width:0}
-@media(max-width:760px){
- .manufacturing-universe-preview-launcher{padding:9px;margin-bottom:10px}
- .manufacturing-universe-preview-launcher-head{align-items:flex-start;flex-direction:column}
- .manufacturing-universe-preview-launcher-head strong{font-size:11px;line-height:1.4}
- .manufacturing-universe-preview-launcher-head>button{min-height:34px}
- #aximach-one-component-preview .single-component-route-demo{overflow-x:auto}
-}
