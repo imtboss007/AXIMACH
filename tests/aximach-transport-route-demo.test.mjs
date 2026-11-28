@@ -2,18 +2,28 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const fixture = JSON.parse(readFileSync(new URL("./fixtures/aximach-transport-routing-demo.json", import.meta.url), "utf8"));
+const fixture = JSON.parse(readFileSync(new URL("../src/single-component-route-demo.json", import.meta.url), "utf8"));
 
 test("one component can carry multiple transport legs to different process steps and route branches", () => {
   assert.equal(fixture.synthetic, true);
   assert.equal(fixture.liveSeed, false);
   const operations = new Map(fixture.operations.map(row => [row.id, row]));
   const routes = new Map(fixture.transportRoutes.map(row => [row.id, row]));
-  assert.ok(fixture.transportLegs.length >= 6);
+  assert.equal(fixture.expected.companyCount,1);
+  assert.equal(fixture.expected.purchaseOrderCount,1);
+  assert.equal(fixture.expected.componentCount,1);
+  assert.ok(fixture.transportLegs.length >= 8);
+  assert.equal(fixture.operations.length,28);
+  assert.equal(fixture.operations.every(row=>row.companyId===fixture.company.id&&row.componentId===fixture.component.id&&row.poLineId===fixture.component.poLineId),true);
+  assert.equal(new Set(fixture.operations.map(row=>row.category)).size,fixture.expected.processCategoryCount);
+  assert.ok(fixture.operations.every(row=>row.ratePerPartINR>0&&row.plannedCostINR===row.ratePerPartINR*row.quantity));
+  assert.equal(new Set(fixture.transportLegs.map(row => row.companyId)).size, 1);
+  assert.equal(new Set(fixture.transportLegs.map(row => row.poId)).size, 1);
   assert.equal(new Set(fixture.transportLegs.map(row => row.componentId)).size, 1);
   assert.equal(new Set(fixture.transportLegs.map(row => row.poLineId)).size, 1);
-  assert.ok(new Set(fixture.transportLegs.map(row => row.anchorOperationId)).size >= 5);
+  assert.ok(new Set(fixture.transportLegs.map(row => row.anchorOperationId)).size >= 8);
   for (const leg of fixture.transportLegs) {
+    assert.equal(leg.companyId, fixture.company.id);
     assert.equal(leg.componentId, fixture.component.id);
     assert.equal(leg.poId, fixture.purchaseOrder.id);
     assert.equal(leg.poLineId, fixture.component.poLineId);
@@ -28,7 +38,9 @@ test("vehicle classes have individual visual identities and separate transport p
   const directory = readFileSync(new URL("../src/TransportDirectoryWorkspace.tsx", import.meta.url), "utf8");
   const flow = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const universe = readFileSync(new URL("../src/ProcessUniverse3D.tsx", import.meta.url), "utf8");
-  for (const type of ["2-wheeler", "3-wheeler", "4-wheeler", "Mini truck", "Heavy truck", "Container truck"]) assert.ok(visuals.includes(type));
+  for (const type of ["2-wheeler / Bike","3-wheeler / Auto rickshaw","Tempo / 3-wheeler goods carrier","Heavy-duty tempo","4-wheeler / Car","Mini truck","Lorry / goods truck","Heavy lorry","Heavy truck","Container truck","Trailer / tractor","Bus / staff vehicle"]) assert.ok(visuals.includes(type), "Missing vehicle option: "+type);
+  assert.ok(visuals.includes("function VehicleSilhouette"), "Tempo, auto-rickshaw and lorry require dedicated vector silhouettes.");
+  assert.ok(visuals.includes("heavy-tempo") && visuals.includes("three-wheeler") && visuals.includes("heavy-lorry"));
   assert.ok(visuals.includes("TransportLegMarker"));
   assert.ok(directory.includes("<VehicleBadge vehicleType={route.vehicleType}/>"));
   assert.ok(flow.includes("transportLegsAt(operation.id,\"before\")"));
@@ -61,11 +73,24 @@ test("multi-route example is visible and interactive in both Process Map and Tra
   const demo = readFileSync(new URL("../src/TransportRoutingDemo.tsx", import.meta.url), "utf8");
   const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
   const directory = readFileSync(new URL("../src/TransportDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
   assert.ok(processMap.includes("<TransportRoutingDemo onClose="));
   assert.ok(directory.includes("<TransportRoutingDemo onClose="));
+  assert.ok(app.includes("loadAsterExampleFromWorkspace"));
+  assert.ok(app.includes("removeAsterExampleFromWorkspace"));
+  assert.ok(app.includes("Load full demo"));
+  assert.ok(app.includes("Remove test data"));
+  assert.ok(!routeFlow.includes("importAsterPrecisionExample"));
+  assert.ok(!routeFlow.includes("Load ASTER example into AXIMACH"));
+  assert.ok(!routeFlow.includes("<TransportRoutingDemo onClose="), "Route Flow must use normal shared records instead of an isolated preview.");
   assert.ok(demo.includes("Next process step"));
   assert.ok(demo.includes("Activate alternate supplier route"));
-  assert.ok(demo.includes("No company, PO, component, vendor, material, BOM, material-process link"));
+  assert.ok(demo.includes("ProcessRateGraph"));
+  assert.ok(demo.toLowerCase().includes("one-company one-component"));
+  assert.ok(demo.includes("conditional rework cost"));
+  assert.ok(demo.includes("./single-component-route-demo.json"));
+  assert.ok(demo.toLowerCase().includes("no company, po, component, vendor, material, bom, operation, route, transport leg or inventory record is written to aximach."));
   assert.ok(demo.includes("TransportLegMarker"));
 });
 
@@ -96,16 +121,17 @@ test("Transport & Dispatch also displays the shared multi-route demo and vehicle
 test("every supported vehicle category is displayed with a permanent visual identity", () => {
   const visuals = readFileSync(new URL("../src/TransportVehicle.tsx", import.meta.url), "utf8");
   const demo = readFileSync(new URL("../src/TransportRoutingDemo.tsx", import.meta.url), "utf8");
-  assert.ok(visuals.includes('if (/heavy.?duty/.test(value))'));
+  assert.ok(visuals.includes('if(/heavy\\s*(?:duty\\s*)?tempo|tempo\\s*heavy/.test(value))'));
   assert.ok(demo.includes("{VEHICLE_TYPES.map(type=><VehicleBadge"));
-  for (const type of ["2-wheeler","3-wheeler","4-wheeler","Light commercial vehicle","Mini truck","Heavy-duty 4-wheeler","Heavy truck","Container truck","Trailer / tractor","Bus / staff vehicle","Courier / delivery"]) assert.ok(visuals.includes(type));
+  for (const type of ["2-wheeler","3-wheeler","4-wheeler","Light commercial vehicle","Mini truck","Heavy-duty tempo","Lorry / goods truck","Heavy lorry","Heavy truck","Container truck","Trailer / tractor","Bus / staff vehicle","Courier / delivery van"]) assert.ok(visuals.includes(type));
 });
 
-test("courier/delivery and 2-wheeler use separate vehicle colours", () => {
+test("courier/delivery uses a van identity while bike and auto use their own types", () => {
   const visuals = readFileSync(new URL("../src/TransportVehicle.tsx", import.meta.url), "utf8");
-  assert.ok(visuals.includes('if (/courier|delivery/.test(value))'));
-  assert.ok(visuals.includes('color: "#B56BC5"'));
-  assert.ok(visuals.includes('color: "#D49A2D"'));
+  assert.ok(visuals.includes('courier|delivery\\s*van'));
+  assert.ok(visuals.includes('color:"#299A70"'));
+  assert.ok(visuals.includes('color:"#D49A2D"'));
+  assert.ok(visuals.includes('color:"#16A6A0"'));
 });
 
 
@@ -116,10 +142,13 @@ test("every transport category keeps a unique stable colour in Process Map, Rout
   const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
   const transportInspector = readFileSync(new URL("../src/TransportRecordInspector.tsx", import.meta.url), "utf8");
   const materialInspector = readFileSync(new URL("../src/MaterialTransportRecordInspector.tsx", import.meta.url), "utf8");
-  const visualBlock = visuals.slice(visuals.indexOf("export function getVehicleVisual"), visuals.indexOf("export function VehicleIcon"));
-  const colors = [...visualBlock.matchAll(/color: "(#[A-Fa-f0-9]+)"/g)].map(match => match[1]);
-  assert.equal(colors.length, 12, "11 supported vehicle categories plus one fallback identity must have colours");
-  assert.equal(new Set(colors).size, 12, "every vehicle category and fallback must have a distinct identity colour");
+  const visualBlock = visuals.slice(visuals.indexOf("const VEHICLE_VISUALS"), visuals.indexOf("const FALLBACK_VEHICLE_VISUAL"));
+  const colors = [...visualBlock.matchAll(/color:"(#[A-Fa-f0-9]+)"/g)].map(match => match[1]);
+  const visualClasses = [...visualBlock.matchAll(/className:"([^"]+)"/g)].map(match => match[1]);
+  assert.equal(colors.length, 21, "every canonical vehicle class must have an explicit colour");
+  assert.equal(new Set(colors).size, 21, "every canonical vehicle class must have a distinct identity colour");
+  assert.equal(visualClasses.length, 21, "every canonical vehicle class must have a distinct visual class");
+  assert.equal(new Set(visualClasses).size, 21, "no canonical vehicle types may collapse to a generic visual class");
   assert.ok(universe.includes("<VehicleTypeIcon vehicleType={route.vehicle}"));
   assert.ok(universe.includes("<VehicleTypeIcon vehicleType={leg.vehicleType}"));
   assert.ok(scene.includes("<VehicleTypeIcon vehicleType={route.vehicle}"));
@@ -204,4 +233,33 @@ test("Route Flow never infers a transport receiver from the next displayed opera
   assert.ok(routeFlow.includes('const target=operationFor(leg.targetOperationId||"")'));
   assert.ok(!routeFlow.includes("inferredTarget"), "The next displayed operation is not a valid transport destination.");
   assert.ok(routeFlow.includes('if(target)addEdge(transportId,target.id,"transport","transport-to:"+leg.id'));
+});
+
+
+test("single-component route graph uses a compact multi-lane layout sized for readable zoom and mobile pan",()=>{
+  const graph=readFileSync(new URL("../src/SingleComponentRouteGraphDemo.tsx",import.meta.url),"utf8");
+  const css=readFileSync(new URL("../src/aximach-ui.css",import.meta.url),"utf8");
+  assert.ok(graph.includes("style:{width:200}"));
+  assert.ok(graph.includes("row.x+100,y:row.y+70"));
+  assert.ok(css.includes(".single-component-route-demo-canvas{height:1020px!important;min-height:900px!important}"));
+  assert.ok(css.includes("width:1120px!important;max-width:none!important;height:900px!important"));
+});
+
+
+test("all 21 transport types are visible in the searchable icon picker in every route-creation surface", () => {
+  const visuals = readFileSync(new URL("../src/TransportVehicle.tsx", import.meta.url), "utf8");
+  const picker = readFileSync(new URL("../src/VehicleTypePicker.tsx", import.meta.url), "utf8");
+  const directory = readFileSync(new URL("../src/TransportDirectoryWorkspace.tsx", import.meta.url), "utf8");
+  const routeFlow = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
+  const processMap = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
+  const optionBlock = visuals.match(/export const VEHICLE_TYPES = \[([\s\S]*?)\] as const;/)?.[1] || "";
+  const categories = [...optionBlock.matchAll(/"([^"]+)"/g)].map(match => match[1]);
+  assert.equal(categories.length, 21, "the canonical catalogue must expose all 21 requested transport types");
+  assert.ok(picker.includes("...VEHICLE_TYPES"), "the selector must always include all canonical vehicle types");
+  assert.ok(picker.includes("<VehicleIcon vehicleType={item} size={22}/>"), "each option must render its own vehicle icon");
+  assert.ok(picker.includes("matches.map(item =>"), "the full catalogue must be searchable and rendered as options");
+  assert.ok(directory.includes('<VehicleTypePicker id="transport-route-vehicle"'), "Transport Directory must use the icon picker");
+  assert.ok(routeFlow.includes('<VehicleTypePicker id="route-flow-vehicle-type"'), "Route Flow transport-leg creation must use the icon picker");
+  assert.ok(processMap.includes('<VehicleTypePicker id="process-transport-vehicle-type"'), "Process Map route creation must use the icon picker");
+  for (const category of categories) assert.ok(visuals.includes('"' + category + '"'), "Missing catalogue item: " + category);
 });

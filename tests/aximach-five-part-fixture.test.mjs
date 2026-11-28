@@ -53,18 +53,22 @@ test("Process Plan enforces whole-number operation and production quantities", (
 
 test("Inventory ledger enforces transaction direction, source references and live linked records", () => {
   const workspace = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
+  const ledger = readFileSync(new URL("../src/inventoryLedger.mjs", import.meta.url), "utf8");
   assert.ok(workspace.includes('"Issue to production": "out"'));
   assert.ok(workspace.includes('"Finished goods receipt": "in"'));
   assert.ok(workspace.includes("const requiredDirection = fixedStockDirections[transactionType]"));
   assert.ok(workspace.includes('if (!reference.trim())'));
   assert.ok(workspace.includes("The selected operation does not belong to the chosen PO line"));
-  assert.ok(workspace.includes('(!scope.companyId || row.companyId === scope.companyId) && (!scope.factoryId || row.factoryId === scope.factoryId)'), "stock balances must isolate company and factory");
-  assert.ok(workspace.includes('stockBalance("material", materialId, { companyId: bomIssueSelection.po.companyId, factoryId: bomIssueSelection.po.factoryId })'), "BOM issue shortage preview must use the owning PO factory balance");
+  assert.ok(ledger.includes("if(scope.companyId&&row.companyId!==scope.companyId)"), "stock balances must isolate company");
+  assert.ok(ledger.includes("if(scope.factoryId&&row.factoryId!==scope.factoryId)"), "stock balances must isolate factory");
+  assert.ok(workspace.includes("buildBomMaterialIssuePlan({"), "BOM preview and posting must share the same stock planning helper");
+  assert.ok(ledger.includes("companyId:po.companyId,factoryId:po.factoryId"), "BOM issue revalidation must use the owning PO factory balance");
   assert.ok(workspace.includes("op.id === bomIssueOperationId && op.poId === po.id && op.poLineId === line.id && !op.deletedAt"));
 });
 test("BOM and material masters reject invalid quantities, scrap limits and inactive links", () => {
   const workspace = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(workspace.includes("Number.isFinite(Number(materialDraft.ratePerUnit))"));
+  assert.ok(workspace.includes("const materialRateValue = materialRateInput.trim() === \"\" ? 0 : Number(materialRateInput)"));
+  assert.ok(workspace.includes("!Number.isFinite(materialRateValue) || materialRateValue < 0"));
   assert.ok(workspace.includes("!components.some(component => component.id === bomDraft.componentId)"));
   assert.ok(workspace.includes("bomDraft.scrapPercent > 100"));
 });
@@ -560,7 +564,7 @@ test("Alternate and rework routes use different arrow colours while process type
   assert.ok(workspace.includes('className={"process-route-flow-arrow is-transport "+'));
   assert.ok(workspace.includes("const processColor=processAccent(operation)"));
   assert.ok(workspace.includes("displayColor: draft.processColor"));
-  assert.ok(universe.includes("processDefinition?.displayColor || operation.processColor"));
+  assert.ok(universe.includes("resolveProcessColor({category:processDefinition?.category||operation.category"));
   assert.ok(css.includes(".process-universe-lane.is-branch.is-alternate .process-universe-connector"));
   assert.ok(css.includes(".process-universe-lane.is-branch.is-rework .process-universe-connector"));
   assert.ok(css.includes(".process-universe-branch-link.is-rework"));
@@ -739,9 +743,9 @@ test("AXIMACH command sphere module buttons can be dragged without losing click 
 test("Process Directory stores a colour per process type and route exports share the selected scope", () => {
   const directory = readFileSync(new URL("../src/SpecializedDirectoryWorkspace.tsx", import.meta.url), "utf8");
   const workspace = readFileSync(new URL("../src/LinkedProcessWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(directory.includes("displayColor:processColor"));
-  assert.ok(directory.includes('setProcessColor(row.displayColor||"#4b95eb")'));
-  assert.ok(directory.includes('type="color" value={processColor}'));
+  assert.ok(directory.includes("displayColor:processColor||processPaletteColor(category,processType)"));
+  assert.ok(directory.includes("setProcessColor(resolveProcessColor(row))"));
+  assert.ok(directory.includes('type="color" value={processColor||processPaletteColor(category,processType)}'));
   assert.ok(workspace.includes("const exportOperations = getRouteScopeOperations(exportScope)"));
   for (const exportName of ["exportCsv", "exportExcel", "exportVisual", "exportPowerPoint", "printExport"]) {
     const start = workspace.indexOf("const " + exportName);
@@ -862,7 +866,7 @@ test("five synthetic component names resolve to the intended mechanical logo fam
   for (const part of fixture.parts) {
     assert.equal(glyphFor(part.name + " " + part.partNumber), expected.get(part.partNumber), part.partNumber + " mechanical logo family");
   }
-  assert.ok(iconSource.indexOf("gear|sprocket|rack|worm wheel|splined") < iconSource.indexOf("shaft|spindle|axle|pinion shaft|drive shaft"), "gear identity must take priority over the generic shaft rule");
+  assert.equal(glyphFor("gear shaft"), "hob", "gear identity must take priority over the generic shaft rule");
 });
 
 
@@ -896,7 +900,7 @@ test("Logo Studio limits selectable and persisted symbols to mechanical and tran
   assert.ok(studio.includes("const ICONS: IconMeta[] = engineeredMechanicalIcons;"));
   assert.ok(!studio.includes("tablerIconCatalogue"));
   assert.ok(studio.includes("useState(() => iconKey(ICONS[0]))"));
-  assert.ok(studio.includes("Mechanical &amp; transport logos"));
+  assert.ok(studio.includes("Unique engineering SVG symbols · not colour variants"));
   assert.ok(studio.includes("!isMechanicalStudioIcon(assignment.iconName)"));
   assert.ok(mechanical.includes('mechanicalGlyphForOperation(operation) || "component-block"'));
 });
@@ -1125,7 +1129,7 @@ test("Logo Studio lists and renders the authored mechanical tool and transport g
   assert.ok(mechanical.includes('[/\\bhmc\\b|horizontal machining centre|horizontal machining center/, "cnc-machine"]'));
   assert.ok(studio.includes("const ICONS: IconMeta[] = engineeredMechanicalIcons;"));
   assert.ok(studio.includes("useState(() => iconKey(ICONS[0]))"));
-  assert.ok(studio.includes("Mechanical &amp; transport logos"));
+  assert.ok(studio.includes("Unique engineering SVG symbols · not colour variants"));
   assert.ok(studio.includes("Search mechanical process, machine, tool or transport logo"));
   assert.ok(!studio.includes("tablerIconCatalogue"));
 });
@@ -1554,7 +1558,7 @@ test("390px mobile layout keeps the spherical command centre and Process Map con
 });
 
 
-test("bundled two-company five-part demo is opt-in, fully linked and removable", () => {
+test("legacy two-company demo remains identifiable for cleanup but is no longer importable", () => {
   const demo = readFileSync(new URL("../src/aximachDemoData.ts", import.meta.url), "utf8");
   const importer = readFileSync(new URL("../src/IntelligenceWorkspaces.tsx", import.meta.url), "utf8");
   const inventory = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
@@ -1564,7 +1568,7 @@ test("bundled two-company five-part demo is opt-in, fully linked and removable",
   const partKeys = [...demo.matchAll(/key:"(AST-1001|AST-1002|AST-1003|MER-2001|MER-2002)"/g)].map(match => match[1]);
   assert.equal(partKeys.length, 5, "bundled demo must include exactly five component examples");
   assert.equal(new Set(partKeys).size, 5, "demo component IDs must be unique");
-  for (const collection of ["companies", "customers", "prospects", "factories", "purchaseOrders", "components", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles", "processDefinitions", "plannedCosts", "transportRoutes", "transportLegs", "paymentTransactions", "inspectionMeasurements", "followUpAssignments"]) {
+  for (const collection of ["companies", "customers", "prospects", "factories", "machines", "purchaseOrders", "components", "vendors", "operations", "quotations", "materials", "bomLines", "inventoryTransactions", "contactProfiles", "processDefinitions", "plannedCosts", "transportRoutes", "transportLegs", "paymentTransactions", "inspectionMeasurements", "followUpAssignments"]) {
     assert.ok(demo.includes(collection), "demo dataset must include " + collection);
   }
   assert.ok(demo.includes('processSubcategoryId:def.subcategoryIds?.[def.subcategories.indexOf(s.sub)]'));
@@ -1576,14 +1580,16 @@ test("bundled two-company five-part demo is opt-in, fully linked and removable",
   assert.ok(demo.includes('materialCostEntries.push({id:id("MATERIAL-ALLOCATION"'));
   assert.ok(demo.includes('scope:"process-map"'));
   assert.ok(demo.includes('transportVendorId:id("VENDOR","LOG")'));
-  assert.ok(demo.includes('return {updatedAt:stamp,companies,customers:[],prospects:[],factories,purchaseOrders,components,vendors,operations,quotations,materials,componentParts:[],materialCostEntries,bomLines'));
+  assert.ok(demo.includes('return {updatedAt:stamp,companies,customers:[],prospects:[],factories,machines,toolingAssets:[],fixtureAssets:[],resourceUsageEvents:[],maintenancePlans:[],maintenanceWorkOrders:[],machineDowntime:[],purchaseOrders,components,vendors,operations,quotations,materials,componentParts:[],materialCostEntries,bomLines'));
   assert.ok(demo.includes('export function archiveAxMachTwoCompanyDemo'));
-  assert.ok(demo.includes('row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)'));
-  assert.ok(importer.includes('onClick={loadTwoCompanyDemo}'));
-  assert.ok(importer.includes('onClick={removeTwoCompanyDemo}'));
-  assert.ok(importer.includes('mergeManufacturingData(current,createAxMachTwoCompanyDemo())'));
-  assert.ok(importer.includes('archiveAxMachTwoCompanyDemo(current)'));
-  assert.ok(importer.includes('window.confirm("Archive all AXIMACH DEMO records'));
+  assert.ok(demo.includes('row.id?.startsWith(AXIMACH_DEMO_ID_PREFIX)'));
+  assert.ok(!importer.includes("loadTwoCompanyDemo"));
+  assert.ok(!importer.includes("createAxMachTwoCompanyDemo"));
+  assert.ok(importer.includes("One-company / one-PO / one-component manufacturing preview"));
+  const cleanup=readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
+  assert.ok(cleanup.includes('marker = "aximach.demo-data-cleanup.v3"'));
+  assert.ok(cleanup.includes('row.id.startsWith("DEMO-")'));
+  assert.ok(cleanup.includes("supplierPaymentAllocations:archiveRows(canonical.supplierPaymentAllocations)"));
   assert.ok(inventory.includes('const inventoryTransactions = activeRows(data.inventoryTransactions);'));
   assert.ok(!inventory.includes('data.inventoryTransactions.filter('), "archived demo stock movements must not remain visible");
 });
@@ -1645,7 +1651,8 @@ test("expanded process record provides edit and linked custom colour controls wi
   assert.ok(workspace.includes("onChangeProcessColor={(id,color)=>updateOperation(id,{processColor:color})}"));
   assert.ok(scene.includes('if(operation.relationType==="rework")return [.9,.43,.12]'));
   assert.ok(scene.includes('if(operation.status==="Complete")return [.12,.64,.4]'));
-  assert.ok(scene.includes("return hexRgb(operation.processColor)"));
+  assert.ok(scene.includes("return hexRgb(resolveProcessColor({category:operation.category,processType:operation.name,processColor:operation.processColor}))"));
+  assert.ok(scene.includes('"--process-accent":resolveProcessColor({category:op.category,processType:op.name,processColor:op.processColor})'));
 });
 
 
@@ -2021,7 +2028,8 @@ test("3D route arrows stay enabled and narrow-screen process metadata is not hid
 test("Route Flow draws vehicle-specific transport icons on curved connectors and supports multiple vehicle types", () => {
   const route = readFileSync(new URL("../src/RouteFlowWorkspace.tsx", import.meta.url), "utf8");
   const css = readFileSync(new URL("../src/aximach-ui.css", import.meta.url), "utf8");
-  assert.ok(route.includes('import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle"'));
+  assert.ok(route.includes('import { VehicleIcon as VehicleTypeIcon, getVehicleVisual, VEHICLE_TYPES } from "./TransportVehicle"'));
+  assert.ok(route.includes('import VehicleTypePicker from "./VehicleTypePicker"'));
   assert.ok(route.includes('<VehicleTypeIcon vehicleType={vehicleType} size={17}/>'));
   assert.ok(route.includes('<VehicleTypeIcon vehicleType={node.leg.vehicleType} size={20}/>'));
   assert.ok(route.includes('<VehicleTypeIcon vehicleType={node.entry.transportVehicleType||""} size={20}/>'));

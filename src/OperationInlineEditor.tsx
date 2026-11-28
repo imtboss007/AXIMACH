@@ -17,14 +17,14 @@ export default function OperationInlineEditor({operation,vendors,onSave,onCancel
     name:operation.name,category:operation.category,subcategory:operation.subcategory||"",
     machine:operation.machine||"",vendorId:operation.vendorId||"",status:operation.status,
     quantity:String(operation.quantity),completed:String(operation.completed),accepted:String(operation.accepted),rejected:String(operation.rejected),
-    ratePerPart:String(operation.ratePerPart),actualRatePerPart:String(operation.actualRatePerPart),
+    ratePerPart:String(operation.ratePerPart||""),actualRatePerPart:String(operation.actualRatePerPart||""),
     plannedStart:localInput(operation.plannedStart),plannedEnd:localInput(operation.plannedEnd),
     actualStart:localInput(operation.actualStart),actualEnd:localInput(operation.actualEnd),
-    paymentStatus:operation.paymentStatus||"Unpaid",paidAmount:String(operation.paidAmount||0),
+    paymentStatus:operation.paymentStatus||"Unpaid",paidAmount:String(operation.paidAmount||""),
     executionType:operation.executionType||"Outsourced",toleranceCategory:operation.toleranceCategory||"Standard",
     transportVendorId:operation.transportVendorId||"",transportFrom:operation.transportFrom||"",transportTo:operation.transportTo||"",
     transportVehicleType:operation.transportVehicleType||"",transportPickup:localInput(operation.transportPickup||""),
-    transportDelivery:localInput(operation.transportDelivery||""),transportCost:String(operation.transportCost||0),
+    transportDelivery:localInput(operation.transportDelivery||""),transportCost:String(operation.transportCost||""),
     inspectionResult:operation.inspectionResult||"",qualityNotes:operation.qualityNotes||"",branch:operation.branch||"Main route",notes:operation.notes||""
   });
   const set=(key:keyof typeof draft,value:string)=>setDraft(current=>({...current,[key]:value}));
@@ -49,14 +49,14 @@ export default function OperationInlineEditor({operation,vendors,onSave,onCancel
       <label>Completed quantity<input type="number" min="0" value={draft.completed} onChange={e=>set("completed",e.target.value)}/></label>
       <label>Accepted quantity<input type="number" min="0" value={draft.accepted} onChange={e=>set("accepted",e.target.value)}/></label>
       <label>Rejected quantity<input type="number" min="0" value={draft.rejected} onChange={e=>set("rejected",e.target.value)}/></label>
-      <label>Rate per part (₹)<input type="number" min="0" step="0.01" value={draft.ratePerPart} onChange={e=>set("ratePerPart",e.target.value)}/></label>
-      <label>Actual rate per part (₹)<input type="number" min="0" step="0.01" value={draft.actualRatePerPart} onChange={e=>set("actualRatePerPart",e.target.value)}/></label>
+      <label>Rate per part (₹)<input type="text" inputMode="decimal" value={draft.ratePerPart || ""} onChange={e=>set("ratePerPart",e.target.value)}/></label>
+      <label>Actual rate per part (₹)<input type="text" inputMode="decimal" value={draft.actualRatePerPart || ""} onChange={e=>set("actualRatePerPart",e.target.value)}/></label>
       <label>Planned start<input type="datetime-local" value={draft.plannedStart} onChange={e=>set("plannedStart",e.target.value)}/></label>
       <label>Planned delivery / due<input type="datetime-local" value={draft.plannedEnd} onChange={e=>set("plannedEnd",e.target.value)}/></label>
       <label>Actual start<input type="datetime-local" value={draft.actualStart} onChange={e=>set("actualStart",e.target.value)}/></label>
       <label>Actual completion<input type="datetime-local" value={draft.actualEnd} onChange={e=>set("actualEnd",e.target.value)}/></label>
       <label>Payment status<select value={draft.paymentStatus} onChange={e=>set("paymentStatus",e.target.value)}><option>Unpaid</option><option>Paid</option></select></label>
-      <label>Paid amount (₹)<input type="number" min="0" step="0.01" value={draft.paidAmount} onChange={e=>set("paidAmount",e.target.value)}/></label>
+      <label>Paid amount (₹)<input type="text" inputMode="decimal" value={draft.paidAmount || ""} onChange={e=>set("paidAmount",e.target.value)}/></label>
       <label>Execution<select value={draft.executionType} onChange={e=>set("executionType",e.target.value)}><option>Internal</option><option>Outsourced</option></select></label>
       <label>Tolerance<select value={draft.toleranceCategory} onChange={e=>set("toleranceCategory",e.target.value)}><option>Standard</option><option>Precision</option><option>Close</option><option>Ultra Precision</option></select></label>
       <label>Transport vendor<select value={draft.transportVendorId} onChange={e=>set("transportVendorId",e.target.value)}><option value="">Not assigned</option>{vendors.map(v=><option key={v.id} value={v.id}>{v.company}</option>)}</select></label>
@@ -65,7 +65,7 @@ export default function OperationInlineEditor({operation,vendors,onSave,onCancel
       <label>Transport to<input value={draft.transportTo} onChange={e=>set("transportTo",e.target.value)}/></label>
       <label>Pickup date &amp; time<input type="datetime-local" value={draft.transportPickup} onChange={e=>set("transportPickup",e.target.value)}/></label>
       <label>Delivery date &amp; time<input type="datetime-local" value={draft.transportDelivery} onChange={e=>set("transportDelivery",e.target.value)}/></label>
-      <label>Transport cost (₹)<input type="number" min="0" step="0.01" value={draft.transportCost} onChange={e=>set("transportCost",e.target.value)}/></label>
+      <label>Transport cost (₹)<input type="text" inputMode="decimal" value={draft.transportCost || ""} onChange={e=>set("transportCost",e.target.value)}/></label>
       <label>Inspection result<input value={draft.inspectionResult} onChange={e=>set("inspectionResult",e.target.value)}/></label>
       <label>Branch / route<input value={draft.branch} onChange={e=>set("branch",e.target.value)}/></label>
       <label className="ax-inline-wide">Quality notes<input value={draft.qualityNotes} onChange={e=>set("qualityNotes",e.target.value)}/></label>

@@ -48,6 +48,8 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
   const [quoteNotes, setQuoteNotes] = useState("");
   const [quoteSearch, setQuoteSearch] = useState("");
   const [showQuoteForm, setShowQuoteForm] = useState(false);
+  const [extraInputValues,setExtraInputValues]=useState<Record<string,string>>({});
+  const [extraInputKey,setExtraInputKey]=useState("");
 
   const preferredCompanyId = orders.find(po => po.lines.some(line => !("deletedAt" in line && (line as any).deletedAt)))?.companyId || companies[0]?.id || "";
   useEffect(() => {
@@ -218,6 +220,18 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
     if (targetLine && targetLine.key !== lineKey) setLineKey(targetLine.key);
   }, [initialContext?.poLineId, initialContext?.componentId, componentLines, lineKey]);
   const selectedLine = componentLines.find(line => line.key === lineKey) || preferredLine;
+  useEffect(() => {
+    setExtraInputKey(selectedLine?.key || "");
+    setExtraInputValues({});
+  }, [selectedLine?.key]);
+  const extraInputValue = (key:string,value:number) =>
+    extraInputKey === (selectedLine?.key || "")
+      ? (extraInputValues[key] ?? (value || ""))
+      : (value || "");
+  const updateExtraInput = (key:"overhead"|"toolingCost"|"reworkCost"|"scrapCost"|"materialRate"|"materialQty"|"salePrice", value:string) => {
+    setExtraInputValues(current=>({...current,[key]:value}));
+    setExtra(key, value.trim()==="" ? 0 : Math.max(0,Number(value)||0));
+  };
   const selectedComponent = components.find(component => component.id === selectedLine?.componentId);
   const routeOperations = operations.filter(op => op.componentId === selectedComponent?.id && (!selectedLine || (op.poId === selectedLine.poId && op.poLineId === selectedLine.lineId)));
   const paymentTransactions = activeRows(data.paymentTransactions || []);
@@ -471,8 +485,8 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
           <label>Quote date<input type="date" value={quotedAt} onChange={e=>setQuotedAt(e.target.value)}/></label>
           <label>Valid until<input type="date" value={validUntil} onChange={e=>setValidUntil(e.target.value)}/></label>
           <label>Quantity quoted<input type="number" min="1" value={quantity} onChange={e=>setQuantity(e.target.value)}/></label>
-          <label>Rate per part (₹) *<input type="number" min="0" step="0.01" value={ratePerPart} onChange={e=>setRatePerPart(e.target.value)} placeholder="Enter quote received"/></label>
-          <label>Transport cost (₹)<input type="number" min="0" step="0.01" value={transportCost} onChange={e=>setTransportCost(e.target.value)}/></label>
+          <label>Rate per part (₹) *<input type="text" inputMode="decimal" value={ratePerPart} onChange={e=>setRatePerPart(e.target.value)} placeholder="Enter quote received"/></label>
+          <label>Transport cost (₹)<input type="text" inputMode="decimal" value={transportCost} onChange={e=>setTransportCost(e.target.value)} placeholder="Enter transport amount"/></label>
           <label>Lead time (calendar days)<input type="number" min="0" value={leadDays} onChange={e=>setLeadDays(e.target.value)} placeholder="Supplier's committed lead time"/></label>
           <label className="module-form-wide">Quote notes<input value={quoteNotes} onChange={e=>setQuoteNotes(e.target.value)} placeholder="Scope, exclusions, taxes, delivery terms, validity…"/></label>
           <div className="module-form-actions"><button className="button-primary" onClick={saveQuote}><Check size={14}/> Save quotation</button><button className="button-quiet" onClick={()=>setShowQuoteForm(false)}>Cancel</button></div>
@@ -483,13 +497,13 @@ export default function LinkedCostingWorkspace({ initialContext, onBack, onNotic
       </section>
       <section className="surface-panel linked-process-table"><div className="panel-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/> COMPONENT OTHER COSTS</div><h3>Material, overhead and other entered costs</h3><p>When a PO line is selected, edits are saved to that line only so this order’s costs and rejects do not affect another order for the same part. Blank material defaults are estimated from linked BOM lines and their entered material rates; this is an estimate, not a supplier invoice.</p></div></div>
         <div className="module-record-form">
-          <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><Package size={15}/></span>Material quantity</span><input type="number" min="0" step="0.001" value={materialQty} onChange={e=>setExtra("materialQty",Number(e.target.value)||0)}/></label>
-          <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><CircleDollarSign size={15}/></span>Material rate per unit (₹)</span><input type="number" min="0" step="0.01" value={materialRate} onChange={e=>setExtra("materialRate",Number(e.target.value)||0)}/></label>
-                    <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><Wallet size={15}/></span>Selling rate per part (₹)</span><input type="number" min="0" step="0.01" value={sellingRate} onChange={e=>setExtra("salePrice",Number(e.target.value)||0)}/></label>
-          <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><Activity size={15}/></span>Overhead (₹)</span><input type="number" min="0" step="0.01" value={overhead} onChange={e=>setExtra("overhead",Number(e.target.value)||0)}/></label>
-          <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><Wrench size={15}/></span>Tooling / fixture (₹)</span><input type="number" min="0" step="0.01" value={toolingCost} onChange={e=>setExtra("toolingCost",Number(e.target.value)||0)}/></label>
-          <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><RotateCcw size={15}/></span>Rework cost (₹)</span><input type="number" min="0" step="0.01" value={reworkCost} onChange={e=>setExtra("reworkCost",Number(e.target.value)||0)}/></label>
-          <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><Recycle size={15}/></span>Scrap / rejection loss (₹)</span><input type="number" min="0" step="0.01" value={scrapCost} onChange={e=>setExtra("scrapCost",Number(e.target.value)||0)}/></label>
+          <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><Package size={15}/></span>Material quantity</span><input type="number" min="0" step="0.001" value={extraInputValue("materialQty",materialQty)} onChange={e=>updateExtraInput("materialQty",e.target.value)}/></label>
+          <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><CircleDollarSign size={15}/></span>Material rate per unit (₹)</span><input type="text" inputMode="decimal" value={extraInputValue("materialRate",materialRate)} onChange={e=>updateExtraInput("materialRate",e.target.value)}/></label>
+                    <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><Wallet size={15}/></span>Selling rate per part (₹)</span><input type="text" inputMode="decimal" value={extraInputValue("salePrice",sellingRate)} onChange={e=>updateExtraInput("salePrice",e.target.value)}/></label>
+          <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><Activity size={15}/></span>Overhead (₹)</span><input type="text" inputMode="decimal" value={extraInputValue("overhead",overhead)} onChange={e=>updateExtraInput("overhead",e.target.value)}/></label>
+          <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><Wrench size={15}/></span>Tooling / fixture (₹)</span><input type="text" inputMode="decimal" value={extraInputValue("toolingCost",toolingCost)} onChange={e=>updateExtraInput("toolingCost",e.target.value)}/></label>
+          <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><RotateCcw size={15}/></span>Rework cost (₹)</span><input type="text" inputMode="decimal" value={extraInputValue("reworkCost",reworkCost)} onChange={e=>updateExtraInput("reworkCost",e.target.value)}/></label>
+          <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><Recycle size={15}/></span>Scrap / rejection loss (₹)</span><input type="text" inputMode="decimal" value={extraInputValue("scrapCost",scrapCost)} onChange={e=>updateExtraInput("scrapCost",e.target.value)}/></label>
           <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><ShieldCheck size={15}/></span>Rejected quantity (pcs)</span><input type="number" min="0" value={rejectedQty} onChange={e=>setExtra("rejectedQty",Number(e.target.value)||0)}/></label>
           <label className="costing-input-field"><span className="costing-input-heading"><span className="costing-input-icon"><FileText size={15}/></span>GST rate (%)</span><input type="number" min="0" max="100" step="0.01" value={gstRate} onChange={e=>setExtra("gstRate",Math.min(100,Number(e.target.value)||0))}/></label>
         </div>

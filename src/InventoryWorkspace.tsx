@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowRight, Boxes, Check, ClipboardList, Factory, FileText, Package, Plus, Search, ShieldCheck, Trash2, Truck, Users, Warehouse, X } from "lucide-react";
-import { activeRows, makeId, nowIso, useManufacturingData, type BomLineRecord, type InventoryTransactionRecord, type MaterialProcessLinkRecord, type MaterialRecord, type StockTransactionKind } from "./manufacturingData";
+import { activeRows, makeId, nowIso, useManufacturingData, type BomLineRecord, type InventoryTransactionRecord, type MaterialProcessLinkRecord, type MaterialConsumptionRecord, type MaterialRecord, type StockTransactionKind, STANDARD_MANUFACTURING_MATERIAL_TYPES } from "./manufacturingData";
+import { STANDARD_MATERIAL_GRADES, MATERIAL_TYPE_GROUPS, materialDensityReference, materialReferenceForGrade } from "./materialCatalogue";
 import { getFinalProductionOperation, getRequiredRouteOperations } from "./productionRouteMetrics.mjs";
+import { buildBomMaterialIssuePlan, buildMaterialConsumptionPlan, getInventoryStockBalance, validateMaterialConsumptionQuantities } from "./inventoryLedger.mjs";
 import SearchablePicker from "./SearchablePicker";
 import PartMaterialCostingPanel from "./PartMaterialCostingPanel";
 
 type InventoryNavigationContext = { companyId?:string; poId?:string; poLineId?:string; componentId?:string; operationId?:string; materialId?:string; subtab?:string; searchText?:string };
 type Props = { onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: InventoryNavigationContext) => void; initialContext?: InventoryNavigationContext };
-type Tab = "materials" | "bom" | "stock" | "process-links";
+type Tab = "materials" | "bom" | "stock" | "consumption" | "process-links";
 type MaterialDraft = Omit<MaterialRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
 type BomDraft = Omit<BomLineRecord, "id" | "createdAt" | "updatedAt" | "deletedAt">;
 type BomIssuePreviewRow = { material: MaterialRecord; bomLineIds: string[]; required: number; issued: number; pending: number; available: number; shortage: number };
@@ -42,13 +44,8 @@ const MATERIAL_DIMENSIONS_BY_SHAPE: Record<string, Array<{key:string;label:strin
 const fixedStockDirections: Partial<Record<StockTransactionKind, "in" | "out">> = { "Opening balance": "in", "Receipt": "in", "Issue to production": "out", "Return": "in", "Scrap": "out", "Finished goods receipt": "in", "Dispatch": "out" };
 const money = (v: number) => "₹" + (Number(v) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const dateToday = () => new Date().toISOString().slice(0, 10);
-const STANDARD_MATERIAL_GRADES = [
-  ["Mild steel","MS / low-carbon steel",7850,"Steel"],["Mild steel","IS 2062 E250",7850,"Steel"],["Mild steel","IS 2062 E350",7850,"Steel"],
-  ["Carbon steel","EN1A",7850,"Steel"],["Carbon steel","EN8",7850,"Steel"],["Carbon steel","EN9",7850,"Steel"],["Alloy steel","EN19",7850,"Steel"],["Alloy steel","EN24",7850,"Steel"],["Alloy steel","EN36",7850,"Steel"],["Alloy steel","EN31",7850,"Steel"],
-  ["Stainless steel","SS 304",7930,"Stainless steel"],["Stainless steel","SS 316",8000,"Stainless steel"],["Stainless steel","SS 410",7750,"Stainless steel"],["Stainless steel","SS 420",7750,"Stainless steel"],
-  ["Aluminium","Aluminium 1050",2710,"Aluminium"],["Aluminium","Aluminium 6061",2700,"Aluminium"],["Aluminium","Aluminium 6063",2700,"Aluminium"],["Aluminium","Aluminium 6082",2700,"Aluminium"],["Aluminium","Aluminium 7075",2810,"Aluminium"],
-  ["Copper","Copper C11000 / ETP",8960,"Copper"],["Brass","Brass C26000",8530,"Brass"],["Brass","Brass C36000",8500,"Brass"],["Bronze","Tin bronze",8800,"Bronze"],["Cast iron","Grey cast iron",7200,"Cast iron"],["Zinc","Zinc",7140,"Non-ferrous"],["Titanium","Titanium Grade 2",4510,"Titanium"],["Alloy steel","AISI 4140 / EN19",7850,"Steel"],["Alloy steel","AISI 4340 / EN24",7850,"Steel"],["Stainless steel","SS 304L",7930,"Stainless steel"],["Stainless steel","SS 316L",8000,"Stainless steel"],["Stainless steel","Duplex 2205",7850,"Stainless steel"],["Aluminium","Aluminium 5052",2680,"Aluminium"],["Aluminium","Aluminium 5083",2660,"Aluminium"],["Aluminium","Aluminium 2014",2800,"Aluminium"],["Copper","Copper C10100",8890,"Copper"],["Copper alloy","Phosphor bronze",8800,"Bronze"],["Nickel alloy","Inconel 625",8440,"Nickel alloy"],["Nickel alloy","Monel 400",8800,"Nickel alloy"],["Magnesium","Magnesium AZ31B",1770,"Magnesium"],["Engineering plastic","Nylon 6 (PA6)",1140,"Plastic"],["Engineering plastic","Acetal / POM",1410,"Plastic"],["Engineering plastic","HDPE",950,"Plastic"],["Engineering plastic","UHMWPE",940,"Plastic"],["Engineering plastic","PTFE",2200,"Plastic"],["Engineering plastic","PVC rigid",1400,"Plastic"],["Engineering plastic","Polycarbonate",1200,"Plastic"],["Engineering plastic","ABS",1070,"Plastic"],["Engineering plastic","Acrylic / PMMA",1190,"Plastic"],["Engineering plastic","Polypropylene (PP)",900,"Plastic"],["Carbon steel","AISI 1018",7870,"Steel"],["Carbon steel","S355 / IS 2062 E350",7850,"Steel"],["Alloy steel","AISI 4130",7850,"Steel"],["Alloy steel","AISI 52100 / 100Cr6",7810,"Steel"],["Stainless steel","SS 201",7800,"Stainless steel"],["Stainless steel","SS 303",7900,"Stainless steel"],["Stainless steel","SS 430",7700,"Stainless steel"],["Stainless steel","17-4PH",7800,"Stainless steel"],["Aluminium","Aluminium 1100",2710,"Aluminium"],["Aluminium","Aluminium 3003",2730,"Aluminium"],["Aluminium","Aluminium 6061-T6",2700,"Aluminium"],["Aluminium","Aluminium 7075-T6",2810,"Aluminium"],["Copper alloy","Cupronickel 70/30",8960,"Copper alloy"],["Nickel alloy","Hastelloy C276",8410,"Nickel alloy"],["Engineering plastic","Polyetheretherketone (PEEK)",1300,"Plastic"],["Engineering plastic","Polyamide 66 (PA66)",1140,"Plastic"]
-] as const;
+
+const STANDARD_MATERIAL_TYPES = STANDARD_MANUFACTURING_MATERIAL_TYPES;
 
 export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectModule, initialContext }: Props) {
   const { data, update, syncStatus } = useManufacturingData();
@@ -69,8 +66,9 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const orders = activeRows(data.purchaseOrders);
   const vendors = activeRows(data.vendors);
   const inventoryTransactions = activeRows(data.inventoryTransactions);
+  const materialConsumptions = activeRows(data.materialConsumptions || []);
   const operations = activeRows(data.operations);
-  const [tab, setTab] = useState<Tab>(() => initialContext?.subtab === "bom" || initialContext?.subtab === "stock" || initialContext?.subtab === "process-links" ? initialContext.subtab : "materials");
+  const [tab, setTab] = useState<Tab>(() => initialContext?.subtab === "bom" || initialContext?.subtab === "stock" || initialContext?.subtab === "consumption" || initialContext?.subtab === "process-links" ? initialContext.subtab : "materials");
   const [materialLinkPoLineKey, setMaterialLinkPoLineKey] = useState(() => initialContext?.poId && initialContext?.poLineId ? initialContext.poId+"::"+initialContext.poLineId : "");
   const [materialLinkBomLineId, setMaterialLinkBomLineId] = useState("");
   const [materialLinkOperationId, setMaterialLinkOperationId] = useState(initialContext?.operationId || "");
@@ -88,6 +86,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const [materialFormOpen, setMaterialFormOpen] = useState(false);
   const [bomFormOpen, setBomFormOpen] = useState(false);
   const [materialDraft, setMaterialDraft] = useState<MaterialDraft>(emptyMaterial());
+  const [materialRateInput,setMaterialRateInput]=useState("");
   const [bomDraft, setBomDraft] = useState<BomDraft>(emptyBom());
   const [itemType, setItemType] = useState<"material" | "component">("material");
   const [itemId, setItemId] = useState("");
@@ -104,12 +103,25 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
   const [poLineKey, setPoLineKey] = useState("");
   const [operationId, setOperationId] = useState("");
   const [vendorId, setVendorId] = useState("");
+  const [consumptionPoLineKey,setConsumptionPoLineKey]=useState(()=>initialContext?.poId&&initialContext?.poLineId?initialContext.poId+"::"+initialContext.poLineId:"");
+  const [consumptionOperationId,setConsumptionOperationId]=useState(initialContext?.operationId||"");
+  const [consumptionBomLineId,setConsumptionBomLineId]=useState("");
+  const [consumptionQuantity,setConsumptionQuantity]=useState("");
+  const [consumptionScrapQuantity,setConsumptionScrapQuantity]=useState("0");
+  const [consumptionReturnQuantity,setConsumptionReturnQuantity]=useState("0");
+  const [consumptionDate,setConsumptionDate]=useState(dateToday());
+  const [consumptionReference,setConsumptionReference]=useState("");
+  const [consumptionRecordedBy,setConsumptionRecordedBy]=useState("");
+  const [consumptionNotes,setConsumptionNotes]=useState("");
   useEffect(() => {
     // Hydrate every filter from the incoming record context, including the
     // empty case, so a new module visit cannot inherit a stale component/PO.
     setMaterialLinkPoLineKey(initialContext?.poId && initialContext?.poLineId ? initialContext.poId+"::"+initialContext.poLineId : "");
     setMaterialLinkOperationId(initialContext?.operationId || "");
-    setTab(initialContext?.subtab === "bom" || initialContext?.subtab === "stock" || initialContext?.subtab === "process-links" ? initialContext.subtab : "materials");
+    setTab(initialContext?.subtab === "bom" || initialContext?.subtab === "stock" || initialContext?.subtab === "consumption" || initialContext?.subtab === "process-links" ? initialContext.subtab : "materials");
+    setConsumptionPoLineKey(initialContext?.poId&&initialContext?.poLineId?initialContext.poId+"::"+initialContext.poLineId:"");
+    setConsumptionOperationId(initialContext?.operationId||"");
+    setConsumptionBomLineId("");setConsumptionQuantity("");setConsumptionScrapQuantity("0");setConsumptionReturnQuantity("0");setConsumptionReference("");setConsumptionRecordedBy("");setConsumptionNotes("");setConsumptionDate(dateToday());
     setSearch(initialContext?.searchText || materials.find(row=>row.id===initialContext?.materialId)?.code || "");
     setDirectoryCompanyId(initialContext?.companyId || "");
     setDirectoryPoId(initialContext?.poId || "");
@@ -195,30 +207,56 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     onNotice("Material-to-process link archived. No BOM, stock or process-operation record was deleted.");
   };
   const bomIssueOperations = bomIssueSelection ? operations.filter(op => op.poId === bomIssueSelection.po.id && op.poLineId === bomIssueSelection.line.id && !op.deletedAt) : [];
+  const consumptionLineOptions = bomIssuePoLineOptions.filter(row=>
+    (!directoryCompanyId||row.po.companyId===directoryCompanyId)&&
+    (!directoryPoId||row.po.id===directoryPoId)&&
+    (!directoryComponentId||row.line.componentId===directoryComponentId)
+  );
+  const consumptionSelection = consumptionLineOptions.find(row=>row.id===consumptionPoLineKey);
+  const consumptionBomOptions = consumptionSelection?.component
+    ? bomLines.filter(row=>row.componentId===consumptionSelection.component!.id&&
+      (!row.revision||row.revision===consumptionSelection.component!.revision)&&
+      (!consumptionSelection.line.partId||!row.partId||row.partId===consumptionSelection.line.partId))
+    : [];
+  const consumptionOperationOptions = consumptionSelection
+    ? operations.filter(op=>op.poId===consumptionSelection.po.id&&op.poLineId===consumptionSelection.line.id&&op.componentId===consumptionSelection.line.componentId&&!op.deletedAt)
+    : [];
+  const consumptionBomLine = consumptionBomOptions.find(row=>row.id===consumptionBomLineId);
+  const consumptionMaterial = materials.find(row=>row.id===consumptionBomLine?.materialId&&!row.deletedAt);
+  const consumptionOperation = consumptionOperationOptions.find(row=>row.id===consumptionOperationId);
+  const consumptionPlan = useMemo(()=>(
+    consumptionSelection?.component&&consumptionBomLine&&consumptionMaterial&&consumptionOperation
+      ? buildMaterialConsumptionPlan({
+          po:consumptionSelection.po,line:consumptionSelection.line,component:consumptionSelection.component,
+          operation:consumptionOperation,bomLine:consumptionBomLine,material:consumptionMaterial,
+          materialProcessLinks,inventoryTransactions,materialConsumptions
+        })
+      : null
+  ),[consumptionPoLineKey,consumptionOperationId,consumptionBomLineId,consumptionSelection,consumptionBomLine,consumptionMaterial,consumptionOperation,materialProcessLinks,inventoryTransactions,materialConsumptions]);
+  const visibleMaterialConsumptions = materialConsumptions.filter(row=>{
+    const material=materials.find(item=>item.id===row.materialId);
+    const po=orders.find(item=>item.id===row.poId);
+    const component=components.find(item=>item.id===row.componentId);
+    const operation=operations.find(item=>item.id===row.operationId);
+    const query=[row.reference,row.recordedBy,row.notes,row.materialId,row.bomLineId,material?.code,material?.name,po?.number,component?.partNumber,operation?.name].join(" ").toLowerCase();
+    return (!directoryCompanyId||row.companyId===directoryCompanyId)&&(!directoryPoId||row.poId===directoryPoId)&&
+      (!directoryComponentId||row.componentId===directoryComponentId)&&(!search.trim()||query.includes(search.toLowerCase().trim()));
+  }).slice().sort((a,b)=>b.occurredAt.localeCompare(a.occurredAt)||b.createdAt.localeCompare(a.createdAt));
+
   const bomIssuePreview = useMemo<BomIssuePreviewRow[]>(() => {
     if (!bomIssueSelection?.component) return [];
-    const eligibleBom = bomLines.filter(row => row.componentId === bomIssueSelection.component!.id && (!row.revision || row.revision === bomIssueSelection.component!.revision) && (!bomIssueSelection.line.partId || !row.partId || row.partId === bomIssueSelection.line.partId));
-    const totals = new Map<string, { required: number; bomLineIds: string[] }>();
-    for (const row of eligibleBom) {
-      const prior = totals.get(row.materialId) || { required: 0, bomLineIds: [] };
-      prior.required += row.quantityPerPart * (1 + row.scrapPercent / 100) * bomIssueSelection.line.quantity;
-      prior.bomLineIds.push(row.id);
-      totals.set(row.materialId, prior);
-    }
-    return [...totals.entries()].map(([materialId, total]) => {
-      const material = materials.find(row => row.id === materialId);
-      if (!material) return null;
-      const issued = inventoryTransactions.filter(row => row.itemType === "material" && row.itemId === materialId && row.poId === bomIssueSelection.po.id && row.poLineId === bomIssueSelection.line.id)
-        .reduce((sum, row) => sum + (row.transactionType === "Issue to production" && row.direction === "out" ? row.quantity : row.transactionType === "Return" && row.direction === "in" ? -row.quantity : 0), 0);
-      const pending = Math.max(0, total.required - Math.max(0, issued));
-      const available = stockBalance("material", materialId, { companyId: bomIssueSelection.po.companyId, factoryId: bomIssueSelection.po.factoryId });
-      return { material, bomLineIds: total.bomLineIds, required: total.required, issued: Math.max(0, issued), pending, available, shortage: Math.max(0, pending - available) };
-    }).filter((row): row is BomIssuePreviewRow => Boolean(row));
-  }, [bomIssuePoLineKey, bomIssueSelection, bomLines, materials, inventoryTransactions]);
+    return buildBomMaterialIssuePlan({
+      bomLines,materials,transactions:inventoryTransactions,
+      po:bomIssueSelection.po,line:bomIssueSelection.line,component:bomIssueSelection.component
+    }).flatMap(row => row.material ? [{
+      material:row.material,bomLineIds:row.bomLineIds,required:row.required,
+      issued:row.issued,pending:row.pending,available:row.available,shortage:row.shortage
+    }] : []);
+  }, [bomIssuePoLineKey,bomIssueSelection,bomLines,materials,inventoryTransactions]);
   const operationOptions = operations.filter(op => !op.deletedAt && (!selectedPoLine || (op.poId === selectedPoLine.po.id && op.poLineId === selectedPoLine.line.id)));
   const itemOptions = itemType === "material" ? materials.map(m => ({ id: m.id, label: m.code + " · " + m.name + " · " + m.grade })) : components.map(c => ({ id: c.id, label: c.partNumber + " · " + c.name + " · Rev " + (c.revision || "—") }));
   const selectedItem = itemType === "material" ? materials.find(m => m.id === itemId) : components.find(c => c.id === itemId);
-  const stockBalance = (type: "material" | "component", id: string, scope: { companyId?: string; factoryId?: string } = { companyId, factoryId }) => inventoryTransactions.reduce((total, row) => row.itemType === type && row.itemId === id && (!scope.companyId || row.companyId === scope.companyId) && (!scope.factoryId || row.factoryId === scope.factoryId) ? total + (row.direction === "in" ? row.quantity : -row.quantity) : total, 0);
+  const stockBalance = (type: "material" | "component", id: string, scope: { companyId?: string; factoryId?: string } = { companyId, factoryId }) => getInventoryStockBalance(inventoryTransactions,type,id,scope);
   const visibleMaterials = useMemo(() => materials.filter(m => {
     const query = search.toLowerCase().trim();
     const textMatch = !query || (m.code + " " + m.name + " " + m.grade + " " + m.materialType + " " + m.shapeType + " " + m.specification + " " + m.notes + " " + Object.entries(m.dimensions||{}).map(([key,value])=>key+" "+value).join(" ")).toLowerCase().includes(query);
@@ -298,11 +336,19 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     return total + rateQuantity * (material?.ratePerUnit || 0);
   }, 0);
 
-  const resetMaterial = () => { setMaterialFormOpen(false); setMaterialEditingId(""); setMaterialDraft(emptyMaterial()); };
+  const handleMaterialGradeChange = (grade:string) => {
+    const q=grade.trim().toLowerCase();
+    const saved=q.length>=2?materials.find(row=>row.grade.trim().toLowerCase()===q):undefined;
+    const common=q.length>=2?materialReferenceForGrade(grade):undefined;
+     const familyDensity=materialDensityReference(grade,materialDraft.materialType||"");
+    setMaterialDraft({...materialDraft,grade,code:materialDraft.code||(saved?.code||common?.[1].toUpperCase().replaceAll(" ","-").replaceAll("/","-")||""),...(saved?{name:saved.name,materialType:saved.materialType||saved.name,densityKgM3:saved.densityUnit==="g/cm3"?(Number(saved.densityKgM3)||0)*1000:(saved.densityKgM3||0),densityUnit:"kg/m3" as const,ratePerUnit:saved.ratePerUnit||0,priceUnit:saved.priceUnit||"kg",preferredVendorId:saved.preferredVendorId||"",shapeType:saved.shapeType||materialDraft.shapeType,dimensions:saved.dimensions||{},dimensionUnit:saved.dimensionUnit||"mm"}:common?{name:common[0],materialType:common[3],densityKgM3:common[2],densityUnit:"kg/m3" as const}:familyDensity?{densityKgM3:familyDensity,densityUnit:"kg/m3" as const}: {})});
+    setMaterialRateInput(saved?String(saved.ratePerUnit??""):"");
+  };
+  const resetMaterial = () => { setMaterialFormOpen(false); setMaterialEditingId(""); setMaterialDraft(emptyMaterial()); setMaterialRateInput(""); };
   const resetBom = () => { setBomFormOpen(false); setBomEditingId(""); setBomDraft(emptyBom()); };
   const editMaterial = (row: MaterialRecord) => {
     const { id, createdAt, updatedAt, deletedAt, ...draft } = row;
-    setMaterialDraft(draft); setMaterialEditingId(id); setMaterialFormOpen(true);
+    setMaterialDraft(draft); setMaterialRateInput(String(row.ratePerUnit ?? "")); setMaterialEditingId(id); setMaterialFormOpen(true);
   };
   const editBom = (row: BomLineRecord) => {
     const { id, createdAt, updatedAt, deletedAt, ...draft } = row;
@@ -312,7 +358,8 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     if (!materialDraft.code.trim() || !materialDraft.name.trim() || !materialDraft.materialType?.trim() || !materialDraft.grade.trim() || !materialDraft.unit.trim()) { onNotice("Material code, material type, name, grade and unit are required."); return; }
     if (!(Number(materialDraft.densityKgM3)>0)) { onNotice("Enter a typical density in kg/m³ or select a known grade to fill it automatically."); return; }
     if (materialDraft.densityKgM3 && (!Number.isFinite(Number(materialDraft.densityKgM3)) || Number(materialDraft.densityKgM3) <= 0)) { onNotice("Density must be a positive kg/m³ value."); return; }
-    if (!Number.isFinite(Number(materialDraft.ratePerUnit)) || Number(materialDraft.ratePerUnit) < 0) { onNotice("Material rate must be a finite non-negative number."); return; }
+    const materialRateValue = materialRateInput.trim() === "" ? 0 : Number(materialRateInput);
+    if (!Number.isFinite(materialRateValue) || materialRateValue < 0) { onNotice("Material rate must be a finite non-negative number."); return; }
     if (materialDraft.preferredVendorId && !vendors.some(vendor => vendor.id === materialDraft.preferredVendorId)) { onNotice("Preferred vendor is missing or archived. Choose an active Vendor Directory record."); return; }
     const duplicate = materials.find(m => m.id !== materialEditingId && m.code.trim().toLowerCase() === materialDraft.code.trim().toLowerCase());
     const duplicateGrade = materials.find(m => m.id !== materialEditingId && m.grade.trim().toLowerCase() === materialDraft.grade.trim().toLowerCase() && (m.materialType||m.name).trim().toLowerCase() === (materialDraft.materialType||materialDraft.name).trim().toLowerCase());
@@ -321,7 +368,7 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     const stamp = nowIso(); const id = materialEditingId || makeId("material");
     update(current => {
       const old = current.materials.find(m => m.id === id);
-      return { ...current, materials: [...current.materials.filter(m => m.id !== id), { ...materialDraft, code: materialDraft.code.trim(), name: materialDraft.name.trim(), densityKgM3: materialDraft.densityUnit === "g/cm3" ? Number(materialDraft.densityKgM3) * 1000 : Number(materialDraft.densityKgM3), densityUnit: "kg/m3" as const, id, createdAt: old?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined }] };
+      return { ...current, materials: [...current.materials.filter(m => m.id !== id), { ...materialDraft, unit:materialDraft.unit==="kg"?"kg":"piece", priceUnit:materialDraft.priceUnit==="piece"?"piece":"kg", ratePerUnit: materialRateValue, code: materialDraft.code.trim(), name: materialDraft.name.trim(), densityKgM3: materialDraft.densityUnit === "g/cm3" ? Number(materialDraft.densityKgM3) * 1000 : Number(materialDraft.densityKgM3), densityUnit: "kg/m3" as const, id, createdAt: old?.createdAt || stamp, updatedAt: stamp, deletedAt: undefined }] };
     });
     resetMaterial(); onNotice("Material saved permanently in the shared Material Directory. Similar grade searches will find this record; BOM links and stock ledger retain its stable ID.");
   };
@@ -360,40 +407,31 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
     if (!pendingRows.length) { onNotice("There are no remaining BOM material requirements to issue for this PO component line."); return; }
     const shortages = pendingRows.filter(row => row.shortage > 0);
     if (shortages.length) {
-      onNotice("No material was issued. Insufficient stock: " + shortages.map(row => row.material.code + " needs " + row.pending.toLocaleString("en-IN") + " " + row.material.unit + ", available " + row.available.toLocaleString("en-IN") + " " + row.material.unit).join("; ") + ". Receive/adjust stock first.");
+      onNotice("No material was issued. Insufficient stock in the selected factory: " + shortages.map(row => row.material.code + " needs " + row.pending.toLocaleString("en-IN") + " " + row.material.unit + ", available " + Math.max(0,row.available).toLocaleString("en-IN") + " " + row.material.unit).join("; ") + ". Receive or adjust stock in that factory first.");
       return;
     }
     const issueTotal = pendingRows.reduce((sum, row) => sum + row.pending, 0);
-    if (!window.confirm("Issue all remaining BOM material requirements for " + bomIssueSelection.po.number + " / " + bomIssueSelection.component.partNumber + "?\n" + pendingRows.length + " material line(s), total " + issueTotal.toLocaleString("en-IN") + " material units. This creates append-only stock transactions and will not issue any partial line if stock is short.")) return;
+    if (!window.confirm("Issue all remaining BOM material requirements for " + bomIssueSelection.po.number + " / " + bomIssueSelection.component.partNumber + "?\n" + pendingRows.length + " material line(s), total " + issueTotal.toLocaleString("en-IN") + " material units. Only stock owned by " + (companies.find(row=>row.id===bomIssueSelection.po.companyId)?.name||"the selected company") + " at " + (factories.find(row=>row.id===bomIssueSelection.po.factoryId)?.name||"the selected factory") + " is eligible. This creates append-only stock transactions and will not partially issue a short kit.")) return;
     let result: { posted: number; shortage: string[] } = { posted: 0, shortage: [] };
     update(current => {
       const po = current.purchaseOrders.find(row => row.id === bomIssueSelection.po.id);
       const line = po?.lines.find(row => row.id === bomIssueSelection.line.id && !row.deletedAt);
       const component = current.components.find(row => row.id === line?.componentId);
-      if (!po || !line || !component) { result = { posted: 0, shortage: ["The PO component line or Component Master record changed; refresh and select it again."] }; return current; }
+      if (!po || !line || !component || !po.companyId || !po.factoryId) { result = { posted: 0, shortage: ["The PO component line, owning company/factory or Component Master record changed; refresh and select it again."] }; return current; }
       if (bomIssueOperationId && !current.operations.some(op => op.id === bomIssueOperationId && op.poId === po.id && op.poLineId === line.id && !op.deletedAt)) { result = { posted: 0, shortage: ["The selected process operation is no longer active on this PO component line. No material was issued."] }; return current; }
-      const eligibleBom = current.bomLines.filter(row => row.componentId === component.id && !row.deletedAt && (!row.revision || row.revision === component.revision) && (!line.partId || !row.partId || row.partId === line.partId));
-      const totals = new Map<string, { required: number; bomLineIds: string[] }>();
-      for (const bom of eligibleBom) {
-        const prior = totals.get(bom.materialId) || { required: 0, bomLineIds: [] };
-        prior.required += bom.quantityPerPart * (1 + bom.scrapPercent / 100) * line.quantity;
-        prior.bomLineIds.push(bom.id);
-        totals.set(bom.materialId, prior);
-      }
-      const plan = [...totals.entries()].map(([materialId, total]) => {
-        const material = current.materials.find(row => row.id === materialId && !row.deletedAt);
-        const issued = current.inventoryTransactions.filter(row => row.itemType === "material" && row.itemId === materialId && row.poId === po.id && row.poLineId === line.id)
-          .reduce((sum, row) => sum + (row.transactionType === "Issue to production" && row.direction === "out" ? row.quantity : row.transactionType === "Return" && row.direction === "in" ? -row.quantity : 0), 0);
-        const available = current.inventoryTransactions.reduce((sum, row) => row.itemType === "material" && row.itemId === materialId ? sum + (row.direction === "in" ? row.quantity : -row.quantity) : sum, 0);
-        return { material, materialId, bomLineIds: total.bomLineIds, pending: Math.max(0, total.required - Math.max(0, issued)), available };
-      }).filter(row => row.pending > 0);
+      const plan = buildBomMaterialIssuePlan({
+        bomLines:current.bomLines,materials:current.materials,transactions:current.inventoryTransactions,
+        po,line,component
+      });
       const missing = plan.filter(row => !row.material);
       if (missing.length) { result = { posted: 0, shortage: missing.map(row => "Missing material " + row.materialId) }; return current; }
-      const short = plan.filter(row => row.available + 1e-9 < row.pending);
-      if (short.length) { result = { posted: 0, shortage: short.map(row => row.material!.code + " needs " + row.pending.toLocaleString("en-IN") + " " + row.material!.unit + ", available " + row.available.toLocaleString("en-IN") + " " + row.material!.unit) }; return current; }
+      const pendingPlan = plan.filter(row => row.pending > 0);
+      if (!pendingPlan.length) { result = { posted: 0, shortage: ["No remaining BOM material requirements exist for this PO line."] }; return current; }
+      const short = pendingPlan.filter(row => row.shortage > 0);
+      if (short.length) { result = { posted: 0, shortage: short.map(row => row.material!.code + " needs " + row.pending.toLocaleString("en-IN") + " " + row.material!.unit + ", available " + Math.max(0,row.available).toLocaleString("en-IN") + " " + row.material!.unit + " in the selected factory") }; return current; }
       const stamp = nowIso();
       const reference = "BOM ISSUE · " + po.number + " · " + component.partNumber;
-      const transactions: InventoryTransactionRecord[] = plan.map(row => ({
+      const transactions: InventoryTransactionRecord[] = pendingPlan.map(row => ({
         id: makeId("stock"), itemType: "material", itemId: row.materialId, transactionType: "Issue to production", direction: "out", quantity: row.pending,
         occurredAt: dateToday(), reference, notes: "Automated BOM issue. PO line quantity: " + line.quantity + "; component revision: " + (component.revision || "—") + "; BOM line IDs: " + row.bomLineIds.join(", ") + ". Remaining requirement after prior issues/returns.",
         companyId: po.companyId, factoryId: po.factoryId, poId: po.id, poLineId: line.id, operationId: bomIssueOperationId || "", vendorId: "", reversalOfId: "", createdAt: stamp, createdBy: "AXIMACH BOM issue workflow"
@@ -402,19 +440,101 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
       return { ...current, inventoryTransactions: [...current.inventoryTransactions, ...transactions] };
     });
     if (result.shortage.length) onNotice("No material was issued. " + result.shortage.join("; ") + ".");
-    else onNotice(result.posted + " BOM material issue transaction(s) posted to the stock ledger for " + bomIssueSelection.po.number + " / " + bomIssueSelection.component.partNumber + ". Quantities were based on PO quantity, BOM per-part quantity, scrap allowance, previous issues and returns.");
+    else onNotice(result.posted + " BOM material issue transaction(s) posted to the stock ledger for " + bomIssueSelection.po.number + " / " + bomIssueSelection.component.partNumber + ". Quantities were rechecked atomically against this PO's company and factory, BOM per-part quantity, scrap allowance, previous issues and returns.");
   };
+  const postMaterialConsumption = () => {
+    if(!consumptionSelection?.component||!consumptionBomLine||!consumptionMaterial||!consumptionOperation){
+      onNotice("Select the exact PO component line, BOM material and production operation before reconciling actual material.");
+      return;
+    }
+    if(!consumptionDate||!consumptionReference.trim()||!consumptionRecordedBy.trim()){
+      onNotice("Enter the actual consumption date, source reference and recorded-by person.");
+      return;
+    }
+    const consumed=Number(consumptionQuantity),scrap=Number(consumptionScrapQuantity),returned=Number(consumptionReturnQuantity);
+    const liveValidation=validateMaterialConsumptionQuantities(consumptionPlan,consumed,scrap,returned);
+    if(!liveValidation.ok){
+      const message=liveValidation.reason==="scrap-exceeds-consumption"?"Scrap quantity is a subset of consumed material and cannot exceed actual consumption."
+        :liveValidation.reason==="exceeds-issued-available"?"Consumed plus returned quantity exceeds material issued to this operation and the remaining shared PO-line issue pool."
+        :liveValidation.reason==="empty-reconciliation"?"Enter actual consumed quantity or quantity physically returned to stock."
+        :"The issue/operation context is no longer valid. Refresh the selected PO line, BOM material and operation.";
+      onNotice(message);return;
+    }
+    let result:{error:string;record?:MaterialConsumptionRecord}={error:""};
+    update(current=>{
+      const po=current.purchaseOrders.find(row=>row.id===consumptionSelection.po.id&&!row.deletedAt);
+      const line=po?.lines.find(row=>row.id===consumptionSelection.line.id&&!row.deletedAt);
+      const component=current.components.find(row=>row.id===line?.componentId&&!row.deletedAt);
+      const operation=current.operations.find(row=>row.id===consumptionOperation.id&&!row.deletedAt);
+      const bom=current.bomLines.find(row=>row.id===consumptionBomLine.id&&!row.deletedAt);
+      const material=current.materials.find(row=>row.id===consumptionMaterial.id&&!row.deletedAt);
+      if(!po||!line||!component||!operation||!bom||!material||
+         operation.poId!==po.id||operation.poLineId!==line.id||operation.componentId!==component.id||
+         bom.componentId!==component.id||bom.materialId!==material.id||
+         po.companyId!==consumptionSelection.po.companyId||po.factoryId!==consumptionSelection.po.factoryId){
+        result={error:"The PO, line, component, operation, BOM or material changed while this reconciliation was being prepared. Refresh the selected records."};
+        return current;
+      }
+      const plan=buildMaterialConsumptionPlan({
+        po,line,component,operation,bomLine:bom,material,
+        materialProcessLinks:current.materialProcessLinks||[],
+        inventoryTransactions:current.inventoryTransactions||[],
+        materialConsumptions:current.materialConsumptions||[]
+      });
+      const check=validateMaterialConsumptionQuantities(plan,consumed,scrap,returned);
+      if(!check.ok){
+        result={error:check.reason==="exceeds-issued-available"
+          ?"Issue balance changed. Another operation may have consumed or returned the remaining PO-line issue pool. No reconciliation was posted."
+          :check.reason==="scrap-exceeds-consumption"?"Scrap quantity cannot exceed actual consumed quantity."
+          :check.reason==="empty-reconciliation"?"Enter consumed or returned quantity."
+          :"The material consumption context is no longer valid. No reconciliation was posted."};
+        return current;
+      }
+      const stamp=nowIso();
+      const occurredAt=new Date(consumptionDate+"T12:00:00").toISOString();
+      const record:MaterialConsumptionRecord={
+        id:makeId("material-consumption"),
+        companyId:po.companyId,factoryId:po.factoryId,poId:po.id,poLineId:line.id,componentId:component.id,
+        partId:bom.partId||line.partId||"",bomLineId:bom.id,materialId:material.id,operationId:operation.id,
+        unit:plan!.unit,plannedQuantity:plan!.plannedQuantity,issuedQuantityAtRecord:plan!.availableToReconcile,
+        consumedQuantity:consumed,scrapQuantity:scrap,returnedQuantity:returned,
+        sourceMaterialProcessLinkIds:plan!.materialProcessLinkIds,
+        occurredAt,reference:consumptionReference.trim(),recordedBy:consumptionRecordedBy.trim(),notes:consumptionNotes.trim(),
+        createdAt:stamp,updatedAt:stamp
+      };
+      const returnTransaction:InventoryTransactionRecord|undefined=returned>0?{
+        id:makeId("stock"),itemType:"material",itemId:material.id,transactionType:"Return",direction:"in",
+        quantity:returned,occurredAt,reference:"MATERIAL RETURN · "+record.reference,
+        notes:"Return posted from actual material consumption reconciliation "+record.id+". "+record.notes,
+        companyId:po.companyId,factoryId:po.factoryId,poId:po.id,poLineId:line.id,operationId:operation.id,
+        vendorId:"",reversalOfId:"",sourceConsumptionId:record.id,createdAt:stamp,createdBy:"AXIMACH material consumption reconciliation"
+      }:undefined;
+      result={error:"",record};
+      return {
+        ...current,
+        materialConsumptions:[...(current.materialConsumptions||[]),record],
+        inventoryTransactions:returnTransaction?[...(current.inventoryTransactions||[]),returnTransaction]:(current.inventoryTransactions||[])
+      };
+    });
+    if(result.error){onNotice(result.error);return;}
+    setConsumptionQuantity("");setConsumptionScrapQuantity("0");setConsumptionReturnQuantity("0");
+    setConsumptionReference("");setConsumptionNotes("");
+    onNotice("Actual material consumption was recorded for "+consumptionMaterial.code+" / "+consumptionOperation.name+". Scrap is included inside consumed quantity. "+(returned>0?"The remaining "+returned.toLocaleString("en-IN")+" "+consumptionPlan?.unit+" was returned to the scoped stock ledger. ":"")+"Consumed material was not deducted from warehouse stock again.");
+  };
+
   const postTransaction = () => {
     if (!itemId || !selectedItem) { onNotice("Select the material or component that physically moved."); return; }
     const q = Number(quantity);
     if (!Number.isFinite(q) || q <= 0) { onNotice("Enter a positive finite quantity for the stock movement."); return; }
     if (!occurredAt) { onNotice("Enter the date of the physical stock movement."); return; }
+    if (!companyId || !factoryId) { onNotice("Every stock movement must be assigned to an owning company and factory. Select both before posting."); return; }
     if (!reference.trim()) { onNotice("Enter a source reference, challan, issue slip, adjustment note or other movement reference."); return; }
     const requiredDirection = fixedStockDirections[transactionType];
     if (requiredDirection && direction !== requiredDirection) { onNotice(transactionType + " must be posted as stock " + requiredDirection + "."); return; }
-    if (factoryId && !factories.some(factory => factory.id === factoryId && (!companyId || factory.companyId === companyId))) { onNotice("The selected factory is no longer active under the selected company."); return; }
+    if (!factories.some(factory => factory.id === factoryId && factory.companyId === companyId)) { onNotice("The selected factory is no longer active under the selected company."); return; }
+    if (selectedPoLine && (selectedPoLine.po.companyId !== companyId || selectedPoLine.po.factoryId !== factoryId)) { onNotice("The stock movement company and factory must exactly match the selected PO line."); return; }
     if (vendorId && !vendors.some(vendor => vendor.id === vendorId)) { onNotice("The selected stock vendor is missing or archived."); return; }
-    if (operationId && !operations.some(op => op.id === operationId && (!selectedPoLine || (op.poId === selectedPoLine.po.id && op.poLineId === selectedPoLine.line.id)))) { onNotice("The selected operation does not belong to the chosen PO line or is no longer active."); return; }
+    if (operationId) { const linkedOperation = operations.find(op => op.id === operationId && !op.deletedAt); const linkedPO = linkedOperation ? orders.find(po => po.id === linkedOperation.poId) : undefined; if (!linkedOperation || !linkedPO || linkedPO.companyId !== companyId || linkedPO.factoryId !== factoryId || (selectedPoLine && (linkedOperation.poId !== selectedPoLine.po.id || linkedOperation.poLineId !== selectedPoLine.line.id))) { onNotice("The selected operation does not belong to the chosen PO line or selected company/factory, or is no longer active."); return; } }
     if (selectedPoLine && selectedPoLine.line.componentId && itemType === "component" && selectedPoLine.line.componentId !== itemId) { onNotice("The selected component stock item does not match the chosen PO line. Choose the matching part number."); return; }
     if (transactionType === "Finished goods receipt" || transactionType === "Dispatch") {
       if (itemType !== "component" || !selectedPoLine) { onNotice("Finished-goods receipt and dispatch require the exact component item and PO line."); return; }
@@ -447,7 +567,8 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
         if (q > lineFinishedBalance) { onNotice("Dispatch quantity exceeds available company/factory component stock. Available: " + lineFinishedBalance + "."); return; }
       }
     }
-    const currentBalance = stockBalance(itemType, itemId);
+    const currentBalance = stockBalance(itemType, itemId, { companyId, factoryId });
+    if (direction === "out" && transactionType !== "Adjustment" && currentBalance + 1e-9 < q) { onNotice("Insufficient stock in the selected company/factory. Available: " + Math.max(0,currentBalance).toLocaleString("en-IN") + "; requested: " + q.toLocaleString("en-IN") + ". No movement was posted. Record the missing receipt or use a documented adjustment only when correcting the ledger."); return; }
     const nextBalance = currentBalance + (direction === "in" ? q : -q);
     if (direction === "out" && nextBalance < 0 && (transactionType === "Finished goods receipt" || transactionType === "Dispatch")) { onNotice("Finished-goods dispatch cannot create a negative stock balance."); return; }
     if (direction === "out" && nextBalance < 0 && !window.confirm("This issue will make the calculated balance negative (" + nextBalance.toLocaleString("en-IN") + "). Post anyway? Check the opening balance/receipts first.")) return;
@@ -472,9 +593,10 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
       <button className={tab==="materials"?"costing-tab-active":""} onClick={()=>{setTab("materials");setSearch("");}}><Package size={15}/> Material catalogue ({materials.length})</button>
       <button className={tab==="bom"?"costing-tab-active":""} onClick={()=>{setTab("bom");setSearch("");}}><Boxes size={15}/> BOM lines ({bomLines.length})</button>
       <button className={tab==="stock"?"costing-tab-active":""} onClick={()=>{setTab("stock");setSearch("");}}><Warehouse size={15}/> Stock ledger ({inventoryTransactions.length})</button>
+      <button className={tab==="consumption"?"costing-tab-active":""} onClick={()=>{setTab("consumption");setSearch("");}}><ClipboardList size={15}/> Actual consumption ({materialConsumptions.length})</button>
       <button className={tab==="process-links"?"costing-tab-active":""} onClick={()=>{setTab("process-links");setSearch("");}}><Activity size={15}/> Material → process ({materialProcessLinks.length})</button>
     </div>
-    <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={tab==="materials"?"Search material, grade, type, shape, dimension…":tab==="bom"?"Search component, part, material, revision…":tab==="process-links"?"Search material, BOM, process or link…":"Search item, movement, reference…"} /></label><span className="module-number">{tab==="materials"?visibleMaterials.length+" / "+materials.length+" MATERIALS":tab==="bom"?visibleBom.length+" / "+bomLines.length+" BOM LINES":tab==="process-links"?visibleMaterialProcessLinks.length+" / "+materialProcessLinks.length+" PROCESS LINKS":visibleTransactions.length+" / "+inventoryTransactions.length+" STOCK MOVEMENTS"}</span></div>
+    <div className="module-action-bar"><label className="module-record-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={tab==="materials"?"Search material, grade, type, shape, dimension…":tab==="bom"?"Search component, part, material, revision…":tab==="process-links"?"Search material, BOM, process or link…":tab==="consumption"?"Search material, PO, operation, reference…":"Search item, movement, reference…"} /></label><span className="module-number">{tab==="materials"?visibleMaterials.length+" / "+materials.length+" MATERIALS":tab==="bom"?visibleBom.length+" / "+bomLines.length+" BOM LINES":tab==="process-links"?visibleMaterialProcessLinks.length+" / "+materialProcessLinks.length+" PROCESS LINKS":tab==="consumption"?visibleMaterialConsumptions.length+" / "+materialConsumptions.length+" CONSUMPTION RECORDS":visibleTransactions.length+" / "+inventoryTransactions.length+" STOCK MOVEMENTS"}</span></div>
      <div className="material-directory-filter-bar" aria-label="Filter material directory by linked records">
        <label>Company<select value={directoryCompanyId} onChange={e=>{setDirectoryCompanyId(e.target.value);setDirectoryPoId("");}}><option value="">All companies</option>{companies.map(company=><option key={company.id} value={company.id}>{company.name}</option>)}</select></label>
        <label>Purchase order<select value={directoryPoId} onChange={e=>{setDirectoryPoId(e.target.value);setDirectoryComponentId("");}}><option value="">All purchase orders</option>{directoryPoOptions.map(po=><option key={po.id} value={po.id}>{po.number}</option>)}</select></label>
@@ -506,21 +628,21 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
         : <div className="module-empty-state"><Package size={22}/><strong>Select the manufacturing job to allocate material</strong><p>Choose one Company, its Purchase Order and the Component using the three filters above. The material allocation form will then open here. You can add more than one part and more than one material / size / grade without replacing earlier entries.</p></div>}
     </section>}
     {tab==="materials" && <>
-      <div className="workspace-title-actions"><button className="button-primary" onClick={()=>{setMaterialDraft(emptyMaterial());setMaterialEditingId("");setMaterialFormOpen(true);}}><Plus size={14}/> Add material</button><button className="button-quiet" onClick={()=>onSelectModule("vendors",{companyId:directoryCompanyId||undefined,poId:directoryPoId||undefined,componentId:directoryComponentId||undefined})}><Users size={14}/> Vendor master</button></div>
+      <div className="workspace-title-actions"><button className="button-primary" onClick={()=>{setMaterialDraft(emptyMaterial());setMaterialRateInput("");setMaterialEditingId("");setMaterialFormOpen(true);}}><Plus size={14}/> Add material</button><button className="button-quiet" onClick={()=>onSelectModule("vendors",{companyId:directoryCompanyId||undefined,poId:directoryPoId||undefined,componentId:directoryComponentId||undefined})}><Users size={14}/> Vendor master</button></div>
       {materialFormOpen && <section className="surface-panel module-record-form-panel"><div className="panel-heading"><div><h3>{materialEditingId?"Edit material record":"Add material to directory"}</h3><p>Grade suggestions fill the typical reference density automatically. Your saved custom grades, types, shapes and rates remain in the permanent material catalogue.</p></div><button className="icon-control" onClick={resetMaterial} aria-label="Close material form"><X size={15}/></button></div>
         <div className="module-record-form">
           <label>Material code *<input value={materialDraft.code} onChange={e=>setMaterialDraft({...materialDraft,code:e.target.value})} placeholder="e.g. EN8-ROUND-80"/></label>
           <label>Material name *<input value={materialDraft.name} onChange={e=>setMaterialDraft({...materialDraft,name:e.target.value})} placeholder="Actual stock/material name"/></label>
-          <label>Material family / type<input list="aximach-material-types" value={materialDraft.materialType||""} onChange={e=>setMaterialDraft({...materialDraft,materialType:e.target.value})} placeholder="Type or search material family…"/><datalist id="aximach-material-types">{[...new Set([...materials.map(item=>item.materialType||""),"Steel","Stainless steel","Aluminium","Copper","Brass","Bronze","Cast iron","Titanium","Nickel alloy","Plastic","Ceramic"])].filter(Boolean).map(type=><option key={type} value={type}/>)}</datalist></label>
-          <label>Grade / specification<input list="aximach-material-grade-catalogue" value={materialDraft.grade} onChange={e=>{const grade=e.target.value;const q=grade.trim().toLowerCase();const saved=q.length>=2?materials.find(row=>row.grade.trim().toLowerCase()===q):undefined;const common=q.length>=2?STANDARD_MATERIAL_GRADES.find(([,known])=>known.toLowerCase()===q):undefined;setMaterialDraft({...materialDraft,grade,code:materialDraft.code||(saved?.code||common?.[1].toUpperCase().replace(/[^A-Z0-9]+/g,"-")||""),...(saved?{name:saved.name,materialType:saved.materialType||saved.name,densityKgM3:saved.densityUnit==="g/cm3"?(Number(saved.densityKgM3)||0)*1000:(saved.densityKgM3||0),densityUnit:"kg/m3" as const,ratePerUnit:saved.ratePerUnit||0,priceUnit:saved.priceUnit||"kg",preferredVendorId:saved.preferredVendorId||"",shapeType:saved.shapeType||materialDraft.shapeType,dimensions:saved.dimensions||{},dimensionUnit:saved.dimensionUnit||"mm"}:common?{name:common[0],materialType:common[3],densityKgM3:common[2],densityUnit:"kg/m3" as const}: {})});}} placeholder="Type to search saved / common grades: EN8, SS304, 6061…"/><datalist id="aximach-material-grade-catalogue">{STANDARD_MATERIAL_GRADES.map(([name,grade])=><option key={grade} value={grade}>{name}</option>)}{materials.map(item=><option key={item.id} value={item.grade}>{item.name} · {item.materialType}</option>)}</datalist></label>
+          <label>Material family / type<select value={materialDraft.materialType||""} onChange={e=>{const materialType=e.target.value;setMaterialDraft(current=>({...current,materialType,densityKgM3:materialDensityReference(current.grade,materialType)||0,densityUnit:"kg/m3"}));}}><option value="">Select permanent material family…</option>{materialDraft.materialType&&!STANDARD_MATERIAL_TYPES.includes(materialDraft.materialType as typeof STANDARD_MATERIAL_TYPES[number])&&<option value={materialDraft.materialType}>{materialDraft.materialType}</option>}{MATERIAL_TYPE_GROUPS.map(group=><optgroup key={group.label} label={group.label}>{group.types.map(type=><option key={type} value={type}>{type}</option>)}</optgroup>)}</select></label>
+          <label>Grade / specification<input list="aximach-material-grade-catalogue" value={materialDraft.grade} onChange={e=>handleMaterialGradeChange(e.target.value)} placeholder="Type to search saved / common grades: EN8, SS304, 6061…"/><datalist id="aximach-material-grade-catalogue">{STANDARD_MATERIAL_GRADES.map(([name,grade])=><option key={grade} value={grade}>{name}</option>)}{materials.map(item=><option key={item.id} value={item.grade}>{item.name} · {item.materialType}</option>)}</datalist></label>
           <label>Stock shape<select value={materialDraft.shapeType||"Round bar"} onChange={e=>setMaterialDraft({...materialDraft,shapeType:e.target.value})}>{MATERIAL_SHAPES.map(shape=><option key={shape}>{shape}</option>)}</select></label>
           <label>Dimension unit<select value={materialDraft.dimensionUnit||"mm"} onChange={e=>setMaterialDraft({...materialDraft,dimensionUnit:e.target.value as "mm"|"inch"})}><option value="mm">Millimetres (mm)</option><option value="inch">Inches (in)</option></select></label>
           {directoryDimensionFields.map(dimension=><label key={dimension.key}>{dimension.label.replace(/\(mm\)/,"("+(materialDraft.dimensionUnit||"mm")+")")}<input type="number" min="0" step="any" value={materialDraft.dimensions?.[dimension.key]??""} onChange={e=>setMaterialDraft({...materialDraft,dimensions:{...(materialDraft.dimensions||{}),[dimension.key]:Math.max(0,Number(e.target.value)||0)}})} placeholder="Optional"/></label>)}
-          <label>Unit *<select value={materialDraft.unit} onChange={e=>setMaterialDraft({...materialDraft,unit:e.target.value})}><option>kg</option><option>Nos</option><option>mm</option><option>m</option><option>litre</option><option>sheet</option><option>bar</option><option>set</option></select></label>
-          <label>Density (kg/m³)<input type="number" min="0" step="any" value={materialDraft.densityKgM3||""} onChange={e=>setMaterialDraft({...materialDraft,densityKgM3:Math.max(0,Number(e.target.value)||0),densityUnit:"kg/m3"})} placeholder="Auto-filled from grade"/></label>
+          <label>Stock unit *<select value={materialDraft.unit==="kg"?"kg":"piece"} onChange={e=>setMaterialDraft({...materialDraft,unit:e.target.value,priceUnit:e.target.value==="piece"?"piece":"kg"})}><option value="kg">Kilogram (kg)</option><option value="piece">Piece / each</option></select></label>
+          <label>Density (kg/m³)<input type="number" min="0" step="any" value={materialDraft.densityKgM3||""} onChange={e=>setMaterialDraft({...materialDraft,densityKgM3:Math.max(0,Number(e.target.value)||0),densityUnit:"kg/m3"})} placeholder="Auto-filled from known grade or family"/><small>Stored in kg/m³. Exact grade density takes priority; family density is a typical reference and can be edited. Confirm against the mill certificate.</small></label>
           
-          <label>Rate per unit (₹)<input type="number" min="0" step="0.01" value={materialDraft.ratePerUnit} onChange={e=>setMaterialDraft({...materialDraft,ratePerUnit:Math.max(0,Number(e.target.value)||0)})}/></label>
-          <label>Rate unit<select value={materialDraft.priceUnit||"kg"} onChange={e=>setMaterialDraft({...materialDraft,priceUnit:e.target.value as "kg"|"lb"})}><option value="kg">₹ / kg</option><option value="lb">₹ / lb</option></select></label>
+          <label>Rate per unit (₹)<input type="text" inputMode="decimal" value={materialRateInput} onChange={e=>setMaterialRateInput(e.target.value)} placeholder="Enter amount; leave blank if unknown"/></label>
+          <label>Rate unit<select value={materialDraft.priceUnit||"kg"} onChange={e=>setMaterialDraft({...materialDraft,priceUnit:e.target.value as "kg"|"lb"|"piece"})}><option value="kg">₹ / kg</option><option value="lb">₹ / lb</option><option value="piece">₹ / piece</option></select></label>
           <SearchablePicker id="material-preferred-vendor" label="Preferred vendor" value={materialDraft.preferredVendorId} placeholder="Type supplier name / phone…" options={vendors.map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")}))} onChange={preferredVendorId=>setMaterialDraft({...materialDraft,preferredVendorId})}/>
           <label className="module-form-wide">Specification / notes<input value={materialDraft.specification} onChange={e=>setMaterialDraft({...materialDraft,specification:e.target.value})} placeholder="Size, standard, certificate or inspection notes"/></label>
           <label className="module-form-wide">Notes<input value={materialDraft.notes} onChange={e=>setMaterialDraft({...materialDraft,notes:e.target.value})} placeholder="Optional material notes"/></label>
@@ -574,6 +696,45 @@ export default function InventoryWorkspace({ onBack, onNotice, notice, onSelectM
       </div></section>
       <section className="surface-panel module-records-panel"><div className="panel-heading"><div><h3>Stock movement history ({visibleTransactions.length})</h3><p>Every row shows source, quantity and reference. The ledger is not silently edited when stock is displayed.</p></div></div>
         {visibleTransactions.length?<div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Date</th><th>Item</th><th>Transaction</th><th>Movement</th><th>Quantity</th><th>Balance after all posted entries</th><th>Company / factory</th><th>PO / operation</th><th>Vendor</th><th>Reference / notes</th></tr></thead><tbody>{visibleTransactions.map(row=>{const item=row.itemType==="material"?materials.find(m=>m.id===row.itemId):components.find(x=>x.id===row.itemId);const po=orders.find(p=>p.id===row.poId);const op=operations.find(x=>x.id===row.operationId);const balance=stockBalance(row.itemType,row.itemId);return <tr key={row.id}><td>{row.occurredAt}</td><td><strong>{item?("code" in item?(item as MaterialRecord).code:(item as any).partNumber):"Archived item"}</strong><small>{item?.name||"Missing item"}</small></td><td>{row.transactionType}</td><td><span className={row.direction==="in"?"record-state state-complete":"record-state state-pending"}>{row.direction==="in"?"IN +":"OUT −"}</span></td><td>{row.quantity.toLocaleString("en-IN")} {"unit" in (item||{})?(item as MaterialRecord).unit:"pcs"}</td><td>{balance.toLocaleString("en-IN")} {"unit" in (item||{})?(item as MaterialRecord).unit:"pcs"}</td><td>{companies.find(x=>x.id===row.companyId)?.name||"—"} / {factories.find(x=>x.id===row.factoryId)?.name||"—"}</td><td>{po?.number||"—"} / {op?.name||"—"}</td><td>{vendors.find(v=>v.id===row.vendorId)?.company||"—"}</td><td>{row.reference||"—"}{row.notes?" · "+row.notes:""}</td></tr>})}</tbody></table></div>:<div className="module-empty-state"><ClipboardList size={26}/><h3>No stock movements posted</h3><p>Post an opening balance or actual receipt/issue. Stock balances remain empty until ledger transactions exist.</p></div>}
+      </section>
+    </>}
+    {tab==="consumption" && <>
+      <section className="surface-panel material-consumption-panel">
+        <div className="panel-heading"><div><div className="eyebrow">ISSUED MATERIAL → ACTUAL PROCESS USE</div><h3>Actual material consumption reconciliation</h3><p>Record material physically consumed by a production operation, identify process scrap and return unused balance to the correct factory. Consumption does not reduce warehouse stock a second time; only a physical return creates a stock-ledger receipt.</p></div><span className="record-state">PO / OPERATION TRACEABLE</span></div>
+        <div className="module-record-form">
+          <SearchablePicker id="material-consumption-po-line" label="PO component line *" value={consumptionPoLineKey} placeholder="Search company, PO and component…" options={consumptionLineOptions.map(row=>({id:row.id,label:row.label}))} onChange={value=>{setConsumptionPoLineKey(value);setConsumptionOperationId("");setConsumptionBomLineId("");setConsumptionQuantity("");setConsumptionScrapQuantity("0");setConsumptionReturnQuantity("0");}}/>
+          <SearchablePicker id="material-consumption-operation" label="Production operation *" value={consumptionOperationId} placeholder="Select the operation that used the material…" options={consumptionOperationOptions.map(row=>({id:row.id,label:"OP-"+String(row.sequence).padStart(3,"0")+" · "+row.name+" · "+row.status}))} onChange={value=>{setConsumptionOperationId(value);setConsumptionQuantity("");setConsumptionScrapQuantity("0");setConsumptionReturnQuantity("0");}}/>
+          <SearchablePicker id="material-consumption-bom" label="BOM material / part *" value={consumptionBomLineId} placeholder="Select the BOM material consumed…" options={consumptionBomOptions.map(row=>{const material=materials.find(m=>m.id===row.materialId);const part=row.partId?(data.componentParts||[]).find(item=>item.id===row.partId):undefined;return {id:row.id,label:(part?(part.partNumber?part.partNumber+" · ":"")+part.name+" · ":"Whole component · ")+(material?.code||"Material")+" · "+(material?.name||"Missing material")+" · "+(material?.grade||"—")};})} onChange={value=>{setConsumptionBomLineId(value);setConsumptionQuantity("");setConsumptionScrapQuantity("0");setConsumptionReturnQuantity("0");}}/>
+          {consumptionSelection?.component&&<div className="module-safety-note module-form-wide"><Boxes size={14}/><span><strong>{consumptionSelection.component.partNumber} · {consumptionSelection.component.name}</strong> · {consumptionSelection.po.number} · PO quantity {consumptionSelection.line.quantity.toLocaleString("en-IN")} · Revision {consumptionSelection.component.revision||"—"}</span></div>}
+          {consumptionPlan&&<div className="machine-maintenance-metrics module-form-wide">
+            <article><small>PLANNED FOR THIS OPERATION</small><strong>{consumptionPlan.plannedQuantity.toLocaleString("en-IN",{maximumFractionDigits:4})} {consumptionPlan.unit}</strong></article>
+            <article><small>ISSUED AVAILABLE TO RECONCILE</small><strong>{consumptionPlan.availableToReconcile.toLocaleString("en-IN",{maximumFractionDigits:4})} {consumptionPlan.unit}</strong></article>
+            <article><small>PREVIOUSLY CONSUMED</small><strong>{consumptionPlan.priorConsumed.toLocaleString("en-IN",{maximumFractionDigits:4})} {consumptionPlan.unit}</strong></article>
+            <article><small>PREVIOUSLY RETURNED</small><strong>{consumptionPlan.priorReturned.toLocaleString("en-IN",{maximumFractionDigits:4})} {consumptionPlan.unit}</strong></article>
+          </div>}
+          {consumptionBomLineId&&(!consumptionPlan||!consumptionOperation)&&<div className="module-safety-note module-form-wide"><ShieldCheck size={14}/><span>The selected BOM and operation must belong to the same company, PO, PO line and component. Select a valid operation before recording consumption.</span></div>}
+          {consumptionPlan&&<div className="module-form-wide module-record-form">
+            <label>Actual consumed quantity ({consumptionPlan.unit}) *<input type="number" min="0" step="any" value={consumptionQuantity} onChange={event=>setConsumptionQuantity(event.target.value)} placeholder="Quantity used by this operation"/></label>
+            <label>Process scrap quantity ({consumptionPlan.unit})<input type="number" min="0" step="any" value={consumptionScrapQuantity} onChange={event=>setConsumptionScrapQuantity(event.target.value)} placeholder="Included within consumed quantity"/></label>
+            <label>Unused quantity returned to stock ({consumptionPlan.unit})<input type="number" min="0" step="any" value={consumptionReturnQuantity} onChange={event=>setConsumptionReturnQuantity(event.target.value)} placeholder="Optional physical return"/></label>
+            <label>Consumption date<input type="date" value={consumptionDate} onChange={event=>setConsumptionDate(event.target.value)}/></label>
+            <label>Source reference / issue slip / lot *<input value={consumptionReference} onChange={event=>setConsumptionReference(event.target.value)} placeholder="Issue slip, batch or material lot"/></label>
+            <label>Recorded by *<input value={consumptionRecordedBy} onChange={event=>setConsumptionRecordedBy(event.target.value)} placeholder="Operator / stores custodian"/></label>
+            <label className="module-form-wide">Notes / reason for scrap<textarea rows={2} value={consumptionNotes} onChange={event=>setConsumptionNotes(event.target.value)} placeholder="Actual process condition, measurement or material variance"/></label>
+          </div>}
+          <div className="module-form-actions module-form-wide"><button className="button-primary" onClick={postMaterialConsumption} disabled={!consumptionPlan||!consumptionOperation||!consumptionMaterial}><Check size={14}/> Record actual consumption</button><button className="button-quiet" onClick={()=>{setConsumptionQuantity("");setConsumptionScrapQuantity("0");setConsumptionReturnQuantity("0");setConsumptionReference("");setConsumptionRecordedBy("");setConsumptionNotes("");setConsumptionDate(dateToday());}}>Clear quantities</button></div>
+        </div>
+        <div className="module-safety-note"><ShieldCheck size={15}/><span>Scrap is a subset of gross consumed quantity, not an extra issue. The form caps consumed plus returned quantities at the issued balance, allocating operation-specific issue transactions first and then the shared unassigned PO-line issue pool.</span></div>
+      </section>
+      <section className="surface-panel module-records-panel">
+        <div className="panel-heading"><div><h3>Actual consumption history ({visibleMaterialConsumptions.length})</h3><p>Append-only operational events linked to the exact BOM line, material, PO line and production operation.</p></div></div>
+        {visibleMaterialConsumptions.length?<div className="costing-table-wrap"><table className="costing-table"><thead><tr><th>Date / reference</th><th>PO / component</th><th>Material / BOM</th><th>Operation</th><th>Planned snapshot</th><th>Consumed</th><th>Scrap subset</th><th>Returned to stock</th><th>Recorded by / notes</th></tr></thead><tbody>{visibleMaterialConsumptions.map(row=>{
+          const material=materials.find(item=>item.id===row.materialId);
+          const po=orders.find(item=>item.id===row.poId);
+          const component=components.find(item=>item.id===row.componentId);
+          const operation=operations.find(item=>item.id===row.operationId);
+          return <tr key={row.id}><td>{row.occurredAt.slice(0,10)}<small>{row.reference}</small></td><td>{po?.number||"PO missing"}<small>{component?.partNumber||"Component missing"} · {row.poLineId}</small></td><td><strong>{material?.code||"Material missing"} · {material?.name||""}</strong><small>{material?.grade||"—"} · BOM {row.bomLineId}</small></td><td><strong>OP-{String(operation?.sequence||0).padStart(3,"0")} · {operation?.name||"Operation missing"}</strong><small>{row.operationId}</small></td><td>{row.plannedQuantity.toLocaleString("en-IN",{maximumFractionDigits:4})} {row.unit}</td><td><strong>{row.consumedQuantity.toLocaleString("en-IN",{maximumFractionDigits:4})}</strong></td><td>{row.scrapQuantity.toLocaleString("en-IN",{maximumFractionDigits:4})}</td><td>{row.returnedQuantity.toLocaleString("en-IN",{maximumFractionDigits:4})}</td><td>{row.recordedBy}<small>{row.notes||"—"}</small></td></tr>;
+        })}</tbody></table></div>:<div className="module-empty-state"><ClipboardList size={26}/><h3>No actual consumption recorded</h3><p>Issue BOM materials to a production operation first. Then record actual material use, process scrap and any unused quantity returned to stock.</p><button className="button-quiet compact-button" onClick={()=>setTab("stock")}>Open stock ledger / BOM issue</button></div>}
       </section>
     </>}
     <div className="module-safety-note"><ShieldCheck size={15}/><span>Material and component stock are ledger-derived. Receipt/issue, WIP, rejected, scrap, finished-goods and dispatch rows carry IDs to the material/component and optional PO line/operation/vendor. This workspace does not delete posted history; use a new adjustment for corrections.</span></div>

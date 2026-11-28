@@ -4,7 +4,8 @@ import { Activity, ArrowRight, Boxes, ClipboardCheck, Cog, Cpu, Disc3, GitBranch
 import type { MaterialProcessLinkRecord, MaterialRecord, OperationRecord, RouteRelationshipRecord } from "./manufacturingData";
 import { ProcessIcon } from "./IconStudio";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
-import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle";
+import { VehicleIcon as VehicleTypeIcon, getVehicleVisual } from "./TransportVehicle";
+import { resolveProcessColor } from "./processPalette";
 import { RouteConnectorLegend as MaterialRouteConnectorLegend } from "./RouteConnectorLegend";
 import ProcessUniverseWebGLCore from "./ProcessUniverseWebGLCore";
 import ProcessScene3D from "./ProcessScene3D";
@@ -16,12 +17,12 @@ type MaterialRouteNode = {
   id:string; poLineId?:string; partLabel:string; partNumber?:string; partName?:string; materialLabel:string; dimensionsLabel?:string; companyLabel?:string; poLabel?:string; componentLabel?:string; densityKgM3?:number; anchorOperationId?:string; anchorOperationName?:string; quantity:number; weightKg:number;
   supplier:string; transporter:string; from:string; to:string; vehicle:string;
   materialGivenAt:string; materialDueAt:string; materialReceivedAt:string;
-  pickupAt:string; deliveryAt:string; status:string; materialRate:number; priceUnit:"kg"|"lb";
+  pickupAt:string; deliveryAt:string; status:string; materialRate:number; priceUnit:"kg"|"lb"|"piece";
   materialCost:number; cuttingType:string; cuttingBasis:string; cuttingRate:number; cuttingCost:number; transportCost:number;
 };
 type TransportLegRouteNode = { id:string; poLineId:string; anchorOperationId:string; targetOperationId?:string; materialEntryId?:string; placement:"start"|"before"|"after"; fromLocation:string; toLocation:string; vehicleType:string; vendorName:string; vendorContact?:string; vendorRole?:string; vendorPhone?:string; vendorWhatsapp?:string; vendorEmail?:string; vendorAddress?:string; vendorStatus?:string; vendorNotes?:string; directoryRouteNotes?:string; directoryRouteActive?:boolean; tripDirection:"One-way"|"Two-way"; tripCount:number; amount:number; pickupAt:string; deliveryAt:string; status:string; relation:"main"|"alternate"|"rework" };
 type Props = { materialLinks?:MaterialProcessLinkRecord[]; materialPartLabels?:Record<string,string>; materials?:MaterialRecord[]; componentQuantity?:number; selectedMaterialLinkId?:string; onSelectMaterialLink?:(id:string)=>void; operations: OperationRecord[]; allOperations?: OperationRecord[]; routeLabels?: Record<string,string>; materialRoutes?: MaterialRouteNode[]; transportLegs?: TransportLegRouteNode[]; routeRelationships?: RouteRelationshipRecord[]; onSelectTransportLeg?: (id:string,anchor?:{x:number;y:number})=>void; onSelectMaterialTransport?: (id:string,anchor?:{x:number;y:number})=>void; processDefinitions?: ProcessDefinitionNode[]; vendors?: Array<{ id: string; company: string }>; visibleFields?: string[]; showArrows?: boolean; quantityUnit?: string; operationTransportAmounts?: Record<string, number>; selectedOperationId: string; simulationIndex: number; zoom: number; initialLayout?: ProcessLayoutMode; ganttScale?: "day"|"week"|"month"; onGanttScaleChange?: (scale:"day"|"week"|"month")=>void; onZoomChange?: (zoom:number)=>void; onSelectOperation: (id: string) => void; onEditOperation?: (id: string) => void; onChangeProcessColor?: (id: string, color: string) => void; onAddSubprocess?: (parentId: string) => void; onAddAlternateRoute?: (parentId: string) => void; onAddReworkRoute?: (parentId: string) => void; onAddProcessDefinition?: (definitionId: string) => void; onNotice?: (message:string)=>void };
-function materialVehicleClassFor(value:string){const type=(value||"").toLowerCase();if(/bike|motorcycle|scooter|two.wheeler/.test(type))return "bike";if(/bus/.test(type))return "bus";if(/car|taxi|auto|three.wheeler/.test(type))return "car";if(/air|plane|flight/.test(type))return "air";if(/ship|boat|vessel/.test(type))return "ship";if(/train|rail/.test(type))return "rail";return "truck";}
+function materialVehicleClassFor(value:string){return getVehicleVisual(value).className;}
 function MaterialRouteTransportMarker({route,onSelect}:{route:MaterialRouteNode;onSelect?:Props["onSelectMaterialTransport"]}){
  return <button type="button" className={"ax-transport-icon-trigger process-orbit-material-transport vehicle-"+materialVehicleClassFor(route.vehicle)} aria-label={"Open "+(route.vehicle||"vehicle")+" transport record"} title={(route.vehicle||"Vehicle")+" · "+route.from+" → "+route.to} onClick={event=>{const rect=event.currentTarget.getBoundingClientRect();onSelect?.(route.id,{x:rect.left,y:rect.top});}}><VehicleTypeIcon vehicleType={route.vehicle} size={19}/></button>;
 }
@@ -491,7 +492,7 @@ export default function ProcessUniverse3D({ materialLinks = [], materialPartLabe
               const expanded = expandedOperationId === operation.id;
               const state = operation.status.toLowerCase().replaceAll(" ","-");
               const processDefinition = processDefinitions.find(item=>item.id===operation.processDefinitionId);
-              const accent = processDefinition?.displayColor || operation.processColor || "#6fa9e5";
+              const accent = resolveProcessColor({category:processDefinition?.category||operation.category,processType:processDefinition?.processType||operation.name,displayColor:processDefinition?.displayColor,processColor:operation.processColor});
               return <div className="process-universe-node-wrap" key={operation.id}>
                 {materialLinksAt(operation.id,"before").map(renderMaterialLink)}
                 {transportFor(operation.id,"before").map(renderTransportLeg)}

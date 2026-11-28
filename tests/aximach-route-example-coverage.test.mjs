@@ -33,7 +33,10 @@ test("Route Flow graph contains all PO-line operations and renders saved relatio
     assert.ok(route.includes('id="' + handle + '"'), "missing distinct graph handle " + handle);
   }
   const sharedPorts=read("../src/manufacturingGraphLayout.mjs");
-  assert.ok(route.includes('import { routeRelationshipHandles } from "./manufacturingGraphLayout.mjs"'));
+  assert.ok(route.includes('import { routeRelationshipEdgeGeometry } from "./manufacturingGraphLayout.mjs"'));
+  assert.ok(sharedPorts.includes("export function routeRelationshipEdgeGeometry"));
+  assert.ok(sharedPorts.includes("return dx >= 0"));
+  assert.ok(sharedPorts.includes("return dy >= 0"));
   assert.ok(sharedPorts.includes('parallel: ["source-bottom","target-bottom"]'));
   assert.ok(sharedPorts.includes('split: ["source-top","target-right"]'));
   assert.ok(sharedPorts.includes('transport: ["source-right-transport","target-left-transport"]'));

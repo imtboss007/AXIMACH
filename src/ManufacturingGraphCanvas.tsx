@@ -1,13 +1,20 @@
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Background, BackgroundVariant, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
-import type { Edge, Node, NodeMouseHandler, NodeTypes, OnNodesChange } from "@xyflow/react";
+import type { Connection, Edge, EdgeTypes, Node, NodeMouseHandler, NodeTypes, OnNodesChange } from "@xyflow/react";
+import { ManufacturingRelationshipEdge } from "./ManufacturingRelationshipEdge";
 import "@xyflow/react/style.css";
+
+const DEFAULT_MANUFACTURING_EDGE_TYPES = {
+  manufacturing:ManufacturingRelationshipEdge
+} satisfies EdgeTypes;
 
 type Props<TNode extends Node = Node> = {
   nodes:TNode[];
   edges:Edge[];
   nodeTypes?:NodeTypes;
+  edgeTypes?:EdgeTypes;
   fitView?:boolean;
+  defaultViewport?:{x:number;y:number;zoom:number};
   fitViewOptions?:{padding?:number;minZoom?:number;maxZoom?:number;duration?:number};
   minZoom?:number;
   maxZoom?:number;
@@ -21,6 +28,7 @@ type Props<TNode extends Node = Node> = {
   zoomOnPinch?:boolean;
   zoomOnDoubleClick?:boolean;
   onNodesChange?:OnNodesChange<TNode>;
+  onConnect?:(connection:Connection)=>void;
   onNodeDragStop?:(event:any,node:TNode)=>void;
   onNodeClick?:NodeMouseHandler<TNode>;
   onPaneClick?:()=>void;
@@ -34,18 +42,33 @@ type Props<TNode extends Node = Node> = {
 
 /** Shared React Flow canvas used by Route Flow, Process Map and Manufacturing Universe. */
 export function ManufacturingGraphCanvas<TNode extends Node = Node>({
-  nodes,edges,nodeTypes,fitView=true,fitViewOptions,minZoom=.14,maxZoom=2,
+  nodes,edges,nodeTypes,edgeTypes=DEFAULT_MANUFACTURING_EDGE_TYPES,fitView=true,defaultViewport,fitViewOptions,minZoom=.14,maxZoom=2,
   nodesDraggable=false,nodesConnectable=false,elementsSelectable=false,nodesFocusable=true,edgesFocusable=false,
   panOnDrag=true,zoomOnScroll=false,zoomOnPinch=true,zoomOnDoubleClick=false,
-  onNodesChange,onNodeDragStop,onNodeClick,onPaneClick,minimapNodeColor,children,className,style,testId,ariaLabel
+  onNodesChange,onConnect,onNodeDragStop,onNodeClick,onPaneClick,minimapNodeColor,children,className,style,testId,ariaLabel
 }:Props<TNode>) {
+  const [canvasNodes,setCanvasNodes]=useState<TNode[]>(nodes);
+  const positionOverrides=useRef(new Map<string,{x:number;y:number}>());
+  useEffect(()=>{
+    setCanvasNodes(nodes.map(node=>({...node,position:positionOverrides.current.get(node.id)||node.position}) as TNode));
+  },[nodes]);
+  const handleNodesChange:OnNodesChange<TNode>=(changes)=>{
+    setCanvasNodes(current=>changes.applyTo(current) as TNode[]);
+    changes.getByType("position").forEach(change=>{
+      if(change.position&&change.dragging===false)
+        positionOverrides.current.set(change.id,change.position);
+    });
+    onNodesChange?.(changes);
+  };
   return <ReactFlowProvider>
     <div className={className} style={style} data-testid={testId} aria-label={ariaLabel}>
       <ReactFlow<TNode,Edge>
-        nodes={nodes}
+        nodes={canvasNodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         fitView={fitView}
+        defaultViewport={defaultViewport}
         fitViewOptions={fitViewOptions}
         minZoom={minZoom}
         maxZoom={maxZoom}
@@ -58,7 +81,8 @@ export function ManufacturingGraphCanvas<TNode extends Node = Node>({
         zoomOnScroll={zoomOnScroll}
         zoomOnPinch={zoomOnPinch}
         zoomOnDoubleClick={zoomOnDoubleClick}
-        onNodesChange={onNodesChange}
+        onNodesChange={handleNodesChange}
+        onConnect={onConnect}
         onNodeDragStop={onNodeDragStop}
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}

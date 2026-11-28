@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Handle, MarkerType, Position, useReactFlow } from "@xyflow/react";
-import type { Edge, Node, NodeProps, NodeTypes } from "@xyflow/react";
+import type { Connection, Edge, Node, NodeProps, NodeTypes } from "@xyflow/react";
 import "@xyflow/react/style.css";
 import { useReducedMotion } from "motion/react";
 import ImmersiveWorkspaceControls from "./ImmersiveWorkspaceControls";
 import { RouteLayoutPicker, useRouteLayout, type RouteLayoutMode } from "./RouteLayoutPicker";
 import { RouteFlowShowcase } from "./RouteFlowShowcase";
 import { buildRouteFlowOperationPositions } from "./routeFlowLayout.js";
-import { routeRelationshipHandles } from "./manufacturingGraphLayout.mjs";
+import { loadRouteFlowGraphLayout, saveRouteFlowGraphPosition } from "./routeFlowGraphLayout.mjs";
+import { routeRelationshipEdgeGeometry } from "./manufacturingGraphLayout.mjs";
 import { ManufacturingGraphCanvas } from "./ManufacturingGraphCanvas";
 import OperationInlineEditor from "./OperationInlineEditor";
 import OperationQuickCreate from "./OperationQuickCreate";
@@ -18,7 +19,11 @@ import WorkspaceThemePicker from "./WorkspaceThemePicker";
 import { useWorkspaceTheme } from "./workspaceTheme";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
 import { RouteConnectorLegend } from "./RouteConnectorLegend";
-import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle";
+import { VehicleIcon as VehicleTypeIcon, getVehicleVisual, VEHICLE_TYPES } from "./TransportVehicle";
+import VehicleTypePicker from "./VehicleTypePicker";
+import { connectManufacturingGraphNodes } from "./manufacturingGraphConnections";
+import { routeRelationshipRequiresCriteria, validateRouteRelationshipCriteria } from "./routeRelationshipValidation.mjs";
+import { resolveProcessColor } from "./processPalette";
 import { Activity, ArrowLeft, ArrowRight, Box, Check, ChevronDown, CircleDashed, CircleDollarSign, ClipboardCheck, Factory, FileDown, GitBranch, GitMerge, GitPullRequest, Link2, MessageCircle, Network, Package, Plus, Route, Save, ShieldCheck, Sparkles, Split, Truck, Users, Waypoints, Workflow, X } from "lucide-react";
 import {
   activeRows, makeId, nowIso, useManufacturingData,
@@ -43,6 +48,7 @@ const RELATIONSHIPS:Array<{id:RouteRelationshipType;label:string;description:str
   {id:"successor",label:"Successor",description:"Next linked operation",symbol:"⤷"}
 ];
 const STATUS_OPTIONS:RouteRelationshipStatus[]=["Active","Planned","Conditional","Disabled"];
+const ROUTE_FLOW_GRAPH_LAYOUT_PREFIX="aximach.route-flow.graph-layout.v1:";
 const relationLabel=(type:RouteRelationshipType)=>RELATIONSHIPS.find(item=>item.id===type)?.label||type;
 const money=(amount:number)=>"₹"+Number(amount||0).toLocaleString("en-IN",{maximumFractionDigits:2});
 const dateTime=(value?:string)=>value?new Date(value).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):"Not scheduled";
@@ -84,7 +90,7 @@ function RouteFlowFitController({revision}:{revision:string}) {
   return null;
 }
 
-function vehicleClassFor(value:string) { const type=(value||"").toLowerCase(); if(/bike|motorcycle|scooter|two.wheeler/.test(type))return "bike"; if(/bus/.test(type))return "bus"; if(/car|taxi|auto|three.wheeler/.test(type))return "car"; if(/air|plane|flight/.test(type))return "air"; if(/ship|boat|vessel/.test(type))return "ship"; if(/train|rail/.test(type))return "rail"; return "truck"}
+function vehicleClassFor(value:string) { return getVehicleVisual(value).className; }
 
 function RouteCurve({type,transport=false,label,vehicleType="",tripCount=0,transportLegId,materialTransportId,layout="orthogonal",onTransportClick}:{type:RouteRelationshipType;transport?:boolean;label?:string;vehicleType?:string;tripCount?:number;transportLegId?:string;materialTransportId?:string;layout?:RouteLayoutMode;onTransportClick?:(id:string,kind:"leg"|"material",element:HTMLElement)=>void}) {
   const reduceMotion = useReducedMotion();
@@ -123,6 +129,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const companies=useMemo(()=>activeRows(data.companies),[data.companies]);
   const orders=useMemo(()=>activeRows(data.purchaseOrders),[data.purchaseOrders]);
   const vendors=useMemo(()=>activeRows(data.vendors),[data.vendors]);
+  const processDefinitions=useMemo(()=>activeRows(data.processDefinitions||[]),[data.processDefinitions]);
   const operations=useMemo(()=>activeRows(data.operations),[data.operations]);
   const materials=useMemo(()=>activeRows(data.materialCostEntries),[data.materialCostEntries]);
   const materialMasterRecords=useMemo(()=>activeRows(data.materials||[]),[data.materials]);
@@ -176,7 +183,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const [transportRouteId,setTransportRouteId]=useState("");
   const [transportFrom,setTransportFrom]=useState("");
   const [transportTo,setTransportTo]=useState("");
-  const [vehicleType,setVehicleType]=useState("4-wheeler");
+  const [vehicleType,setVehicleType]=useState("4-wheeler / Car");
   const [tripDirection,setTripDirection]=useState<"One-way"|"Two-way">("One-way");
   const [tripCount,setTripCount]=useState("1");
   const [transportAmount,setTransportAmount]=useState("");
@@ -218,6 +225,24 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
   const poLineId=line?.id||"";
   const component=data.components.find(row=>row.id===line?.componentId);
   const componentId=component?.id||"";
+  const routeGraphLayoutStorageKey=companyId&&poId&&poLineId
+    ?ROUTE_FLOW_GRAPH_LAYOUT_PREFIX+encodeURIComponent([companyId,poId,poLineId].join("|"))
+    :"";
+  const [routeGraphLayoutRevision,setRouteGraphLayoutRevision]=useState(0);
+  const [routeGraphResetRevision,setRouteGraphResetRevision]=useState(0);
+  const routeGraphSavedPositions=useMemo(()=>{
+    if(!routeGraphLayoutStorageKey||typeof window==="undefined")return {};
+    try{return loadRouteFlowGraphLayout(window.localStorage.getItem(routeGraphLayoutStorageKey));}
+    catch{return {};}
+  },[routeGraphLayoutStorageKey,routeGraphLayoutRevision]);
+  const resetRouteGraphLayout=()=>{
+    if(!routeGraphLayoutStorageKey||typeof window==="undefined")return;
+    try{window.localStorage.removeItem(routeGraphLayoutStorageKey);}catch{/* Reset still applies to the current in-memory graph. */}
+    setRouteGraphLayoutRevision(value=>value+1);
+    setRouteGraphResetRevision(value=>value+1);
+    onNotice("Route Flow node positions reset to the selected automatic layout.");
+  };
+
   const componentLineCount=lineOptions.filter(row=>row.componentId===componentId).length;
   const componentGlobalLineCount=orders.reduce((count,poRow)=>count+poRow.lines.filter(row=>!row.deletedAt&&row.componentId===componentId).length,0);
   const routeOperations=useMemo(()=>operations.filter(row=>row.poId===poId&&row.poLineId===poLineId&&row.componentId===componentId).sort((a,b)=>a.sequence-b.sequence),[operations,poId,poLineId,componentId]);
@@ -320,6 +345,8 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     const uniqueSource=graphSource.filter((node,index)=>graphSource.findIndex(other=>other.id===node.id)===index);
     const operationFor=(id:string)=>lineOperations.find(operation=>operation.id===id);
     const positionFor=(node:FlowNode,index:number)=>{
+      const savedPosition=routeGraphSavedPositions[node.id];
+      if(savedPosition)return savedPosition;
       if(node.kind==="operation")return operationPoint(node.operation);
       if(node.kind==="material"){
         const materialIndex=Math.max(0,routeMaterials.findIndex(entry=>entry.id===node.entry.id));
@@ -365,10 +392,9 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       return portrait?{x:18,y:16}:{x:24,y:135};
     };
     const accentFor=(node:FlowNode)=>{
-      if(node.kind==="operation"){
-        const branch=(node.operation.branch||"Main route").toLowerCase();
-        return /rework/.test(branch)?"#c45445":/alternate/.test(branch)?"#356fc5":"#0e827f";
-      }
+      if(node.kind==="operation")return resolveProcessColor({
+        category:node.operation.category,processType:node.operation.name,processColor:node.operation.processColor
+      });
       if(node.kind==="material"||node.kind==="missing-material")return "#a56b12";
       if(node.kind==="material-transport"||node.kind==="transport")return "#176c9b";
       return "#667c95";
@@ -398,11 +424,19 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         title="Material allocation missing";detail="Add the required material / grade allocation before production.";
         kind="ROUTE REQUIREMENT";actionLabel="Open Process Map";onAction=()=>openProcessMap();
       }
-      return {id:node.id,type:"routeStage",position:positionFor(node,index),data:{title,detail,kind,accent:accentFor(node),vehicleType:node.kind==="transport"?node.leg.vehicleType:node.kind==="material-transport"?node.entry.transportVehicleType||"truck":undefined,actionLabel,onAction},draggable:false,selectable:true,focusable:true,style:{width:node.kind==="transport"?184:node.kind==="material-transport"?184:node.kind==="material"?190:192}};
+      return {id:node.id,type:"routeStage",position:positionFor(node,index),data:{title,detail,kind,accent:accentFor(node),vehicleType:node.kind==="transport"?node.leg.vehicleType:node.kind==="material-transport"?node.entry.transportVehicleType||"truck":undefined,actionLabel,onAction},draggable:true,selectable:true,focusable:true,style:{width:node.kind==="transport"?184:node.kind==="material-transport"?184:node.kind==="material"?190:192}};
     });
     const nodeIds=new Set(nodes.map(node=>node.id));
+    const nodeById=new Map(nodes.map(node=>[node.id,node]));
+    const nodeCenter=(id:string)=>{
+      const node=nodeById.get(id);
+      if(!node)return {x:0,y:0};
+      const width=typeof node.style?.width==="number"?node.style.width:192;
+      return {x:node.position.x+width/2,y:node.position.y+58};
+    };
     const edges:Edge[]=[];
     const edgeKeys=new Set<string>();
+    const parallelEdgeCounts=new Map<string,number>();
     const edgePalette:Record<string,{color:string;dash?:string}> = darkGraph?{
       main:{color:"#35d4dc"},alternate:{color:"#ffc45c",dash:"9 5"},rework:{color:"#ff747e",dash:"7 5"},
       dependency:{color:"#72b4ff",dash:"2 5"},parallel:{color:"#d19aff",dash:"8 3"},
@@ -418,26 +452,21 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       conditional:{color:"#7d399e",dash:"10 4 2 4"},successor:{color:"#24764f"},
       transport:{color:"#176a9f",dash:"5 3"}
     };
-    // Each semantic relationship uses a distinct pair of node handles. This keeps
-    // parallel/split/feedback links visible when they share operation endpoints.
-    // Every route type owns a distinct handle pair so parallel semantics remain visible.
-    const relationHandles=Object.fromEntries(
-      [...RELATIONSHIPS.map(item=>item.id),"transport"].map(type=>{
-        const [source,target]=routeRelationshipHandles(type);
-        return [type,{source,target}];
-      })
-    ) as Record<string,{source:string;target:string}>;
-    const graphEdgeType=routeLayout==="orthogonal"||routeLayout==="vertical"||routeLayout==="swimlane"?"step":routeLayout==="horizontal"?"straight":routeLayout==="s-curve"||routeLayout==="timeline"?"smoothstep":"default";
     const addEdge=(source:string,target:string,type:string,id:string,label:string)=>{
       if(!source||!target||source===target||!nodeIds.has(source)||!nodeIds.has(target))return;
       const key=source+"::"+target+"::"+type;
       if(edgeKeys.has(key))return;
       edgeKeys.add(key);
       const style=edgePalette[type]||edgePalette.main;
-      const handles=relationHandles[type]||relationHandles.main;
+      const pairKey=source+"::"+target;
+      const parallelIndex=parallelEdgeCounts.get(pairKey)||0;
+      parallelEdgeCounts.set(pairKey,parallelIndex+1);
+      const geometry=routeRelationshipEdgeGeometry(type,nodeCenter(source),nodeCenter(target),routeLayout,parallelIndex);
+      const handles={source:geometry.sourceHandle,target:geometry.targetHandle};
       const animated=routeOperations.some(operation=>(operation.id===source||operation.id===target)&&operation.status==="Running");
       edges.push({
-        id,source,target,sourceHandle:handles.source,targetHandle:handles.target,type:graphEdgeType,label,animated,
+        id,source,target,sourceHandle:handles.source,targetHandle:handles.target,type:geometry.edgeType,label,animated,
+        data:{relationshipType:type,routeLayout,parallelIndex,pathOptions:geometry.pathOptions,flowMotion:["main","alternate","rework","transport","material"].includes(type)},
         labelStyle:{fill:darkGraph?"#f4f8ff":"#142b43",fontSize:10,fontWeight:800},
         labelBgStyle:{fill:darkGraph?"#10243a":"#ffffff",fillOpacity:.98},
         labelBgPadding:[7,4],
@@ -495,13 +524,15 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       if(target)addEdge(transportId,target.id,"transport","transport-to:"+leg.id,(leg.vehicleType||"TRANSPORT").toUpperCase());
     });
     return {nodes,edges};
-  },[routeNodes,routeMaterials,routeLegs,routeOperations,relationships,branch,vendors,routeLayout,workspaceTheme,compactGraphViewport]);
+  },[routeNodes,routeMaterials,routeLegs,routeOperations,relationships,branch,vendors,routeLayout,workspaceTheme,compactGraphViewport,routeGraphSavedPositions]);
 
   const saveRelationship=()=>{
     if(!poId||!poLineId){onNotice("Select a company, PO and component line before adding a route relationship.");return;}
     if(!fromOperationId||!toOperationId||fromOperationId===toOperationId){onNotice("Choose two different saved process operations.");return;}
     const from=routeOperations.find(row=>row.id===fromOperationId),to=routeOperations.find(row=>row.id===toOperationId);
     if(!from||!to){onNotice("Both route endpoints must belong to the selected PO line.");return;}
+    const criteria=validateRouteRelationshipCriteria({relationshipType,status:relationshipStatus,condition:relationshipCondition});
+    if(!criteria.ok){onNotice("Conditional and rework relationships need a written condition / acceptance rule before they can be saved.");return;}
     const existing=relationships.find(row=>row.fromOperationId===fromOperationId&&row.toOperationId===toOperationId&&row.relationshipType===relationshipType&&row.status!=="Disabled");
     if(existing){onNotice("This relationship is already saved. Edit or disable its existing record before adding another identical link.");return;}
     const stamp=nowIso();
@@ -509,6 +540,26 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
     update(current=>({...current,routeRelationships:[...(current.routeRelationships||[]),record]}));
     setRelationshipCondition("");setRelationshipNotes("");setShowRelationshipEditor(false);
     onNotice(relationLabel(relationshipType)+" connection saved between "+from.name+" and "+to.name+".");
+  };
+  const persistRouteGraphNodePosition=(_:unknown,node:RouteFlowGraphNode)=>{
+    if(!routeGraphLayoutStorageKey||typeof window==="undefined")return;
+    try{
+      const current=window.localStorage.getItem(routeGraphLayoutStorageKey);
+      window.localStorage.setItem(routeGraphLayoutStorageKey,saveRouteFlowGraphPosition(current,node.id,node.position));
+      setRouteGraphLayoutRevision(value=>value+1);
+    }catch{/* Saved layout is a convenience; route records remain safely persisted independently. */}
+  };
+  // n8n-style drag-to-connect: only saved process-operation nodes may create
+  // typed PO-line relationships. Materials and transport keep their own editors.
+  const connectRouteNodes=(connection:Connection)=>{
+    connectManufacturingGraphNodes({
+      data,
+      connection,
+      relationshipType,
+      scope:{companyId,poId,poLineId,componentId},
+      update,
+      onNotice
+    });
   };
   const disableRelationship=(record:RouteRelationshipRecord)=>{
     const stamp=nowIso();
@@ -692,9 +743,10 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         </div>}
       {routeNodes.length===0?<div className="route-flow-empty"><Package size={28}/><strong>Select a PO line with saved route data</strong><span>Material allocations and production operations will appear here.</span></div>:routeCanvasMode==="graph"?
       <div className="route-flow-graph-canvas" data-testid="route-flow-react-canvas">
-        <div className="route-flow-graph-toolbar"><span>MAIN · ALTERNATE · REWORK · TRANSPORT</span><small>Pinch / wheel to zoom · drag canvas to pan · use Fit in controls</small></div>
+        <div className="route-flow-graph-toolbar"><span>MAIN · ALTERNATE · REWORK · TRANSPORT</span><small>Drag nodes to arrange · drag from a node handle to another to save a connection · pinch / wheel to zoom</small><button type="button" className="button-quiet compact-button" onClick={resetRouteGraphLayout} disabled={!routeGraphLayoutStorageKey}>Reset node layout</button></div>
         <RouteConnectorLegend/>
         <ManufacturingGraphCanvas
+          key={routeGraphResetRevision}
           nodes={routeFlowGraph.nodes}
           edges={routeFlowGraph.edges}
           nodeTypes={ROUTE_FLOW_NODE_TYPES}
@@ -702,8 +754,10 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
           fitViewOptions={{padding:.14,minZoom:.16,maxZoom:1.35}}
           minZoom={.12}
           maxZoom={2.8}
-          nodesDraggable={false}
-          nodesConnectable={false}
+          nodesDraggable
+          nodesConnectable
+          onConnect={connectRouteNodes}
+          onNodeDragStop={persistRouteGraphNodePosition}
           nodesFocusable
           panOnDrag
           zoomOnScroll
@@ -712,7 +766,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
           className="route-flow-shared-graph-layer"
           testId="route-flow-shared-canvas"
         >
-          <RouteFlowFitController revision={routeLayout+":"+routeFlowGraph.nodes.map(node=>node.id+"@"+node.position.x+","+node.position.y).join(";")}/>
+          <RouteFlowFitController revision={routeLayout+":"+routeGraphLayoutStorageKey+":"+(compactGraphViewport?"compact":"wide")+":"+routeFlowGraph.nodes.map(node=>node.id).join(";")}/>
         </ManufacturingGraphCanvas>
       </div>:
       <div className="route-flow-stage-scroll" ref={routeViewportRef}><div className="route-flow-stage-zoom-content" style={{zoom:routeZoom}}>{relationshipOverlaySize.width>0&&<svg className="route-flow-relationship-overlay" width={relationshipOverlaySize.width} height={relationshipOverlaySize.height} aria-hidden="true">{relationshipOverlay.map(item=><g key={item.id} className={"route-flow-curve-"+item.type}><path className="route-flow-curve-shadow" d={item.path}/><path className="route-flow-curve-path" d={item.path}/><path className="route-flow-curve-head" d={item.arrow}/><text className="route-flow-overlay-label" x={item.x} y={item.y}>{item.label}</text></g>)}</svg>}<RouteConnectorLegend/><div className="route-flow-stage-track" data-route-layout={routeLayout}>
@@ -761,11 +815,11 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         <label>Or source material<select value={transportFromMaterialId} onChange={e=>{setTransportFromMaterialId(e.target.value);if(e.target.value)setTransportFromOperationId("");}}><option value="">No material source selected</option>{routeMaterials.map(row=><option key={row.id} value={row.id}>{row.partNumber||row.partName||"Part"} · {row.materialName} {row.materialGrade} · Qty {row.quantity}</option>)}</select></label>
         <label>To process<select value={transportToOperationId} onChange={e=>setTransportToOperationId(e.target.value)}><option value="">Select receiving process…</option>{routeOperations.map(row=><option key={row.id} value={row.id}>{row.name} · OP-{row.sequence}</option>)}</select></label>
         <label>Transport vendor<select value={transportVendorId} onChange={e=>{setTransportVendorId(e.target.value);setTransportRouteId("");}}><option value="">Select a carrier…</option>{vendors.map(v=><option key={v.id} value={v.id}>{v.company} · {v.phone||"No phone"}</option>)}</select></label>
-        <label>Saved route<select value={transportRouteId} onChange={e=>{setTransportRouteId(e.target.value);const r=transportChoices.find(item=>item.id===e.target.value);if(r){setTransportVendorId(r.vendorId);setTransportFrom(r.fromLocation);setTransportTo(r.toLocation);setVehicleType(r.vehicleType);setTripDirection(r.tripDirection);setTransportAmount(String(r.fixedAmount));}}}><option value="">Choose a saved route or enter new locations…</option>{transportChoices.filter(r=>!transportVendorId||r.vendorId===transportVendorId).map(r=><option key={r.id} value={r.id}>{r.fromLocation} → {r.toLocation} · {r.vehicleType} · {money(r.fixedAmount)}</option>)}</select></label>
+        <label>Saved route<select value={transportRouteId} onChange={e=>{setTransportRouteId(e.target.value);const r=transportChoices.find(item=>item.id===e.target.value);if(r){setTransportVendorId(r.vendorId);setTransportFrom(r.fromLocation);setTransportTo(r.toLocation);setVehicleType(r.vehicleType);setTripDirection(r.tripDirection);setTransportAmount(String(r.fixedAmount || ""));}}}><option value="">Choose a saved route or enter new locations…</option>{transportChoices.filter(r=>!transportVendorId||r.vendorId===transportVendorId).map(r=><option key={r.id} value={r.id}>{r.fromLocation} → {r.toLocation} · {r.vehicleType} · {money(r.fixedAmount)}</option>)}</select></label>
         <label>From location<input list="route-flow-locations" value={transportFrom} onChange={e=>setTransportFrom(e.target.value)} placeholder="Search or enter new pickup location"/></label>
         <label>To location<input list="route-flow-locations" value={transportTo} onChange={e=>setTransportTo(e.target.value)} placeholder="Search or enter new destination"/></label>
         <datalist id="route-flow-locations">{locationHints.map(value=><option key={value} value={value}/>)}</datalist>
-        <label>Vehicle type<input value={vehicleType} onChange={e=>setVehicleType(e.target.value)} placeholder="Truck, tempo, van, car, bike…"/></label>
+        <VehicleTypePicker id="route-flow-vehicle-type" label="Vehicle type" value={vehicleType} onChange={setVehicleType} options={[...VEHICLE_TYPES,...routes.map(row=>row.vehicleType),...legs.map(row=>row.vehicleType)]}/>
         <label>Trip direction<select value={tripDirection} onChange={e=>setTripDirection(e.target.value as "One-way"|"Two-way")}><option>One-way</option><option>Two-way</option></select></label>
         <label>Trips / carries<input type="number" min="1" step="1" value={tripCount} onChange={e=>setTripCount(e.target.value)}/></label>
         <label>Amount per trip (₹)<input type="number" min="0" step="0.01" value={transportAmount} onChange={e=>setTransportAmount(e.target.value)}/></label>
@@ -776,7 +830,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
       <div className="route-flow-editor-actions"><small>Each save creates a separate transport leg. Add several carriers / vehicle types on the same process connection as separate records.</small><button className="button-primary" onClick={saveTransportLeg}><Save size={14}/> Save transport leg</button></div>
     </section>}
 
-    {showAddOperation&&<OperationQuickCreate poId={poId} poLineId={poLineId} componentId={componentId} sequence={Math.max(0,...routeOperations.map(row=>row.sequence))+1} branch={branch} vendors={vendors.map(v=>({id:v.id,company:v.company}))} onSave={saveNewOperation} onCancel={()=>setShowAddOperation(false)}/>}
+    {showAddOperation&&<OperationQuickCreate poId={poId} poLineId={poLineId} componentId={componentId} sequence={Math.max(0,...routeOperations.map(row=>row.sequence))+1} branch={branch} vendors={vendors.map(v=>({id:v.id,company:v.company}))} processDefinitions={processDefinitions} onSave={saveNewOperation} onCancel={()=>setShowAddOperation(false)}/>}
     {editingOperation&&<OperationInlineEditor operation={editingOperation} vendors={vendors.map(v=>({id:v.id,company:v.company}))} onSave={saveInlineOperation} onCancel={()=>setEditingOperation(null)}/>}
 
     {showRelationshipEditor&&<section className="route-flow-editor-panel">
@@ -786,7 +840,7 @@ export default function RouteFlowWorkspace({onBack,onNotice,notice,onSelectModul
         <label>To process<select value={toOperationId} onChange={e=>setToOperationId(e.target.value)}><option value="">Select destination process…</option>{routeOperations.map(row=><option key={row.id} value={row.id}>{row.name} · OP-{row.sequence}</option>)}</select></label>
         <label>Relationship type<select value={relationshipType} onChange={e=>setRelationshipType(e.target.value as RouteRelationshipType)}>{RELATIONSHIPS.map(item=><option key={item.id} value={item.id}>{item.label} · {item.description}</option>)}</select></label>
         <label>Link status<select value={relationshipStatus} onChange={e=>setRelationshipStatus(e.target.value as RouteRelationshipStatus)}>{STATUS_OPTIONS.filter(value=>value!=="Disabled").map(value=><option key={value}>{value}</option>)}</select></label>
-        {relationshipType==="conditional"&&<label className="route-flow-wide">Condition / rule<input value={relationshipCondition} onChange={e=>setRelationshipCondition(e.target.value)} placeholder="Example: continue only if inspection result is accepted"/></label>}
+        {routeRelationshipRequiresCriteria(relationshipType,relationshipStatus)&&<label className="route-flow-wide">Condition / acceptance rule *<input aria-label="Condition / acceptance rule" required value={relationshipCondition} onChange={e=>setRelationshipCondition(e.target.value)} placeholder="Example: Inspection result = Accepted; otherwise route to rework"/><small className="field-hint">Required for conditional/rework links and any relationship marked Conditional. A blank rule cannot be saved.</small></label>}
         <label className="route-flow-wide">Notes<input value={relationshipNotes} onChange={e=>setRelationshipNotes(e.target.value)} placeholder="Why these process steps are linked…"/></label>
       </div>
       <div className="route-flow-editor-actions"><small>The relationship is saved against this PO line and shown with its own arrow colour, curve and pattern.</small><button className="button-primary" onClick={saveRelationship}><Save size={14}/> Save relationship</button></div>

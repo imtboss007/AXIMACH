@@ -1,24 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Truck } from "lucide-react";
-import { VehicleIcon as VehicleTypeIcon } from "./TransportVehicle";
+import { VehicleIcon as VehicleTypeIcon, getVehicleVisual } from "./TransportVehicle";
+import { resolveProcessColor } from "./processPalette";
 import type { OperationRecord } from "./manufacturingData";
 import { processSceneLabelBounds, relaxProcessSceneLabels } from "./processSceneLabelLayout.js";
 
 type Mode = "factory"|"sphere"|"cube"|"vortex"|"helix"|"orbit"|"network"|"grid"|"pipeline"|"layered"|"stacked"|"matrix"|"tree"|"linear"|"horizontal"|"vertical"|"timeline"|"gantt"|"nodes"|"branch"|"combined"|"molecular"|"digital-mesh"|"route"|"orthogonal"|"s-curve"|"swimlane"|"radial"|"circular"|"organic";
 type CatalogueDefinition = { id:string; processType:string; category:string; displayColor?:string };
 type RouteAnchor = { operation:OperationRecord; relation:string; color:string };
-type MaterialRouteNode = { id:string; poLineId?:string; partLabel:string; partNumber?:string; partName?:string; materialLabel:string; dimensionsLabel?:string; companyLabel?:string; poLabel?:string; componentLabel?:string; densityKgM3?:number; anchorOperationId?:string; anchorOperationName?:string; quantity:number; weightKg:number; supplier:string; transporter:string; from:string; to:string; vehicle:string; materialGivenAt:string; materialDueAt:string; materialReceivedAt:string; pickupAt:string; deliveryAt:string; status:string; materialRate:number; priceUnit:"kg"|"lb"; materialCost:number; cuttingType:string; cuttingBasis:string; cuttingRate:number; cuttingCost:number; transportCost:number };
+type MaterialRouteNode = { id:string; poLineId?:string; partLabel:string; partNumber?:string; partName?:string; materialLabel:string; dimensionsLabel?:string; companyLabel?:string; poLabel?:string; componentLabel?:string; densityKgM3?:number; anchorOperationId?:string; anchorOperationName?:string; quantity:number; weightKg:number; supplier:string; transporter:string; from:string; to:string; vehicle:string; materialGivenAt:string; materialDueAt:string; materialReceivedAt:string; pickupAt:string; deliveryAt:string; status:string; materialRate:number; priceUnit:"kg"|"lb"|"piece"; materialCost:number; cuttingType:string; cuttingBasis:string; cuttingRate:number; cuttingCost:number; transportCost:number };
 type TransportLegNode = { id:string; poLineId:string; anchorOperationId:string; targetOperationId?:string; materialEntryId?:string; placement:"start"|"before"|"after"; fromLocation:string; toLocation:string; vehicleType:string; vendorName:string; vendorContact?:string; vendorRole?:string; vendorPhone?:string; vendorWhatsapp?:string; vendorEmail?:string; vendorAddress?:string; vendorStatus?:string; vendorNotes?:string; directoryRouteNotes?:string; directoryRouteActive?:boolean; tripDirection:"One-way"|"Two-way"; tripCount:number; amount:number; pickupAt:string; deliveryAt:string; status:string; relation:"main"|"alternate"|"rework" };
-const vehicleClassFor=(value:string)=>{
- const type=(value||"").toLowerCase();
- if(/bike|motorcycle|scooter|two.wheeler/.test(type))return "bike";
- if(/bus/.test(type))return "bus";
- if(/car|taxi|auto|three.wheeler/.test(type))return "car";
- if(/air|plane|flight/.test(type))return "air";
- if(/ship|boat|vessel/.test(type))return "ship";
- if(/train|rail/.test(type))return "rail";
- return "truck";
-};
+const vehicleClassFor=(value:string)=>getVehicleVisual(value).className;
 const hasMaterialTransport=(route:MaterialRouteNode)=>Boolean(
  route.transporter&&route.transporter!=="Transporter not assigned" ||
  route.from || route.to || route.vehicle || route.transportCost>0 || route.pickupAt || route.deliveryAt
@@ -118,7 +110,7 @@ function nodeDateTime(value?:string):string{
  return parsed.toLocaleString("en-IN",{day:"2-digit",month:"short",year:"2-digit",hour:"2-digit",minute:"2-digit"});
 }
 function hexRgb(hex?:string):number[]{const value=(hex||"#477fbd").replace("#","");if(!/^[0-9a-fA-F]{6}$/.test(value))return [.28,.5,.74];return [parseInt(value.slice(0,2),16)/255,parseInt(value.slice(2,4),16)/255,parseInt(value.slice(4,6),16)/255];}
-function operationRgb(operation:OperationRecord):number[]{if(operation.relationType==="rework")return [.9,.43,.12];if(operation.status==="Complete")return [.12,.64,.4];if(operation.relationType==="alternate")return [.12,.48,.88];return hexRgb(operation.processColor);}
+function operationRgb(operation:OperationRecord):number[]{if(operation.relationType==="rework")return [.9,.43,.12];if(operation.status==="Complete")return [.12,.64,.4];if(operation.relationType==="alternate")return [.12,.48,.88];return hexRgb(resolveProcessColor({category:operation.category,processType:operation.name,processColor:operation.processColor}));}
 function operationCode(operation:OperationRecord):string{
  const relation=operation.relationType==="alternate"?"ALT":operation.relationType==="rework"?"REWORK":operation.relationType==="subprocess"?"SUB":"";
  return "OP-"+String(operation.sequence).padStart(3,"0")+(relation?" · "+relation:"");
@@ -496,7 +488,7 @@ export default function ProcessScene3D({operations,materialRoutes=[],transportLe
    </div>;})}
    {projectedTransports.map(item=>{const route=materialRoutes.find(row=>row.id===item.id);if(!route)return null;const vehicleTone=vehicleClassFor(route.vehicle);return <button type="button" key={"transport-card-"+item.id} className={"ax-full3d-transport-icon vehicle-"+vehicleTone} style={{"--ax-scene-left":item.screen.x+"px","--ax-scene-top":item.screen.y+"px"} as CSSProperties} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();const rect=event.currentTarget.getBoundingClientRect();onSelectMaterialTransport?.(route.id,{x:rect.left,y:rect.top});}} aria-label={"Open inbound material transport popup · "+route.from+" to "+route.to} title={(route.vehicle||"Transport")+" · "+(route.transporter||"Transporter not assigned")}><VehicleTypeIcon vehicleType={route.vehicle} size={17}/></button>;})}
     {projectedTransportLegs.map(item=>{const leg=transportLegs.find(row=>row.id===item.id);if(!leg)return null;return <button type="button" key={"transport-leg-card-"+item.id} className={"ax-full3d-transport-icon vehicle-"+vehicleClassFor(leg.vehicleType)} style={{"--ax-scene-left":item.screen.x+"px","--ax-scene-top":item.screen.y+"px"} as CSSProperties} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();const rect=event.currentTarget.getBoundingClientRect();onSelectTransportLeg?.(leg.id,{x:rect.left,y:rect.top});}} aria-label={"Open transport popup · "+leg.fromLocation+" to "+leg.toLocation} title={(leg.vehicleType||"Transport")+" · "+(leg.vendorName||"Transporter not assigned")}><VehicleTypeIcon vehicleType={leg.vehicleType} size={17}/></button>;})}
-   {projected.map(({op,screen})=>screen&&<button key={op.id} type="button" className={"ax-full3d-label"+(selectedOperationId===op.id?" selected":"")} style={{"--ax-scene-left":screen.x+"px","--ax-scene-top":screen.y+"px","--ax-scene-scale":String(screen.scale??1)} as CSSProperties} onPointerDown={e=>e.stopPropagation()} onClick={()=>{onSelectOperation(op.id);onExpandOperation?.(op.id);}} aria-controls="process-orbit-selected-details" aria-expanded={expandedOperationId===op.id} aria-label={"Open details for "+op.name+" · "+operationCode(op)} title={operationCode(op)+" · "+op.name+" · "+nodeDateTime(op.plannedStart)+" → "+nodeDateTime(op.plannedEnd)}>
+   {projected.map(({op,screen})=>screen&&<button key={op.id} type="button" className={"ax-full3d-label"+(selectedOperationId===op.id?" selected":"")} style={{"--ax-scene-left":screen.x+"px","--ax-scene-top":screen.y+"px","--ax-scene-scale":String(screen.scale??1),"--process-accent":resolveProcessColor({category:op.category,processType:op.name,processColor:op.processColor})} as CSSProperties} onPointerDown={e=>e.stopPropagation()} onClick={()=>{onSelectOperation(op.id);onExpandOperation?.(op.id);}} aria-controls="process-orbit-selected-details" aria-expanded={expandedOperationId===op.id} aria-label={"Open details for "+op.name+" · "+operationCode(op)} title={operationCode(op)+" · "+op.name+" · "+nodeDateTime(op.plannedStart)+" → "+nodeDateTime(op.plannedEnd)}>
      <small>{operationCode(op)}</small><strong>{op.name}</strong>
      {mode==="factory"&&<small className="ax-full3d-machine-label">{op.machine||("Workcell · "+(op.category||"General"))}</small>}
      <em>{visibleFields.includes("status")?op.status:"Process step"} · Qty {op.quantity.toLocaleString("en-IN")} {quantityUnit}</em>

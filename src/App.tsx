@@ -3,10 +3,10 @@ import { ScreenOrientation as CapacitorScreenOrientation } from "@capacitor/scre
 import {
   Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, Bell, Bot,
   Box, Boxes, CalendarClock, Check, ChevronDown, CircleDollarSign, CircleHelp,
-  ClipboardCheck, Clock3, Command, Cpu, Factory, FileDown, FileUp, Gauge, GitBranch, Network, Route,
+  ClipboardCheck, Clock3, Command, Cog, Cpu, Factory, FileDown, FileUp, Gauge, GitBranch, Network, Route,
   HardDrive, LayoutGrid, Handshake, Layers3, Menu, MessageCircle,
   Package, Pause, Play, Plug, Plus, RotateCcw, ScanLine, Search, Settings2,
-  ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Target, Truck, Users,
+  ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Target, Trash2, Truck, Users,
   Wallet, Workflow, Wrench, X, Zap, Palette
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -42,7 +42,7 @@ const LinkedCostingWorkspace = lazy(() => import("./LinkedCostingWorkspace"));
 const InventoryWorkspace = lazy(() => import("./InventoryWorkspace"));
 const IntegrationHubWorkspace = lazy(() => import("./IntegrationHubWorkspace"));
 import { activeRows, emptyManufacturingData, makeId, mergeManufacturingData, nowIso, readManufacturingData, removeLegacyDemoData, useManufacturingData, type VendorRecord } from "./manufacturingData";
-import { AXIMACH_DEMO_ID_PREFIX, archiveAxMachTwoCompanyDemo, createAxMachTwoCompanyDemo } from "./aximachDemoData";
+import { ASTER_EXAMPLE_IDS, ASTER_EXAMPLE_PREFIX, archiveAsterPrecisionExample, importAsterPrecisionExample } from "./asterPrecisionExample";
 
 function isAllowedAxMachServiceUrl(value: string) {
   try {
@@ -99,47 +99,44 @@ const groupOptions = ["All domains", ...Array.from(new Set(modules.map((item) =>
 function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:()=>void;onNotice:(value:string)=>void;notice:string;onSelectModule:(id:string,context?:LinkedNavigationContext)=>void}) {
   const [mode,setMode] = useState<"export"|"import">("export");
   const { data, update, syncStatus } = useManufacturingData();
-  const [demoBusy,setDemoBusy] = useState(false);
-  const demoRows = Object.values(data).filter(value => Array.isArray(value)).flatMap(value => value as Array<{id?:string;deletedAt?:string}>).filter(row => row.id?.startsWith(AXIMACH_DEMO_ID_PREFIX));
+  const demoRows = Object.values(data).filter(value => Array.isArray(value)).flatMap(value => value as Array<{id?:string;deletedAt?:string}>).filter(row => row.id?.startsWith(ASTER_EXAMPLE_PREFIX));
   const activeDemoCount = demoRows.filter(row => !row.deletedAt).length;
   const demoLoaded = activeDemoCount > 0;
-  const demoCounts = { companies:data.companies.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, factories:data.factories.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, vendors:data.vendors.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, components:data.components.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, orders:data.purchaseOrders.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length, operations:data.operations.filter(row=>row.id.startsWith(AXIMACH_DEMO_ID_PREFIX)&&!row.deletedAt).length };
-  const importDemo = () => {
-    if (demoLoaded) { onNotice("Demo Factory is already imported. Delete the existing demo dataset before importing it again."); return; }
-    if (!window.confirm("Import the isolated AXIMACH Demo Factory? All records are synthetic and clearly marked DEMO. Live factory records will be preserved.")) return;
-    setDemoBusy(true);
-    try {
-      const sample = createAxMachTwoCompanyDemo();
-      update(current => {
-        const mergeById = <T extends {id:string}>(live:T[], incoming:T[]) => { const map=new Map(live.map(row=>[row.id,row])); incoming.forEach(row=>map.set(row.id,row)); return [...map.values()]; };
-        return { ...current, updatedAt:sample.updatedAt,
-          companies:mergeById(current.companies,sample.companies), factories:mergeById(current.factories,sample.factories),
-          purchaseOrders:mergeById(current.purchaseOrders,sample.purchaseOrders), components:mergeById(current.components,sample.components),
-          vendors:mergeById(current.vendors,sample.vendors), operations:mergeById(current.operations,sample.operations),
-          quotations:mergeById(current.quotations,sample.quotations), materials:mergeById(current.materials,sample.materials),
-          componentParts:mergeById(current.componentParts,sample.componentParts), materialCostEntries:mergeById(current.materialCostEntries,sample.materialCostEntries),
-          routeRelationships:mergeById(current.routeRelationships||[],sample.routeRelationships||[]),
-          bomLines:mergeById(current.bomLines,sample.bomLines), inventoryTransactions:mergeById(current.inventoryTransactions,sample.inventoryTransactions),
-          contactProfiles:mergeById(current.contactProfiles,sample.contactProfiles), processDefinitions:mergeById(current.processDefinitions,sample.processDefinitions),
-          plannedCosts:mergeById(current.plannedCosts,sample.plannedCosts), transportRoutes:mergeById(current.transportRoutes,sample.transportRoutes),
-          transportLegs:mergeById(current.transportLegs,sample.transportLegs), paymentTransactions:mergeById(current.paymentTransactions,sample.paymentTransactions),
-          inspectionMeasurements:mergeById(current.inspectionMeasurements,sample.inspectionMeasurements),
-          supplierInvoices:mergeById(current.supplierInvoices,sample.supplierInvoices),
-          supplierPayments:mergeById(current.supplierPayments,sample.supplierPayments),
-          supplierFinanceApprovals:mergeById(current.supplierFinanceApprovals,sample.supplierFinanceApprovals),
-          supplierPaymentAllocations:mergeById(current.supplierPaymentAllocations,sample.supplierPaymentAllocations),
-          followUpAssignments:mergeById(current.followUpAssignments,sample.followUpAssignments)
-        };
-      });
-      onNotice("Demo Factory imported. Synthetic records are isolated with DEMO IDs; actual factory records were preserved.");
-    } catch (error) { onNotice(error instanceof Error ? error.message : "Demo import failed."); }
-    finally { setDemoBusy(false); }
+  const demoCounts = {
+    companies:data.companies.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    customers:data.customers.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    factories:data.factories.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    machines:data.machines.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    tooling:data.toolingAssets.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    fixtures:data.fixtureAssets.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    inventory:data.inventoryTransactions.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    quotations:data.quotations.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    contacts:data.contactProfiles.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    vendors:data.vendors.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    components:data.components.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    orders:data.purchaseOrders.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    operations:data.operations.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    processTypes:data.processDefinitions.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    processCategories:new Set(data.processDefinitions.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).map(row=>row.category)).size,
+    materials:data.materials.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    bom:data.bomLines.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    links:data.materialProcessLinks.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    legs:data.transportLegs.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    routes:data.transportRoutes.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    relationships:data.routeRelationships.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    plannedCosts:data.plannedCosts.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length,
+    qualityChecks:data.inspectionMeasurements.filter(row=>row.id.startsWith(ASTER_EXAMPLE_PREFIX)&&!row.deletedAt).length
+  };
+  const loadDemo = () => {
+    if (demoLoaded) { onNotice("The one-company ASTER example is already loaded across AXIMACH modules. Use the regular customer/company, PO, component, Process Directory, Process Map, Route Flow and costing selectors."); return; }
+    update(current => importAsterPrecisionExample(current));
+    onNotice("ASTER example loaded into shared AXIMACH records: 1 company, 1 PO, 1 component, 28 operations, 18 process categories, 6 materials, 1 synthetic buyer, 28 Process Directory definitions, 1 VMC machine, 1 tooling asset, 1 fixture, 6 synthetic opening-stock rows, 1 quotation and 2 synthetic contacts, with BOM/material links, 10 transport legs and all route relationships. All records are synthetic; real records are preserved.");
   };
   const deleteDemo = () => {
-    if (!demoLoaded) { onNotice("No active Demo Factory records to delete."); return; }
-    if (!window.confirm("Delete the imported Demo Factory? Only records with the reserved DEMO- ID prefix will be archived. Actual factory records will not be changed.")) return;
-    update(current => archiveAxMachTwoCompanyDemo(current));
-    onNotice("Demo Factory records archived. Actual factory records were preserved; the demo can be imported again.");
+    if (!demoLoaded) { onNotice("No active ASTER example records to remove."); return; }
+    if (!window.confirm("Remove the one-company ASTER example? Only ASTER-EXAMPLE- records will be archived. All real company, PO, component and production records remain unchanged.")) return;
+    update(current => archiveAsterPrecisionExample(current));
+    onNotice("ASTER example records archived across the shared modules. Real records remain untouched; you can load the example again.");
   };
   return (
     <section className="workspace-page">
@@ -150,20 +147,39 @@ function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:
       <div className="workspace-title-row">
         <div><div className="eyebrow"><span className="eyebrow-mark"/> DATA / IMPORT &amp; EXPORT</div><h1>Data Exchange Centre<span>.</span></h1><p>One workspace for validated imports, module exports and full AXIMACH backups.</p></div>
       </div>
-      <section className="workspace-card" aria-label="Demo Factory data centre" style={{marginBottom:20,border:"1px solid var(--line, #d9e0e8)"}}>
+      <section className="workspace-card" aria-label="One-company linked ASTER example" style={{marginBottom:20,border:"1px solid var(--line, #d9e0e8)"}}>
         <div className="workspace-title-row" style={{alignItems:"center"}}>
-          <div><div className="eyebrow"><span className="eyebrow-mark"/> DATA CENTRE / SANDBOX</div><h2 style={{margin:"4px 0"}}>Demo Factory</h2><p>Import a complete synthetic manufacturing workspace for testing. It remains identifiable by DEMO IDs and can be archived independently.</p></div>
-          <span className="demo-pill"><i/> {demoLoaded?"DEMO LOADED":"ISOLATED SANDBOX"}</span>
+          <div><div className="eyebrow"><span className="eyebrow-mark"/> DATA CENTRE / REVERSIBLE EXAMPLE</div><h2 style={{margin:"4px 0"}}>ASTER · One-company linked demo example</h2><p>Load one synthetic company, one purchase order, one component, six materials, a linked buyer account, 28 operations across 18 categories, Process Directory definitions, a VMC machine, compatible cutting tool and fixture, synthetic opening-stock rows, quotation and contacts, BOM, material-to-process links, ten transport legs and route relationships. All load into the same shared records used by the real modules and can be removed later.</p></div>
+          <span className="demo-pill"><i/> {demoLoaded?"EXAMPLE LOADED IN SHARED MODULES":"READY TO LOAD"}</span>
         </div>
         <div className="metric-grid" style={{margin:"14px 0"}}>
-          <div className="metric-card"><small>Companies</small><strong>{demoCounts.companies}</strong></div><div className="metric-card"><small>Factories</small><strong>{demoCounts.factories}</strong></div><div className="metric-card"><small>Demo vendors</small><strong>{demoCounts.vendors}</strong></div><div className="metric-card"><small>Components</small><strong>{demoCounts.components}</strong></div><div className="metric-card"><small>Purchase orders</small><strong>{demoCounts.orders}</strong></div><div className="metric-card"><small>Operations</small><strong>{demoCounts.operations}</strong></div>
+          <div className="metric-card"><small>Companies</small><strong>{demoCounts.companies}</strong></div><div className="metric-card"><small>Customer accounts</small><strong>{demoCounts.customers}</strong></div><div className="metric-card"><small>Factories</small><strong>{demoCounts.factories}</strong></div><div className="metric-card"><small>Machines</small><strong>{demoCounts.machines}</strong></div><div className="metric-card"><small>Tooling assets</small><strong>{demoCounts.tooling}</strong></div><div className="metric-card"><small>Fixtures</small><strong>{demoCounts.fixtures}</strong></div><div className="metric-card"><small>Vendors</small><strong>{demoCounts.vendors}</strong></div><div className="metric-card"><small>Components</small><strong>{demoCounts.components}</strong></div><div className="metric-card"><small>Purchase orders</small><strong>{demoCounts.orders}</strong></div><div className="metric-card"><small>Process operations</small><strong>{demoCounts.operations}</strong></div><div className="metric-card"><small>Process Directory definitions</small><strong>{demoCounts.processTypes}</strong></div><div className="metric-card"><small>Distinct process categories</small><strong>{demoCounts.processCategories}</strong></div>
+          <div className="metric-card"><small>Material masters</small><strong>{demoCounts.materials}</strong></div><div className="metric-card"><small>BOM lines</small><strong>{demoCounts.bom}</strong></div><div className="metric-card"><small>Material → process links</small><strong>{demoCounts.links}</strong></div><div className="metric-card"><small>Transport legs</small><strong>{demoCounts.legs}</strong></div><div className="metric-card"><small>Transport routes</small><strong>{demoCounts.routes}</strong></div><div className="metric-card"><small>Route relationships</small><strong>{demoCounts.relationships}</strong></div><div className="metric-card"><small>Planned cost rows</small><strong>{demoCounts.plannedCosts}</strong></div><div className="metric-card"><small>Quality checks</small><strong>{demoCounts.qualityChecks}</strong></div><div className="metric-card"><small>Opening stock rows · synthetic</small><strong>{demoCounts.inventory}</strong></div><div className="metric-card"><small>Quotations · synthetic</small><strong>{demoCounts.quotations}</strong></div><div className="metric-card"><small>Contact profiles · synthetic</small><strong>{demoCounts.contacts}</strong></div>
         </div>
         <div className="linked-route-actions">
-          <button type="button" className="button-primary compact-button" disabled={demoBusy||demoLoaded} onClick={importDemo}><Package size={14}/> {demoBusy?"Importing…":"Import Demo Factory"}</button>
-          <button type="button" className="button-quiet compact-button" disabled={demoBusy||!demoLoaded} onClick={deleteDemo}><RotateCcw size={14}/> Delete Demo Data</button>
-          <span className="muted-copy">Sync: {syncStatus} · Live records are retained</span>
+          <button type="button" className="button-primary compact-button" disabled={demoLoaded} onClick={loadDemo}><Plus size={14}/> Load ASTER example into all modules</button>
+          <button type="button" className="button-danger compact-button" disabled={!demoLoaded} onClick={deleteDemo}><Trash2 size={14}/> Remove ASTER example</button>
+          <span className="muted-copy">Sync: {syncStatus} · Real records remain untouched</span>
         </div>
-        <p className="muted-copy" style={{marginTop:10}}>Demo records are fictional test data, not real supplier offers, payments, inspections or production results. Delete archives only DEMO-prefixed records.</p>
+        <div className="linked-route-actions" style={{marginTop:10}}>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("customers")}><Users size={14}/> Customer Directory</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("companies")}><Factory size={14}/> Companies / factories</button><button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("companies",{companyId:ASTER_EXAMPLE_IDS.company,subtab:"machines"})}><Cog size={14}/> Machine register</button><button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("companies",{companyId:ASTER_EXAMPLE_IDS.company,subtab:"tooling"})}><Wrench size={14}/> Tooling assets</button><button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("companies",{companyId:ASTER_EXAMPLE_IDS.company,subtab:"fixtures"})}><Gauge size={14}/> Fixture register</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("purchasing")}><Package size={14}/> Purchase orders</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("process-master")}><Layers3 size={14}/> Process Directory</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("process-map")}><Workflow size={14}/> Process Map</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("inventory")}><Boxes size={14}/> Materials / BOM</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("route-flow")}><GitBranch size={14}/> Route Flow</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("manufacturing-universe")}><Network size={14}/> Manufacturing Universe</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("costing")}><CircleDollarSign size={14}/> Costing</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("vendors")}><Users size={14}/> Vendors</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("vendor-capability")}><Workflow size={14}/> Vendor Network</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("transport-master")}><Truck size={14}/> Transport Directory</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("production")}><Activity size={14}/> Production Plan</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("dispatch")}><Truck size={14}/> Dispatch</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("planned-cost")}><CircleDollarSign size={14}/> Planned Cost</button>
+          <button type="button" className="button-quiet compact-button" disabled={!demoLoaded} onClick={()=>onSelectModule("quality")}><ClipboardCheck size={14}/> Quality Inspection</button>
+        </div>
+        <p className="muted-copy" style={{marginTop:10}}>This is not an isolated preview. The same ASTER buyer, company, PO, component, material grades, BOM, Process Directory definitions, operations and transport records appear in each module’s regular selectors. “Remove ASTER example” archives only ASTER-EXAMPLE- IDs; you can reload it whenever you need to test.</p>
       </section>
       <div className="linked-route-actions" role="tablist" aria-label="Data exchange mode">
         <button type="button" role="tab" aria-selected={mode==="export"} className={(mode==="export"?"button-primary":"button-quiet")+" compact-button"} onClick={()=>setMode("export")}><FileDown size={14}/> Export records</button>
@@ -177,11 +193,14 @@ function DataExchangeWorkspace({onBack,onNotice,notice,onSelectModule}: {onBack:
 }
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; materialId?: string; routeId?: string; subtab?: string; searchText?: string };
+const ASTER_EXAMPLE_CONTEXT: LinkedNavigationContext = { companyId: ASTER_EXAMPLE_IDS.company, poId: ASTER_EXAMPLE_IDS.purchaseOrder, poLineId: ASTER_EXAMPLE_IDS.poLine, componentId: ASTER_EXAMPLE_IDS.component };
 
 function App() {
   useState(() => { removeLegacyDemoData(); return true; });
+  const { data: appData, update: updateAppData } = useManufacturingData();
+  const activeDemoRecordCount = Object.values(appData).filter(value => Array.isArray(value)).flatMap(value => value as Array<{id?:string;deletedAt?:string}>).filter(row => row.id?.startsWith(ASTER_EXAMPLE_PREFIX) && !row.deletedAt).length;
   const [activeModuleId, setActiveModuleId] = useState("dashboard");
-  const [moduleContext, setModuleContext] = useState<LinkedNavigationContext>({});
+  const [moduleContext, setModuleContext] = useState<LinkedNavigationContext>(() => activeDemoRecordCount > 0 ? ASTER_EXAMPLE_CONTEXT : {});
   const [moduleExplorerOpen, setModuleExplorerOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [iconStudioOpen, setIconStudioOpen] = useState(false);
@@ -194,6 +213,19 @@ function App() {
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [notice, setNotice] = useState("");
+  const loadAsterExampleFromWorkspace = () => {
+    if (activeDemoRecordCount > 0) { setModuleContext(ASTER_EXAMPLE_CONTEXT); setNotice("ASTER synthetic example is already loaded. Its Company, PO and Component are now preselected as you move between connected modules."); return; }
+    updateAppData(current => importAsterPrecisionExample(current));
+    setModuleContext(ASTER_EXAMPLE_CONTEXT);
+    setNotice("ASTER synthetic test records loaded across shared AXIMACH modules. Connected workspaces now open on the same Company, PO and Component. No real records were replaced.");
+  };
+  const removeAsterExampleFromWorkspace = () => {
+    if (!activeDemoRecordCount) { setNotice("No ASTER example records are currently loaded."); return; }
+    if (!window.confirm("Remove the reversible ASTER synthetic test dataset from all shared modules? Only ASTER-EXAMPLE records will be archived; all real company, customer, supplier, PO, component, material and production records remain untouched.")) return;
+    updateAppData(current => archiveAsterPrecisionExample(current));
+    if (moduleContext.companyId === ASTER_EXAMPLE_IDS.company) setModuleContext({});
+    setNotice("ASTER synthetic example archived across the shared modules. Real records remain untouched; you can load the example again.");
+  };
   const [themePreference,setThemePreference] = useState<ThemePreference>(()=>readThemePreference());
   const [themeDraft,setThemeDraft] = useState<ThemePreference|null>(null);
   const [themeStudioOpen,setThemeStudioOpen] = useState(false);
@@ -342,10 +374,10 @@ function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const selectModule = (id: string, context: LinkedNavigationContext = {}) => {
+  const selectModule = (id: string, context?: LinkedNavigationContext) => {
     setLandscapeCanvasOpen(false);
     setOrientationLockUnavailable(false);
-    setModuleContext(context);
+    setModuleContext(context ?? (activeDemoRecordCount > 0 ? ASTER_EXAMPLE_CONTEXT : {}));
     setActiveModuleId(id);
     setModuleExplorerOpen(false);
     setMobileNavOpen(false);
@@ -412,7 +444,10 @@ function App() {
       <div className="status-ribbon">
         <span className="ribbon-dot" /> AXIMACH WORKSPACE
         <span className="ribbon-separator">/</span>
-        <span>No example records loaded · production metrics populate from saved records</span>
+        <span>{activeDemoRecordCount ? `ASTER EXAMPLE ACTIVE · ${activeDemoRecordCount} shared sample records` : "No shared example loaded · live metrics use saved records"}</span>
+        {activeDemoRecordCount
+          ? <button type="button" className="button-danger compact-button" onClick={removeAsterExampleFromWorkspace} title="Archive only the synthetic ASTER example across all shared modules"><Trash2 size={12}/> Remove test data</button>
+          : <button type="button" className="button-quiet compact-button" onClick={loadAsterExampleFromWorkspace} title="Load a removable synthetic example into the normal AXIMACH modules"><Plus size={12}/> Load full demo</button>}
         <span className="ribbon-right"><ShieldCheck size={13} /> Safety gates are design requirements</span>
       </div>
 

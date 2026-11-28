@@ -3,6 +3,7 @@ import { ArrowRight, Edit3, MapPin, Plus, Search, ShieldCheck, Truck, Users, X }
 import { activeRows, makeId, nowIso, useManufacturingData, type TransportRouteRecord } from "./manufacturingData";
 import SearchablePicker from "./SearchablePicker";
 import SearchableMultiSelect from "./SearchableMultiSelect";
+import VehicleTypePicker from "./VehicleTypePicker";
 import { VehicleBadge, VEHICLE_TYPES } from "./TransportVehicle";
 import TransportRoutingDemo from "./TransportRoutingDemo";
 
@@ -47,7 +48,7 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
   const [fromLocation, setFromLocation] = useState("");
   const [toLocation, setToLocation] = useState("");
   const [tripDirection, setTripDirection] = useState<"One-way" | "Two-way">("One-way");
-  const [vehicleType, setVehicleType] = useState<string>(VEHICLE_TYPES[2]);
+  const [vehicleType, setVehicleType] = useState<string>("4-wheeler / Car");
   const [fixedAmount, setFixedAmount] = useState("");
   const [notes, setNotes] = useState("");
   const [showTransportDemo, setShowTransportDemo] = useState(false);
@@ -76,7 +77,7 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
     setSelectedRouteIds([]);
     onNotice(ids.size + " transport route(s) archived. Existing dispatch and component transport history was retained.");
   };
-  const reset = () => { setEditingId(""); setVendorId(""); setFromLocation(""); setToLocation(""); setTripDirection("One-way"); setVehicleType(VEHICLE_TYPES[2]); setFixedAmount(""); setNotes(""); };
+  const reset = () => { setEditingId(""); setVendorId(""); setFromLocation(""); setToLocation(""); setTripDirection("One-way"); setVehicleType("4-wheeler / Car"); setFixedAmount(""); setNotes(""); };
   const save = () => {
     if (!vendorId || !fromLocation.trim() || !toLocation.trim() || !vehicleType.trim()) { onNotice("Select a vendor and enter both route locations and a vehicle type."); return; }
     if (!vendors.some(vendor => vendor.id === vendorId)) { onNotice("The selected transport vendor is missing or archived. Choose an active Vendor Directory record."); return; }
@@ -95,7 +96,7 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
   };
   const edit = (route: TransportRouteRecord) => {
     setEditingId(route.id); setVendorId(route.vendorId); setFromLocation(route.fromLocation); setToLocation(route.toLocation);
-    setTripDirection(route.tripDirection); setVehicleType(route.vehicleType); setFixedAmount(String(route.fixedAmount)); setNotes(route.notes || "");
+    setTripDirection(route.tripDirection); setVehicleType(route.vehicleType); setFixedAmount(String(route.fixedAmount || "")); setNotes(route.notes || "");
   };
   const archive = (route: TransportRouteRecord) => {
     if (!window.confirm("Archive this transport route? Existing component transport entries and their saved rates will remain unchanged.")) return;
@@ -132,7 +133,7 @@ export default function TransportDirectoryWorkspace({ onBack, onNotice, notice, 
         <label>From location *<input value={fromLocation} onChange={event => setFromLocation(event.target.value)} placeholder="Pickup location"/></label>
         <label>To location *<input value={toLocation} onChange={event => setToLocation(event.target.value)} placeholder="Delivery location"/></label>
         <SearchablePicker id="transport-route-direction" label="Trip direction *" value={tripDirection} options={["One-way","Two-way"].map(value=>({id:value,label:value}))} onChange={value=>setTripDirection(value as "One-way"|"Two-way")}/>
-        <SearchablePicker id="transport-route-vehicle" label="Vehicle type *" value={vehicleType} placeholder="Search vehicle class…" options={vehicleOptions.map(value=>({id:value,label:value}))} onChange={setVehicleType}/>
+        <VehicleTypePicker id="transport-route-vehicle" label="Vehicle type *" value={vehicleType} placeholder="Search vehicle class…" options={vehicleOptions} onChange={setVehicleType}/>
         <label>Fixed amount (₹) *<input inputMode="decimal" type="number" min="0" step="0.01" value={fixedAmount} onChange={event => setFixedAmount(event.target.value)} placeholder="Enter agreed route rate"/></label>
         <label className="editor-wide">Notes<input value={notes} onChange={event => setNotes(event.target.value)} placeholder="Validity, loading terms, waiting charges or agreement reference"/></label>
       </div>

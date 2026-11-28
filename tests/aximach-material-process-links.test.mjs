@@ -2,6 +2,16 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+test("material consumption collection is normalized, merged and server-synced",()=>{
+  const client=readFileSync(new URL("../src/manufacturingData.ts",import.meta.url),"utf8");
+  const server=readFileSync(new URL("../server/manufacturing-data.mjs",import.meta.url),"utf8");
+  const tenant=readFileSync(new URL("../server/tenant-scope.mjs",import.meta.url),"utf8");
+  assert.ok(client.includes("materialConsumptions:MaterialConsumptionRecord[]"));
+  assert.ok(client.includes("materialConsumptions: mergeRows(local.materialConsumptions, remote.materialConsumptions)"));
+  assert.ok(server.includes('"materialConsumptions"'));
+  assert.ok(tenant.includes('rows(data,"materialConsumptions")'));
+  assert.ok(tenant.includes('case "materialConsumptions"'));
+});
 test("material process link collection is normalized, merged and server-synced", () => {
   const client = readFileSync(new URL("../src/manufacturingData.ts", import.meta.url), "utf8");
   const server = readFileSync(new URL("../server/manufacturing-data.mjs", import.meta.url), "utf8");
@@ -90,7 +100,7 @@ test("in-app transport demo displays material feeds, directory master links and 
   assert.ok(demo.includes("routeRecord={routes.get(leg.routeId)}"));
   assert.ok(demo.includes("materialLinks.map(link"));
   assert.ok(demo.includes("materialLinksAt(operation.id,\"before\")"));
-  assert.ok(demo.includes("No company, PO, component, vendor, material, BOM, material-process link"));
+  assert.ok(demo.toLowerCase().includes("no company, po, component, vendor, material, bom, operation, route, transport leg or inventory record is written to aximach."));
 });
 
 test("component parts retain multiple material master IDs with legacy single-material migration", () => {
@@ -116,7 +126,7 @@ test("Process Map material procurement persists a part-scoped BOM row and archiv
   assert.ok(model.includes("partId?: string;"));
   assert.ok(model.includes("sourceMaterialCostEntryId?: string;"));
   assert.ok(panel.includes("sourceMaterialCostEntryId:sourceBom?.sourceMaterialCostEntryId"));
-  assert.ok(panel.includes("quantityPerPart:sourceBom?perPieceKg"));
+  assert.ok(panel.includes('quantityPerPart:sourceBom?(priceUnit==="piece"?piecesPerPart:perPieceKg)'));
   assert.ok(panel.includes('row.sourceMaterialCostEntryId===entry.id'));
 });
 
@@ -133,10 +143,12 @@ test("Material Directory BOM, part and material-process actions enforce exact pa
   assert.ok(inventory.includes('className="material-directory-filter-bar"'));
 });
 
-test("BOM issue preview and ledger posting include component-wide and selected-part BOM rows only", () => {
+test("BOM issue preview and ledger posting share component-wide and selected-part BOM filtering", () => {
   const inventory = readFileSync(new URL("../src/InventoryWorkspace.tsx", import.meta.url), "utf8");
-  assert.ok(inventory.includes('!bomIssueSelection.line.partId || !row.partId || row.partId === bomIssueSelection.line.partId'));
-  assert.ok(inventory.includes('!line.partId || !row.partId || row.partId === line.partId'));
+  const ledger = readFileSync(new URL("../src/inventoryLedger.mjs", import.meta.url), "utf8");
+  assert.ok(inventory.includes("buildBomMaterialIssuePlan({"));
+  assert.ok(ledger.includes("(!line.partId||!row.partId||row.partId===line.partId)"));
+  assert.ok(ledger.includes("row.componentId===component.id"));
 });
 
 test("Process Map is scoped to the exact selected PO line and its part material allocations", () => {

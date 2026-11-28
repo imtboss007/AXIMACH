@@ -875,3 +875,220 @@ body{background:#f1f5fa!important;color:#12263f!important}
 .manufacturing-universe-workspace[data-workspace-theme="dark"] .process-universe-3d .process-orbit-meta span,
 .manufacturing-universe-workspace[data-workspace-theme="dark"] .process-universe-3d .process-orbit-help,
 .manufacturing-universe-workspace[data-workspace-theme="dark"] .process-universe-3d .process-universe-count>span{color:#b8ccda!important}
+
+
+/* AXIMACH process identity system: stable colour per process, retained across modules. */
+.specialized-directory .specialized-record{
+  border-left:4px solid var(--process-accent,#2789a8)!important;
+  background:linear-gradient(105deg,color-mix(in srgb,var(--process-accent,#2789a8) 9%,var(--panel,#fff)) 0%,var(--panel,#fff) 42%)!important;
+}
+.specialized-directory .specialized-record-icon{
+  color:var(--process-accent,#2789a8)!important;
+  border-color:color-mix(in srgb,var(--process-accent,#2789a8) 55%,transparent)!important;
+  background:color-mix(in srgb,var(--process-accent,#2789a8) 16%,var(--panel,#fff))!important;
+  box-shadow:0 3px 12px color-mix(in srgb,var(--process-accent,#2789a8) 18%,transparent)!important;
+}
+.specialized-directory .specialized-record-copy>strong,
+.specialized-directory .process-subcategory-logo-chip{
+  color:var(--process-accent,#2789a8)!important;
+}
+.specialized-directory .specialized-record-copy>span{
+  color:var(--ax-theme-muted,#526a80)!important;
+}
+.route-flow-graph-node{
+  border-color:var(--route-accent,#2789a8)!important;
+  box-shadow:0 7px 22px color-mix(in srgb,var(--route-accent,#2789a8) 20%,transparent)!important;
+}
+.route-flow-graph-node .route-flow-node-heading{
+  color:var(--route-accent,#2789a8)!important;
+}
+.route-flow-graph-canvas .react-flow__edge-path,
+.ax-ecosystem-flow-canvas .react-flow__edge-path{
+  stroke-width:3.2px!important;
+  stroke-linecap:round!important;
+  filter:drop-shadow(0 0 2px rgba(18,39,61,.25));
+}
+
+/* Explicit high-contrast workspace surfaces in both theme modes. */
+[data-workspace-theme="light"] .specialized-record,
+[data-workspace-theme="light"] .route-flow-canvas-layout,
+[data-workspace-theme="light"] .manufacturing-universe-live-panel,
+[data-workspace-theme="light"] .ax-ecosystem-graph{
+  color:#152b40!important;
+}
+[data-workspace-theme="light"] .specialized-record small,
+[data-workspace-theme="light"] .specialized-record-copy p,
+[data-workspace-theme="light"] .ax-ecosystem-graph-head p,
+[data-workspace-theme="light"] .manufacturing-universe-live-heading p{
+  color:#4a6279!important;
+  opacity:1!important;
+}
+[data-workspace-theme="light"] .specialized-record,
+[data-workspace-theme="light"] .manufacturing-universe-live-panel{
+  border-color:#c6d3e1!important;
+}
+[data-workspace-theme="dark"] .specialized-record small,
+[data-workspace-theme="dark"] .specialized-record-copy p,
+[data-workspace-theme="dark"] .ax-ecosystem-graph-head p,
+[data-workspace-theme="dark"] .manufacturing-universe-live-heading p{
+  color:#b7c9d9!important;
+  opacity:1!important;
+}
+
+
+.single-component-route-tools{
+  display:grid!important;
+  grid-template-columns:minmax(170px,250px) minmax(0,1fr)!important;
+  gap:12px!important;align-items:center!important;
+  padding:12px 14px!important;
+  border:1px solid var(--ax-ws-border,#c8d7e5)!important;
+  border-radius:12px!important;
+  background:var(--ax-ws-panel,#fff)!important;
+  color:var(--ax-ws-text,#17334d)!important;
+}
+.single-component-route-tools label{display:grid!important;gap:6px!important;font-size:11px!important;font-weight:800!important}
+.single-component-route-tools select{
+  width:100%!important;min-height:40px!important;
+  border:1px solid var(--ax-ws-border,#c8d7e5)!important;
+  border-radius:9px!important;padding:7px 10px!important;
+  background:var(--ax-ws-field,#f7faff)!important;color:var(--ax-ws-text,#17334d)!important;
+}
+.single-component-route-tools small{color:var(--ax-ws-muted,#50687f)!important;line-height:1.45!important}
+.single-component-route-demo-canvas .react-flow__handle{
+  width:10px!important;height:10px!important;
+  border:2px solid #fff!important;background:var(--route-accent,#2875bd)!important;
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--route-accent,#2875bd) 35%,transparent)!important;
+}
+.single-component-route-demo-canvas .react-flow__edge-path{
+  stroke-width:3.4px!important;stroke-linecap:round!important;
+  filter:drop-shadow(0 1px 3px rgba(0,0,0,.22));
+}
+@media(max-width:760px){
+  .single-component-route-tools{grid-template-columns:minmax(0,1fr)!important}
+}
+
+
+/* Consistent high-contrast manufacturing scene: avoid the white WebGL void. */
+.process-scene-zoom-viewport,
+.process-scene-zoom-viewport .process-scene-zoom-layer,
+.process-scene-zoom-viewport .ax-full3d-scene{
+  background:
+    radial-gradient(ellipse at 50% 34%,rgba(30,111,151,.26),transparent 58%),
+    linear-gradient(145deg,#071624 0%,#0b2033 54%,#102b42 100%)!important;
+}
+.process-scene-zoom-viewport .ax-full3d-scene{
+  border:1px solid rgba(78,150,187,.24)!important;
+  border-radius:14px!important;
+  overflow:hidden!important;
+}
+.process-scene-zoom-viewport .ax-full3d-scene canvas{
+  background:transparent!important;
+}
+.process-scene-zoom-viewport .ax-full3d-label:not(.ax-full3d-material-label):not(.ax-full3d-catalogue-label){
+  border:1px solid color-mix(in srgb,var(--process-accent,#2789a8) 72%,#d5e5f2)!important;
+  border-left:4px solid var(--process-accent,#2789a8)!important;
+  background:linear-gradient(145deg,
+    color-mix(in srgb,var(--process-accent,#2789a8) 13%,#ffffff),
+    #f2f7fb 80%)!important;
+  box-shadow:0 7px 20px color-mix(in srgb,var(--process-accent,#2789a8) 18%,transparent)!important;
+}
+.process-scene-zoom-viewport .ax-full3d-label:not(.ax-full3d-material-label):not(.ax-full3d-catalogue-label) strong{
+  color:color-mix(in srgb,var(--process-accent,#2789a8) 70%,#102b45)!important;
+}
+.process-scene-zoom-viewport .ax-full3d-label.selected{
+  outline:2px solid #25c8e6!important;
+  outline-offset:2px!important;
+}
+.process-universe-3d .process-universe-node{
+  border-color:var(--process-accent,#6fa9e5)!important;
+  border-left:4px solid var(--process-accent,#6fa9e5)!important;
+  background:linear-gradient(145deg,
+    color-mix(in srgb,var(--process-accent,#6fa9e5) 15%,var(--ax-theme-panel,#fff)),
+    var(--ax-theme-panel,#fff) 78%)!important;
+  box-shadow:0 6px 18px color-mix(in srgb,var(--process-accent,#6fa9e5) 18%,transparent)!important;
+}
+.process-universe-3d .process-universe-node strong,
+.process-universe-3d .process-universe-node-icon{color:var(--process-accent,#3979bd)!important}
+.ax-ecosystem-flow-canvas{
+  background:
+    radial-gradient(ellipse at 50% 0%,rgba(25,105,145,.22),transparent 58%),
+    linear-gradient(145deg,#071624,#0c2032 55%,#102b42)!important;
+  border:1px solid #284a63!important;
+  border-radius:14px!important;
+  overflow:hidden!important;
+}
+.ax-ecosystem-flow-canvas .react-flow__background pattern circle{fill:#36546b!important;opacity:.46}
+.ax-ecosystem-flow-canvas .react-flow__edge-path{stroke-width:3.4px!important;filter:drop-shadow(0 0 3px rgba(35,180,218,.2))}
+.ax-ecosystem-flow-canvas .react-flow__arrowhead path{stroke-width:.7px!important}
+.ax-ecosystem-flow-node{
+  border:1px solid color-mix(in srgb,var(--node-accent,#2875bd) 78%,#dce8f2)!important;
+  border-left:4px solid var(--node-accent,#2875bd)!important;
+  background:linear-gradient(145deg,
+    color-mix(in srgb,var(--node-accent,#2875bd) 18%,#183247),
+    #10263a 82%)!important;
+  color:#edf6fc!important;
+}
+.ax-ecosystem-flow-node strong{color:#f2f8fc!important}
+.ax-ecosystem-flow-node small{color:#bfd3e1!important;opacity:1!important}
+@media(prefers-reduced-motion:reduce){
+  .process-scene-zoom-viewport .ax-full3d-label,
+  .process-universe-3d .process-universe-node{transition:none!important;animation:none!important}
+}
+
+
+/* Moving direction pulse sits on top of the real connector path and does not
+   replace its relationship-specific colour, dash pattern or arrowhead. */
+.ax-manufacturing-edge-pulse{
+  pointer-events:none;
+  filter:drop-shadow(0 0 4px currentColor);
+  opacity:.98;
+}
+@media(prefers-reduced-motion:reduce){
+  .ax-manufacturing-edge-pulse{display:none!important}
+}
+
+
+/* Phase 2 Machine Reliability workspace */
+.machine-maintenance-workspace{display:grid;gap:16px;margin-top:18px}
+.machine-maintenance-selector{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end}
+.machine-maintenance-selector label{display:grid;gap:6px;font-size:12px;color:var(--ax-theme-muted,#64748b)}
+.machine-maintenance-selector select{width:100%;min-width:0;min-height:42px;border:1px solid var(--ax-theme-border,#cbd5e1);border-radius:10px;padding:9px 12px;background:var(--ax-theme-panel,#fff);color:var(--ax-theme-text,#14263a)}
+.machine-availability-chip{display:flex;align-items:center;gap:9px;padding:9px 12px;border:1px solid var(--ax-theme-border,#cbd5e1);border-radius:12px;background:var(--ax-theme-panel,#fff);color:var(--ax-theme-text,#14263a)}
+.machine-availability-chip span{display:grid;gap:2px}
+.machine-availability-chip small{font-size:9px;letter-spacing:.1em;opacity:.68}
+.machine-availability-chip strong{font-size:12px}
+.machine-availability-chip.status-breakdown{border-color:#d56b64;background:color-mix(in srgb,#d56b64 10%,var(--ax-theme-panel,#fff));color:#9b332d}
+.machine-availability-chip.status-under-maintenance,.machine-availability-chip.status-planned-maintenance{border-color:#d3a24d;background:color-mix(in srgb,#d3a24d 12%,var(--ax-theme-panel,#fff));color:#875810}
+.machine-maintenance-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.machine-maintenance-metrics article{display:grid;gap:5px;min-width:0;padding:12px;border:1px solid var(--ax-theme-border,#d5e0e8);border-radius:12px;background:var(--ax-theme-panel,#fff)}
+.machine-maintenance-metrics small{font-size:9px;letter-spacing:.08em;color:var(--ax-theme-muted,#64748b)}
+.machine-maintenance-metrics strong{font-size:22px;color:var(--ax-theme-text,#132b43);font-variant-numeric:tabular-nums}
+.machine-maintenance-metrics .is-warning{border-color:#d3a24d;background:color-mix(in srgb,#d3a24d 8%,var(--ax-theme-panel,#fff))}
+.machine-maintenance-alert{border-color:#d3a24d!important;background:color-mix(in srgb,#d3a24d 8%,var(--ax-theme-panel,#fff))!important;color:var(--ax-theme-text,#14263a)!important}
+.machine-maintenance-tabs{display:flex;flex-wrap:wrap;gap:8px;padding:6px;border:1px solid var(--ax-theme-border,#d5e0e8);border-radius:12px;background:var(--ax-theme-subtle,#f2f6fa)}
+.machine-maintenance-tabs button{display:flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--ax-theme-muted,#64748b);font-weight:650}
+.machine-maintenance-tabs button.is-active{border-color:var(--ax-theme-border,#b9cad8);background:var(--ax-theme-panel,#fff);color:var(--ax-theme-text,#14263a);box-shadow:0 2px 8px rgba(15,35,55,.07)}
+.machine-maintenance-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0}
+.machine-maintenance-section-heading h4{margin:0;color:var(--ax-theme-text,#14263a);font-size:15px}
+.machine-maintenance-section-heading p{margin:4px 0 0;color:var(--ax-theme-muted,#64748b);font-size:11px}
+.machine-maintenance-form{border:1px solid var(--ax-theme-border,#d5e0e8);border-radius:12px;padding:14px;background:var(--ax-theme-subtle,#f6f9fc)}
+.machine-maintenance-overdue{display:inline-block;margin-top:6px;color:#a54632;font-size:10px;font-weight:700}
+.machine-maintenance-footnote{display:flex;align-items:flex-start;gap:8px;padding-top:10px;border-top:1px solid var(--ax-theme-border,#d5e0e8);color:var(--ax-theme-muted,#64748b);font-size:11px}
+@media(max-width:680px){
+ .machine-maintenance-selector{grid-template-columns:1fr}
+ .machine-maintenance-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .machine-maintenance-section-heading{align-items:flex-start;flex-direction:column}
+ .machine-maintenance-tabs button{flex:1;justify-content:center;font-size:11px}
+}
+
+
+/* Keep the reversible test-data action visible on narrow Android screens. */
+.status-ribbon{position:relative;z-index:30;width:100%;box-sizing:border-box;flex-wrap:wrap!important;white-space:normal!important}
+.status-ribbon>span:not(.ribbon-dot):not(.ribbon-separator):not(.ribbon-right){overflow-wrap:anywhere}
+.status-ribbon>button{min-height:32px;padding:6px 10px;border-radius:9px}
+@media(max-width:640px){
+  .status-ribbon{gap:6px;padding:7px 9px;font-size:9px;line-height:1.35}
+  .status-ribbon .ribbon-right{display:none}
+  .status-ribbon>span:not(.ribbon-dot):not(.ribbon-separator):not(.ribbon-right){flex:1 1 145px}
+  .status-ribbon>button{order:5;flex:0 0 auto;max-width:100%}
+}

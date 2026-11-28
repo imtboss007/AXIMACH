@@ -1,9 +1,141 @@
 import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { resolve } from "node:path";
+import { readFileSync } from "node:fs";
 import { chromium } from "playwright";
 
 const baseUrl = "http://127.0.0.1:4173";
+const browserFixture = JSON.parse(readFileSync(resolve("src/single-component-route-demo.json"),"utf8"));
+function makeBrowserManufacturingFixture(){
+  const stamp="2026-11-25T09:00:00.000Z";
+  const companyId=browserFixture.company.id;
+  const poId=browserFixture.purchaseOrder.id;
+  const componentId=browserFixture.component.id;
+  const poLineId=browserFixture.component.poLineId;
+  const factoryId="demo-factory-aster-01";
+  const vendorId=browserFixture.vendors[0].id;
+  const company={
+    id:companyId,name:browserFixture.company.name,gstin:"",contactPerson:"Synthetic fixture",
+    phone:"",email:"",address:"Isolated browser acceptance fixture",notes:"TEST DATA ONLY",
+    createdAt:stamp,updatedAt:stamp
+  };
+  const factory={
+    id:factoryId,companyId,name:"ASTER Prototype Cell",address:"Browser test fixture",
+    contactPhone:"",createdAt:stamp,updatedAt:stamp
+  };
+  const component={
+    id:componentId,companyId,partNumber:browserFixture.component.partNumber,
+    name:browserFixture.component.name,revision:"A",material:browserFixture.component.material,
+    drawingReference:"AST-1001-TEST",notes:"Isolated browser smoke fixture only",
+    salePrice:0,salePriceUnit:"piece",overhead:0,toolingCost:0,reworkCost:0,
+    scrapCost:0,rejectedQty:0,gstRate:0,createdAt:stamp,updatedAt:stamp
+  };
+  const line={
+    id:poLineId,componentId,quantity:browserFixture.component.quantity,
+    targetDelivery:"2026-12-30",unitPrice:0,notes:"Single component acceptance fixture",
+    allocationLevel:"component",jobStatus:"In progress",updatedAt:stamp
+  };
+  const purchaseOrder={
+    id:poId,number:browserFixture.purchaseOrder.number,companyId,factoryId,
+    issueDate:"2026-11-25",targetDelivery:"2026-12-30",status:"Open",
+    notes:"Synthetic browser fixture — not a live purchase order",
+    lines:[line],createdAt:stamp,updatedAt:stamp
+  };
+  const vendor={
+    id:vendorId,company:"ASTER Internal Logistics · Synthetic Fixture",contact:"Synthetic fixture",
+    role:"Browser acceptance fixture",phone:"",whatsappNumber:"",email:"",
+    address:"Not a real supplier",processes:"All fixture manufacturing categories",
+    processDefinitionIds:[],machines:"Fixture only",materials:"Fixture only",
+    notes:"Synthetic browser test record. Do not contact.",status:"Test fixture only",
+    sourceContactId:"",whatsappSyncedAt:"",vendorType:"Synthetic fixture",
+    transportRoutes:[],additionalPhones:[],createdAt:stamp,updatedAt:stamp
+  };
+  const processKey=(row)=>String(row.category||"")+"::"+String(row.processType||row.name||"");
+  const uniqueProcesses=[...new Map(browserFixture.operations.map(row=>[processKey(row),row])).values()];
+  const processDefinitions=uniqueProcesses.map(row=>({
+    id:"demo-process-"+row.id,processType:row.processType||row.name,category:row.category,
+    subcategories:[row.subProcess||"General"],subcategoryIds:[],
+    vendorIds:[vendorId],notes:"Synthetic process definition for browser acceptance only",
+    createdAt:stamp,updatedAt:stamp
+  }));
+  const processIds=new Map(uniqueProcesses.map(row=>[processKey(row),"demo-process-"+row.id]));
+  vendor.processDefinitionIds=processDefinitions.map(row=>row.id);
+  const operations=browserFixture.operations.map(row=>({
+    id:row.id,poId,poLineId,componentId,
+    processDefinitionId:processIds.get(processKey(row)),
+    sequence:row.sequence,name:row.name,category:row.category,
+    machine:row.processType||row.category,vendorId,status:"Planned",
+    plannedStart:"2026-11-26T09:00:00.000Z",plannedEnd:"2026-11-26T17:00:00.000Z",
+    actualStart:"",actualEnd:"",quantity:row.quantity||browserFixture.component.quantity,
+    completed:0,accepted:0,rejected:0,
+    ratePerPart:Number(row.ratePerPartINR||row.rate||0),actualRatePerPart:0,
+    transportVendorId:"",transportPickup:"",transportDelivery:"",transportCost:0,
+    qualityNotes:"",inspectionResult:"",notes:row.subProcess||"",
+    subcategory:row.subProcess||"",executionType:"Internal",
+    toleranceCategory:"Standard",inspectionRequired:["Quality","Metrology"].includes(row.category),
+    branch:row.branch||"Main route",parentId:row.parentId||"",
+    relationType:row.relationType||undefined,costIncluded:row.costIncluded!==false,
+    createdAt:stamp,updatedAt:stamp
+  }));
+  const materials=browserFixture.materials.map(row=>({
+    ...row,grade:row.grade||"",unit:row.unit||"kg",specification:row.specification||"",
+    preferredVendorId:row.preferredVendorId||vendorId,ratePerUnit:Number(row.ratePerUnit||0),
+    notes:row.notes||"",priceUnit:"kg",createdAt:row.createdAt||stamp,updatedAt:stamp
+  }));
+  const bomLines=browserFixture.bomLines.map(row=>({
+    ...row,revision:row.revision||"A",unit:row.unit||"kg",
+    scrapPercent:Number(row.scrapPercent||0),notes:row.notes||"",
+    createdAt:row.createdAt||stamp,updatedAt:stamp
+  }));
+  const materialProcessLinks=browserFixture.materialProcessLinks.map(row=>({
+    ...row,createdAt:row.createdAt||stamp,updatedAt:stamp
+  }));
+  const transportRoutes=browserFixture.transportRoutes.map(row=>({
+    ...row,currency:"INR",active:row.active!==false,createdAt:row.createdAt||stamp,updatedAt:stamp
+  }));
+  const transportLegs=browserFixture.transportLegs.map(row=>({
+    ...row,status:row.status||"Planned",notes:row.notes||"",
+    createdAt:row.createdAt||stamp,updatedAt:stamp
+  }));
+  const operationIds=new Set(operations.map(row=>row.id));
+  const supported=["main","alternate","rework","dependency","parallel","merge","split","follow-on","feedback","conditional","successor"];
+  const routeRelationships=browserFixture.edges
+    .filter(edge=>operationIds.has(edge.source)&&operationIds.has(edge.target)&&supported.includes(edge.type))
+    .map(edge=>({
+      id:edge.id,poId,poLineId,componentId,fromOperationId:edge.source,toOperationId:edge.target,
+      relationshipType:edge.type,status:edge.type==="rework"||edge.type==="conditional"?"Conditional":"Active",
+      condition:"",label:edge.type.toUpperCase(),notes:edge.label||"Fixture route relationship",
+      createdAt:stamp,updatedAt:stamp
+    }));
+  const existingTypes=new Set(routeRelationships.map(row=>row.relationshipType));
+  for(const [type,from,to] of [
+    ["parallel","op-002","op-004"],["split","op-007","op-009"]
+  ]){
+    if(!existingTypes.has(type))routeRelationships.push({
+      id:"demo-route-"+type,poId,poLineId,componentId,fromOperationId:from,toOperationId:to,
+      relationshipType:type,status:"Active",condition:"",label:type.toUpperCase(),
+      notes:"Single-component browser graph relationship fixture",createdAt:stamp,updatedAt:stamp
+    });
+  }
+  const inspectionMeasurements=operations
+    .filter(row=>["Quality","Metrology"].includes(row.category))
+    .map(row=>({
+      id:"demo-inspection-"+row.id,operationId:row.id,poId,poLineId,componentId,
+      characteristic:row.name,nominalValue:null,lowerLimit:null,upperLimit:null,
+      measuredValue:0,unit:"",result:"Not assessed",notes:"Synthetic browser fixture",
+      inspectedAt:"",createdAt:stamp,updatedAt:stamp
+    }));
+  return {
+    updatedAt:stamp,companies:[company],customers:[],prospects:[],factories:[factory],
+    purchaseOrders:[purchaseOrder],components:[component],vendors:[vendor],operations,quotations:[],
+    materials,componentParts:[],materialCostEntries:[],bomLines,materialProcessLinks,
+    inventoryTransactions:[],contactProfiles:[],processDefinitions,plannedCosts:[],
+    transportRoutes,transportLegs,paymentTransactions:[],inspectionMeasurements,
+    supplierInvoices:[],supplierPayments:[],supplierFinanceApprovals:[],
+    supplierPaymentAllocations:[],routeRelationships,followUpAssignments:[]
+  };
+}
+
 const preview = spawn(process.execPath, [
   resolve("node_modules/vite/bin/vite.js"), "preview",
   "--host", "127.0.0.1", "--port", "4173", "--strictPort"
@@ -25,6 +157,14 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   const pageErrors = [];
   page.on("pageerror", error => pageErrors.push(error.message));
+  const browserManufacturingFixture=makeBrowserManufacturingFixture();
+  await page.addInitScript(({key,value})=>{
+    // Seed only a fresh browser context. A reload must read the app's saved
+    // manufacturing records rather than overwrite them with the initial fixture.
+    if(localStorage.getItem(key)===null)localStorage.setItem(key,JSON.stringify(value));
+  },{
+    key:"aximach.manufacturingData.v1",value:browserManufacturingFixture
+  });
 
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await page.getByRole("navigation", { name: "AXIMACH navigation" }).waitFor();
@@ -172,13 +312,7 @@ try {
     throw new Error("Data Exchange Centre typography lacks contrast/readability in light mode: "+JSON.stringify(dataExchangeTypography));
   }
   console.log("PASS Data Exchange Centre headings, sandbox copy and supporting text meet light-theme contrast checks");
-  await page.getByRole("button", { name: "Import Demo Factory" }).waitFor({ timeout: 10000 });
-  page.once("dialog", dialog => dialog.accept());
-  await page.getByRole("button", { name: "Import Demo Factory" }).click();
-  await page.locator(".demo-pill").filter({ hasText: "DEMO LOADED" }).waitFor({ timeout: 10000 });
-  // The selected company, PO line and visible process labels below are the
-  // authoritative proof that this import supplied usable manufacturing records.
-  console.log("PASS isolated Demo Factory fixture loaded for populated Process Map visual checks");
+  console.log("PASS Data Exchange Centre no longer exposes the retired two-company demo importer");
 
   // Verify shared searchable menus remain visible when their anchor sits near the
   // bottom edge of a phone workspace instead of being clipped by page-content.
@@ -362,6 +496,25 @@ try {
   if (routePortraitGeometry.documentWidth > routePortraitGeometry.viewportWidth + 1 || routePortraitGeometry.pageLeft > 1 || routePortraitGeometry.canvasLeft < 0 || routePortraitGeometry.canvasRight > routePortraitGeometry.viewportWidth + 1 || routePortraitGeometry.canvasWidth < 250) {
     throw new Error("Route Flow does not fit portrait width: " + JSON.stringify(routePortraitGeometry));
   }
+  // The isolated synthetic preview belongs in Transport Directory, never in
+  // the live Manufacturing Universe. Verify it on the phone from its labelled launcher.
+  await mobilePage.getByRole("button",{name:"Open navigation menu"}).click();
+  await mobileNavigation.locator('button[title="Transport Directory"]').click();
+  await mobilePage.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Transport Directory",undefined,{timeout:10000});
+  await mobilePage.getByRole("button",{name:"Preview multi-route demo"}).click();
+  const oneComponentGraph=mobilePage.locator('[data-testid="single-component-route-graph"]');
+  await oneComponentGraph.waitFor({state:"visible",timeout:10000});
+  const oneComponentMetrics=await oneComponentGraph.evaluate(element=>({
+    nodes:element.querySelectorAll(".react-flow__node").length,
+    edges:element.querySelectorAll(".react-flow__edge").length,
+    width:element.getBoundingClientRect().width,
+    height:element.getBoundingClientRect().height
+  }));
+  if(oneComponentMetrics.nodes<49||oneComponentMetrics.edges<58||oneComponentMetrics.width<250||oneComponentMetrics.height<300){
+    throw new Error("Single-component manufacturing graph is incomplete or clipped on mobile: "+JSON.stringify(oneComponentMetrics));
+  }
+  console.log("PASS mobile one-company / one-PO / one-component graph contains all 49 nodes and 58 directional relationships");
+
   // Inspect the shared mobile shell on every business workspace, not only
   // the two immersive canvases. Header actions and the floating follow-up dock
   // must remain separated and inside the phone viewport on all 22 modules.
@@ -544,12 +697,12 @@ try {
   const routeGraphToggle = page.getByRole("button", { name: "Stage cards" });
   await routeGraphToggle.waitFor({ timeout: 10000 });
   const routeScopeSelects = page.locator(".route-flow-scope-bar select");
-  await routeScopeSelects.nth(0).selectOption({ label: "ASTER MOTION COMPONENTS PVT LTD" });
+  await routeScopeSelects.nth(0).selectOption({ label: "ASTER Precision Works" });
   await page.waitForFunction(() => {
     const select = document.querySelectorAll(".route-flow-scope-bar select")[1];
     return Boolean(select && select.options.length > 1);
   }, null, { timeout: 10000 });
-  await routeScopeSelects.nth(1).selectOption({ label: "DEMO-PO-001" });
+  await routeScopeSelects.nth(1).selectOption({ label: "ASTER-DEMO-PO-001" });
   await page.waitForFunction(() => {
     const select = document.querySelectorAll(".route-flow-scope-bar select")[2];
     return Boolean(select && select.options.length > 1);
@@ -580,6 +733,45 @@ try {
   for (const label of ["MAIN","ALTERNATE","REWORK","DEPENDENCY","PARALLEL","MERGE","SPLIT","FOLLOW-ON","FEEDBACK","CONDITIONAL","SUCCESSOR"]) {
     if (!routeEdgeLabels.includes(label)) throw new Error("Route Flow graph did not display relationship label "+label+": "+routeEdgeLabels);
   }
+  // Reflow the populated interactive graph at Android phone width. This
+  // checks the graph itself (not only the surrounding workspace shell).
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(350);
+  const phoneRouteGraph = await page.evaluate(() => {
+    const canvas=document.querySelector(".route-flow-graph-canvas");
+    const layer=document.querySelector(".route-flow-shared-graph-layer");
+    const rect=element=>{const box=element?.getBoundingClientRect();return box?{left:box.left,top:box.top,right:box.right,bottom:box.bottom,width:box.width,height:box.height}:null;};
+    const canvasRect=rect(canvas),layerRect=rect(layer);
+    const nodes=[...document.querySelectorAll(".route-flow-graph-canvas .react-flow__node")].map(node=>({
+      rect:rect(node),text:(node.textContent||"").trim()
+    }));
+    const visibleNodes=nodes.filter(node=>node.rect&&canvasRect&&node.rect.right>canvasRect.left&&node.rect.left<canvasRect.right&&node.rect.bottom>canvasRect.top&&node.rect.top<canvasRect.bottom);
+    const reset=canvas?.querySelector(".route-flow-graph-toolbar button");
+    return {
+      viewportWidth:document.documentElement.clientWidth,
+      documentWidth:document.documentElement.scrollWidth,
+      canvas:canvasRect,layer:layerRect,nodeCount:nodes.length,
+      measuredNodes:nodes.filter(node=>node.rect&&node.rect.width>0&&node.rect.height>0&&node.text).length,
+      visibleNodes:visibleNodes.length,
+      edgeCount:document.querySelectorAll(".route-flow-graph-canvas .react-flow__edge").length,
+      resetPointerEvents:reset?getComputedStyle(reset).pointerEvents:"missing"
+    };
+  });
+  if (phoneRouteGraph.documentWidth>phoneRouteGraph.viewportWidth+1 ||
+      !phoneRouteGraph.canvas || phoneRouteGraph.canvas.left<0 ||
+      phoneRouteGraph.canvas.right>phoneRouteGraph.viewportWidth+1 ||
+      phoneRouteGraph.canvas.width<280 || !phoneRouteGraph.layer ||
+      phoneRouteGraph.layer.width<phoneRouteGraph.canvas.width-2 ||
+      phoneRouteGraph.nodeCount<20 || phoneRouteGraph.measuredNodes!==phoneRouteGraph.nodeCount ||
+      phoneRouteGraph.visibleNodes<1 || phoneRouteGraph.edgeCount<11 ||
+      phoneRouteGraph.resetPointerEvents!=="auto") {
+    throw new Error("Populated Route Flow graph is clipped or unusable at 390×844: "+JSON.stringify(phoneRouteGraph));
+  }
+  await page.locator(".route-flow-graph-toolbar button").filter({hasText:"Reset node layout"}).click();
+  await page.locator(".notice-banner").filter({hasText:"node positions reset"}).waitFor({timeout:5000});
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.waitForTimeout(200);
+  console.log("PASS populated Route Flow graph, nodes, edges and reset control at 390×844 phone width");
   const routeTitleColor = await page.locator(".route-flow-workspace-head h1").first().evaluate(element => getComputedStyle(element).color);
   const routeTitleRgb = routeTitleColor.match(/\d+/g)?.map(Number) || [];
   if (routeTitleRgb.length < 3 || routeTitleRgb.every(channel => channel > 210)) {
@@ -590,16 +782,72 @@ try {
   await page.getByRole("button", { name: "Interactive graph" }).click();
   await page.getByRole("button", { name: "Stage cards" }).waitFor({ timeout: 10000 });
   console.log("PASS Route Flow graph-first view, stage-card toggle and readable heading contrast");
+
+  // The icon-led picker must expose every canonical transport category and
+  // render a distinct SVG icon for each option at desktop and phone widths.
+  await page.locator(".route-flow-canvas-tools button").filter({ hasText: "Add transport leg" }).click();
+  const vehicleTypePicker = page.locator("#route-flow-vehicle-type");
+  await vehicleTypePicker.waitFor({ timeout: 10000 });
+  await vehicleTypePicker.focus();
+  await page.waitForFunction(() => document.querySelectorAll(".vehicle-type-picker-menu [role='option']").length >= 21, null, { timeout: 5000 });
+  const vehicleOptions = page.locator(".vehicle-type-picker-menu [role='option']");
+  const vehicleLabels = await vehicleOptions.locator(".vehicle-type-picker-option-label").allTextContents();
+  const requiredVehicleTypes = [
+    "2-wheeler / Bike", "Motorcycle", "Scooter", "3-wheeler / Auto rickshaw",
+    "Tempo / 3-wheeler goods carrier", "Heavy-duty tempo", "4-wheeler / Car", "Car / Taxi",
+    "Light commercial vehicle / Van", "Mini truck", "Pickup truck", "Lorry / goods truck",
+    "Heavy lorry", "Heavy truck", "Container truck", "Trailer / tractor", "Bus / staff vehicle",
+    "Courier / delivery van", "Air freight", "Ship / marine", "Rail / train"
+  ];
+  if (requiredVehicleTypes.some(type => !vehicleLabels.includes(type))) {
+    throw new Error("Vehicle picker is missing one or more of the 21 canonical transport types: " + vehicleLabels.join(" | "));
+  }
+  const vehicleIconCount = await page.locator(".vehicle-type-picker-menu .vehicle-type-picker-option-icon svg").count();
+  if (vehicleIconCount < 21) throw new Error("Every canonical transport category must display its own SVG vehicle icon; found " + vehicleIconCount);
+  await vehicleTypePicker.fill("Heavy-duty tempo");
+  await vehicleTypePicker.press("Enter");
+  if (await vehicleTypePicker.inputValue() !== "Heavy-duty tempo") {
+    throw new Error("Keyboard selection of Heavy-duty tempo did not update the Route Flow vehicle type.");
+  }
+  await page.locator(".route-flow-editor-title button.close-round").evaluate(element => element.click());
+  console.log("PASS Route Flow vehicle picker: all 21 categories, 21 icons, searchable keyboard selection");
+
+  // The ASTER example must be imported into normal company / PO / component
+  // selectors and rendered by the live Route Flow graph, not an isolated demo.
+  // The immersive command rail is fixed to the viewport bottom. Reset scroll
+  // before activating the global ribbon so the rail cannot intercept the click.
+  await page.evaluate(() => { window.scrollTo(0, 0); const content=document.querySelector("main.page-content"); if(content) content.scrollTop=0; });
+  await page.waitForTimeout(100);
+  await page.getByRole("button", { name: /Load full demo/ }).click();
+  const asterExampleScopeSelects = page.locator(".route-flow-scope-bar select");
+  await page.waitForFunction(() => {
+    const selects = [...document.querySelectorAll(".route-flow-scope-bar select")];
+    return selects.length >= 3
+      && selects[0].value === "ASTER-EXAMPLE-COMPANY"
+      && selects[1].value === "ASTER-EXAMPLE-PO"
+      && selects[2].value === "ASTER-EXAMPLE-PO-LINE";
+  }, null, { timeout: 10000 });
+  const asterExampleRouteStats = await page.locator(".route-flow-scope-stats").innerText();
+  if (!asterExampleRouteStats.includes("10") || !asterExampleRouteStats.includes("TRANSPORT LEGS")) {
+    throw new Error("ASTER live import did not populate all 10 transport legs in the normal Route Flow scope: " + asterExampleRouteStats);
+  }
+  const asterExampleScopeValues = await asterExampleScopeSelects.evaluateAll(selects => selects.slice(0, 3).map(select => select.value));
+  if (asterExampleScopeValues.join("|") !== "ASTER-EXAMPLE-COMPANY|ASTER-EXAMPLE-PO|ASTER-EXAMPLE-PO-LINE") {
+    throw new Error("ASTER example did not appear in the regular company, PO and component selectors: " + asterExampleScopeValues.join("|"));
+  }
+  console.log("PASS ASTER example live import: normal company / PO / component selectors selected; 10 transport legs visible");
+
+
   await page.getByRole("button", { name: "Open Process Plan" }).click();
   await page.locator(".linked-process-page > .workspace-title-row h1").waitFor({ timeout: 10000 });
 
   // Select a real synthetic PO line with five or more operation labels, material and transport.
   const companyPicker = page.getByRole("combobox", { name: "Company" });
-  await companyPicker.fill("ASTER MOTION COMPONENTS");
-  await page.getByRole("option", { name: /ASTER MOTION COMPONENTS PVT LTD/ }).click();
+  await companyPicker.fill("ASTER Precision Works");
+  await page.getByRole("option", { name: /ASTER Precision Works Selected/ }).click();
   const poPicker = page.getByRole("combobox", { name: "Purchase order" });
-  await poPicker.fill("DEMO-PO-001");
-  await page.getByRole("option", { name: /DEMO-PO-001/ }).click();
+  await poPicker.fill("ASTER-DEMO-PO-001");
+  await page.getByRole("option", { name: /ASTER-DEMO-PO-001/ }).click();
   const linePicker = page.getByRole("combobox", { name: "PO component line" });
   await linePicker.fill("AST-1001");
   await page.getByRole("option", { name: /AST-1001/ }).click();
@@ -790,8 +1038,10 @@ try {
     throw new Error("Manufacturing Universe React Flow canvas is missing its AXIMACH graph hub.");
   }
   console.log("PASS Manufacturing Universe React Flow canvas, viewport controls and minimap");
-  if (await page.locator(".ax-ecosystem-filters button").count() !== 13) {
-    throw new Error("Manufacturing ecosystem graph does not expose all 12 entity filters.");
+  const ecosystemFilterLabels=await page.locator(".ax-ecosystem-filters button").allTextContents();
+  const requiredEcosystemFilters=["Companies","Customers","Factories","Machines & equipment","Maintenance plans & work orders","Machine downtime","Tooling & cutting assets","Jigs, fixtures & workholding","Tool / fixture usage history","Purchase orders","Components","Vendors","Process definitions","Operations","Materials & allocations","Quality inspections","Transport & dispatch","Payments","Contacts"];
+  if(ecosystemFilterLabels.length!==requiredEcosystemFilters.length||requiredEcosystemFilters.some(label=>!ecosystemFilterLabels.some(actual=>actual.includes(label)))){
+    throw new Error("Manufacturing Universe must expose all 19 entity filters, including tooling, fixtures and resource history. Found: "+ecosystemFilterLabels.join(" | "));
   }
   const sampleNote = await page.locator(".ax-ecosystem-sample-note").innerText();
   if (!sampleNote.includes("All records in visible groups are shown by default") ||
@@ -833,11 +1083,11 @@ try {
     throw new Error("Manufacturing ecosystem entity filter did not toggle off.");
   }
   await companiesFilter.click();
-  await page.getByRole("button", { name: /PO route/i }).click();
+  await page.getByRole("button", { name: /Animated 3D Route/i }).click();
   if (await page.locator(".manufacturing-universe-empty").count() !== 1 && await page.locator(".process-universe-3d").count() !== 1) {
     throw new Error("Manufacturing Universe did not preserve its PO route scene.");
   }
-  await page.getByRole("button", { name: /Ecosystem/i }).click();
+  await page.getByRole("button", { name: /Manufacturing Graph/i }).click();
   await page.locator(".ax-ecosystem-graph").waitFor();
   console.log("PASS Manufacturing Universe ecosystem graph, 12 filters and preserved PO route view");
 
@@ -908,6 +1158,138 @@ try {
   await page.waitForFunction(() => document.documentElement.dataset.theme === "dark" &&
     getComputedStyle(document.documentElement).getPropertyValue("--ax-theme-accent").trim().toLowerCase() === "#123456");
   console.log("PASS custom HEX theme applies and persists across a renderer reload");
+  // Exercise the complete shared ASTER demo lifecycle in the isolated browser
+  // fixture: load (covered above), archive through the visible ribbon, reload,
+  // and prove every pre-existing non-demo record and PO line remains present.
+  const baselineNonDemoIds = await page.evaluate(() => {
+    const data = JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}");
+    const prefix = "ASTER-EXAMPLE-";
+    const ids = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (!Array.isArray(value)) continue;
+      ids[key] = value
+        .filter(row => row && typeof row === "object" && !String(row.id || "").startsWith(prefix))
+        .map(row => String(row.id || ""))
+        .filter(Boolean)
+        .sort();
+    }
+    ids.purchaseOrderLines = (data.purchaseOrders || [])
+      .flatMap(po => po.lines || [])
+      .filter(line => !String(line.id || "").startsWith(prefix))
+      .map(line => String(line.id || ""))
+      .filter(Boolean)
+      .sort();
+    return ids;
+  });
+  if (!Object.values(baselineNonDemoIds).some(ids => ids.length > 0)) {
+    throw new Error("Browser removal acceptance fixture did not contain any pre-existing non-demo records.");
+  }
+
+  await page.evaluate(() => {
+    window.scrollTo(0, 0);
+    const content = document.querySelector("main.page-content");
+    if (content) content.scrollTop = 0;
+  });
+  const removeDemoButton = page.getByRole("button", { name: "Remove test data", exact: true });
+  await removeDemoButton.waitFor({ state: "visible", timeout: 10000 });
+  let removalConfirmation = "";
+  page.once("dialog", async dialog => {
+    removalConfirmation = dialog.message();
+    await dialog.accept();
+  });
+  await removeDemoButton.click();
+  await page.waitForFunction(() => {
+    const ribbon = document.querySelector(".status-ribbon");
+    const data = JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}");
+    const rows = Object.entries(data)
+      .filter(([, value]) => Array.isArray(value))
+      .flatMap(([, value]) => value)
+      .filter(row => row && typeof row === "object" && String(row.id || "").startsWith("ASTER-EXAMPLE-"));
+    const active = rows.filter(row => !row.deletedAt);
+    const lines = (data.purchaseOrders || []).flatMap(po => po.lines || [])
+      .filter(line => String(line.id || "").startsWith("ASTER-EXAMPLE-"));
+    return Boolean(ribbon?.textContent?.includes("No shared example loaded"))
+      && active.length === 0
+      && rows.length > 0
+      && [...rows, ...lines].every(row => Boolean(row.deletedAt));
+  }, null, { timeout: 10000 });
+  if (!removalConfirmation.includes("Only ASTER-EXAMPLE records will be archived")) {
+    throw new Error("The shared demo removal did not present the expected namespaced-data-only confirmation.");
+  }
+
+  const afterRemoval = await page.evaluate(() => {
+    const data = JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}");
+    const prefix = "ASTER-EXAMPLE-";
+    const ids = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (!Array.isArray(value)) continue;
+      ids[key] = value
+        .filter(row => row && typeof row === "object" && !String(row.id || "").startsWith(prefix))
+        .map(row => String(row.id || ""))
+        .filter(Boolean)
+        .sort();
+    }
+    ids.purchaseOrderLines = (data.purchaseOrders || [])
+      .flatMap(po => po.lines || [])
+      .filter(line => !String(line.id || "").startsWith(prefix))
+      .map(line => String(line.id || ""))
+      .filter(Boolean)
+      .sort();
+    const rows = Object.entries(data)
+      .filter(([, value]) => Array.isArray(value))
+      .flatMap(([, value]) => value)
+      .filter(row => row && typeof row === "object" && String(row.id || "").startsWith(prefix));
+    const lines = (data.purchaseOrders || []).flatMap(po => po.lines || [])
+      .filter(line => String(line.id || "").startsWith(prefix));
+    return {
+      ids,
+      archivedCount: [...rows, ...lines].filter(row => Boolean(row.deletedAt)).length,
+      activeCount: [...rows, ...lines].filter(row => !row.deletedAt).length
+    };
+  });
+  if (JSON.stringify(afterRemoval.ids) !== JSON.stringify(baselineNonDemoIds)) {
+    throw new Error("Removing the ASTER example changed or removed pre-existing non-demo record IDs.");
+  }
+  if (afterRemoval.archivedCount === 0 || afterRemoval.activeCount !== 0) {
+    throw new Error("The ASTER example was not fully archived: " + JSON.stringify({ archivedCount: afterRemoval.archivedCount, activeCount: afterRemoval.activeCount }));
+  }
+
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForFunction(() => {
+    const ribbon = document.querySelector(".status-ribbon");
+    const data = JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}");
+    const rows = Object.entries(data)
+      .filter(([, value]) => Array.isArray(value))
+      .flatMap(([, value]) => value)
+      .filter(row => row && typeof row === "object" && String(row.id || "").startsWith("ASTER-EXAMPLE-"));
+    return Boolean(ribbon?.textContent?.includes("No shared example loaded"))
+      && rows.length > 0
+      && rows.every(row => Boolean(row.deletedAt));
+  }, null, { timeout: 10000 });
+  const idsAfterReload = await page.evaluate(() => {
+    const data = JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}");
+    const prefix = "ASTER-EXAMPLE-";
+    const ids = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (!Array.isArray(value)) continue;
+      ids[key] = value
+        .filter(row => row && typeof row === "object" && !String(row.id || "").startsWith(prefix))
+        .map(row => String(row.id || ""))
+        .filter(Boolean)
+        .sort();
+    }
+    ids.purchaseOrderLines = (data.purchaseOrders || [])
+      .flatMap(po => po.lines || [])
+      .filter(line => !String(line.id || "").startsWith(prefix))
+      .map(line => String(line.id || ""))
+      .filter(Boolean)
+      .sort();
+    return ids;
+  });
+  if (JSON.stringify(idsAfterReload) !== JSON.stringify(baselineNonDemoIds)) {
+    throw new Error("Pre-existing non-demo records did not remain unchanged after reloading the archived demo state.");
+  }
+  console.log("PASS ASTER demo lifecycle: load, explicit archive, namespaced-row verification, non-demo record retention and reload persistence");
   if (pageErrors.length) throw new Error("Browser runtime errors: " + pageErrors.join(" | "));
   console.log("PASS responsive mobile navigation and Purchase Orders workspace");
   console.log("PASS browser smoke: 22 module routes, Company/Factory tabs, module explorer, global search, desktop and mobile navigation, no renderer page errors");

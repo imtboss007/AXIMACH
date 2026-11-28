@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { Handle, MarkerType, Position } from "@xyflow/react";
 import type { Edge, Node, NodeProps, NodeTypes } from "@xyflow/react";
 import "@xyflow/react/style.css";
-import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Maximize2, Minimize2, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Bike, Bus, CarFront, Plane, Ship, TrainFront, Users, Workflow, Wrench, X, Trash2 } from "lucide-react";
+import { Activity, ArrowDown, ArrowRight, ArrowUp, Boxes, CalendarClock, Check, CircleDollarSign, ClipboardCheck, FileText, FileDown, Maximize2, Minimize2, Printer, GitBranch, Package, Plus, Search, ShieldAlert, ShieldCheck, Truck, Users, Workflow, Wrench, X, Trash2 } from "lucide-react";
 import { activeRows, makeId, nowIso, useManufacturingData, type ComponentTransportLegRecord, type LifecycleStatus, type MaterialCostEntryRecord, type MaterialProcessLinkRecord, type MaterialRecord, type OperationRecord, type ProcessDefinitionRecord, type PurchaseOrderLine, type TransportRouteRecord } from "./manufacturingData";
 import { getProductionRouteMetrics, getRequiredRouteOperations, inheritsRouteInclusion } from "./productionRouteMetrics.mjs";
 import SearchablePicker from "./SearchablePicker";
@@ -14,11 +14,18 @@ import TransportRecordInspector from "./TransportRecordInspector";
 import MaterialTransportRecordInspector from "./MaterialTransportRecordInspector";
 import { transportPopupAnchor, transportPopupAnchorFromPoint } from "./transportPopup";
 import { RouteLayoutPicker, RouteConnectorLegend as RouteLayoutConnectorLegend, useRouteLayout } from "./RouteLayoutPicker";
+import { buildRouteFlowOperationPositions } from "./routeFlowLayout.js";
 import { MaterialFlowMarker } from "./MaterialFlowMarker";
 import { RouteConnectorLegend as MaterialRouteConnectorLegend } from "./RouteConnectorLegend";
 import { ManufacturingGraphCanvas } from "./ManufacturingGraphCanvas";
-import { manufacturingGraphEdgeKey, routeRelationshipHandles } from "./manufacturingGraphLayout.mjs";
+import { manufacturingGraphEdgeKey, routeRelationshipEdgeGeometry } from "./manufacturingGraphLayout.mjs";
 import TransportRoutingDemo from "./TransportRoutingDemo";
+import { VehicleIcon as VehicleTypeIcon, getVehicleVisual, VEHICLE_TYPES } from "./TransportVehicle";
+import VehicleTypePicker from "./VehicleTypePicker";
+import { resolveProcessColor } from "./processPalette";
+import { getEligibleMachineAssets, validateMachineAssignment } from "./machineCapabilities.mjs";
+import { getMachineAvailability, validateMachineSchedule } from "./machineMaintenance.mjs";
+import { getEligibleToolingAssets, getEligibleFixtureAssets, validateOperationResourceAssignments } from "./manufacturingResourceCompatibility.mjs";
 
 type LinkedNavigationContext = { companyId?: string; poId?: string; poLineId?: string; componentId?: string; operationId?: string; vendorId?: string; routeId?: string; subtab?: string };
 type Props = { initialContext?: LinkedNavigationContext; onBack: () => void; onNotice: (value: string) => void; notice: string; onSelectModule: (id: string, context?: LinkedNavigationContext) => void; onOpenIconStudio?: (processDefinitionId?: string) => void; onScheduleVendor?: (vendorId:string, operationId:string, processName:string) => void };
@@ -31,13 +38,13 @@ type ProcessMapGraphNodeData = {title:string;detail:string;kind:string;accent:st
 type ProcessMapGraphNode = Node<ProcessMapGraphNodeData,"processMapEntity">;
 function ProcessMapGraphCard({data}:NodeProps<ProcessMapGraphNode>) {
   const isTransport=data.kind.includes("TRANSPORT");
-  const VehicleIcon=isTransport?transportVehicleIcon(data.vehicleType||"truck"):undefined;
+  const vehicleType=data.vehicleType||"truck";
   return <article className={"process-map-graph-card"+(isTransport?" is-transport":"")} style={{"--process-map-accent":data.accent} as CSSProperties}>
     <Handle id="target-left" type="target" position={Position.Left}/>
     <Handle id="target-right" type="target" position={Position.Right}/>
     <Handle id="target-top" type="target" position={Position.Top}/>
     <Handle id="target-bottom" type="target" position={Position.Bottom}/>
-    <div className="process-map-graph-card-heading"><span>{VehicleIcon?<VehicleIcon size={15}/>:data.kind.includes("MATERIAL")?<Package size={15}/>:<Workflow size={15}/>}</span><span>{data.kind}</span></div>
+    <div className="process-map-graph-card-heading"><span>{isTransport?<VehicleTypeIcon vehicleType={vehicleType} size={15}/>:data.kind.includes("MATERIAL")?<Package size={15}/>:<Workflow size={15}/>}</span><span>{data.kind}</span></div>
     <strong title={data.title}>{data.title}</strong><small title={data.detail}>{data.detail}</small>
     {data.status&&<em>{data.status}</em>}
     {data.actionLabel&&data.onAction&&<button type="button" className="nodrag" onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();data.onAction?.();}}>{data.actionLabel}</button>}
@@ -79,7 +86,7 @@ const PROCESS_CARD_FIELDS: Array<{key:ProcessCardField;label:string}> = [
 ];
 const REQUIRED_PROCESS_CARD_FIELDS: ProcessCardField[] = ["category","subcategory","quantity","plannedStart","plannedEnd","vendor","amount"];
 type TransportRouteOption = TransportRouteRecord & { legacy?: boolean; sourceRouteId?: string };
-type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "transportFrom" | "transportTo" | "transportVehicleType" | "transportRouteId" | "transportTripDirection" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch"> & { paymentStatus:"Paid"|"Unpaid"; paidAmount:number; paymentReference:string; subcategory:string; executionType:"Internal"|"Outsourced"; toleranceCategory:"Standard"|"Precision"|"Close"|"Ultra Precision"; inspectionRequired:boolean; processCostTotal:number; parentId?:string; relationType?:"subprocess"|"alternate"|"rework"; costIncluded:boolean; processDefinitionId?: string; processSubcategoryId:string; processColor?: string };
+type DraftOperation = Pick<OperationRecord, "name" | "category" | "machine" | "machineId" | "toolingAssetIds" | "fixtureAssetIds" | "vendorId" | "status" | "plannedStart" | "plannedEnd" | "actualStart" | "actualEnd" | "transportVendorId" | "transportFrom" | "transportTo" | "transportVehicleType" | "transportRouteId" | "transportTripDirection" | "quantity" | "completed" | "accepted" | "rejected" | "ratePerPart" | "actualRatePerPart" | "inspectionResult" | "transportCost" | "transportPickup" | "transportDelivery" | "qualityNotes" | "notes" | "branch"> & { paymentStatus:"Paid"|"Unpaid"; paidAmount:number; paymentReference:string; subcategory:string; executionType:"Internal"|"Outsourced"; toleranceCategory:"Standard"|"Precision"|"Close"|"Ultra Precision"; inspectionRequired:boolean; processCostTotal:number; parentId?:string; relationType?:"subprocess"|"alternate"|"rework"; costIncluded:boolean; processDefinitionId?: string; processSubcategoryId:string; processColor?: string };
 const processSubcategoryIdFor = (definition: ProcessDefinitionRecord | undefined, subcategory: string) => {
   const index = definition?.subcategories.indexOf(subcategory) ?? -1;
   if (!definition || index < 0) return "";
@@ -98,13 +105,12 @@ const resolveProcessDefinition = (
   return matches.length === 1 ? matches[0] : undefined;
 };
 const blankOperation = (line?: PurchaseOrderLine): DraftOperation => ({
-  processDefinitionId: "", name: "", category: "", machine: "", vendorId: "", status: "Planned", executionType:"Outsourced", toleranceCategory:"Standard", inspectionRequired:false, plannedStart: "", plannedEnd: line?.targetDelivery ? (line.targetDelivery.includes("T")?line.targetDelivery:line.targetDelivery+"T08:00") : "", actualStart: "", actualEnd: "",
+  processDefinitionId: "", name: "", category: "", machine: "", machineId: "", toolingAssetIds: [], fixtureAssetIds: [], vendorId: "", status: "Planned", executionType:"Outsourced", toleranceCategory:"Standard", inspectionRequired:false, plannedStart: "", plannedEnd: line?.targetDelivery ? (line.targetDelivery.includes("T")?line.targetDelivery:line.targetDelivery+"T08:00") : "", actualStart: "", actualEnd: "",
   quantity: line?.quantity || 0, completed: 0, accepted: 0, rejected: 0, ratePerPart: 0, actualRatePerPart: 0, processCostTotal: 0, paymentStatus:"Unpaid", paidAmount:0, paymentReference:"", subcategory:"", processSubcategoryId:"",
   transportVendorId: "", transportFrom:"", transportTo:"", transportVehicleType:"", transportRouteId:"", transportTripDirection:"One-way", transportCost: 0, transportPickup: "", transportDelivery: "", qualityNotes: "", inspectionResult: "", notes: "", branch: "Main route", costIncluded: true, processColor: DEFAULT_PROCESS_COLOR
 });
 const money = (value: number) => "₹" + (Number(value) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
-const transportVehicleTone=(value:string)=>{const type=(value||"").toLowerCase();if(/bike|motorcycle|scooter|two.wheeler/.test(type))return "bike";if(/bus/.test(type))return "bus";if(/car|taxi|auto|three.wheeler/.test(type))return "car";if(/air|plane|flight/.test(type))return "air";if(/ship|boat|vessel/.test(type))return "ship";if(/train|rail/.test(type))return "rail";return "truck";};
-const transportVehicleIcon=(value:string)=>{const tone=transportVehicleTone(value);return tone==="bike"?Bike:tone==="bus"?Bus:tone==="car"?CarFront:tone==="air"?Plane:tone==="ship"?Ship:tone==="rail"?TrainFront:Truck;};
+const transportVehicleTone=(value:string)=>getVehicleVisual(value).className;
 const dateValue = (value: string) => new Date(value.includes("T") ? value : value + "T12:00:00");
 const dateTimeInput = (value?: string) => {
   if (!value) return "";
@@ -128,6 +134,9 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const vendors = activeRows(data.vendors);
   const operations = activeRows(data.operations);
   const processDefinitions = activeRows(data.processDefinitions);
+  const machines = activeRows(data.machines || []);
+  const maintenanceWorkOrders = activeRows(data.maintenanceWorkOrders || []);
+  const machineDowntime = activeRows(data.machineDowntime || []);
   const transportRoutes = activeRows(data.transportRoutes || []);
   const allTransportLegs = activeRows(data.transportLegs || []);
   const allMaterialCostEntries = activeRows(data.materialCostEntries || []);
@@ -168,12 +177,19 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const [newTransportVendorId, setNewTransportVendorId] = useState("");
   const [newTransportFrom, setNewTransportFrom] = useState("");
   const [newTransportTo, setNewTransportTo] = useState("");
-  const [newTransportVehicle, setNewTransportVehicle] = useState("4-wheeler");
+  const [newTransportVehicle, setNewTransportVehicle] = useState("4-wheeler / Car");
   const [newTransportDirection, setNewTransportDirection] = useState<"One-way"|"Two-way">("One-way");
   const [newTransportAmount, setNewTransportAmount] = useState("");
   const [newTransportNotes, setNewTransportNotes] = useState("");
   const [editingId, setEditingId] = useState("");
   const [draft, setDraft] = useState<DraftOperation>(() => blankOperation());
+  const [draftMoneyInputs,setDraftMoneyInputs]=useState<Record<string,string>>({});
+  const moneyDraftValue=(key:string,value:number)=>draftMoneyInputs[key]??(value||"");
+  const updateMoneyDraft=(key:string,value:string,patch:Partial<DraftOperation>)=>{
+    setDraftMoneyInputs(current=>({...current,[key]:value}));
+    setDraft(current=>({...current,...patch}));
+  };
+  useEffect(()=>{if(!showEditor)setDraftMoneyInputs({});},[showEditor]);
   useEffect(() => {
     const updateFullscreen = () => setRouteFullscreen(document.fullscreenElement === document.querySelector(".linked-process-page .linked-route-canvas"));
     document.addEventListener("fullscreenchange", updateFullscreen);
@@ -385,6 +401,20 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     }))
   );
   const quantityUnit = selectedComponent?.salePriceUnit === "set" ? "sets" : "pieces";
+  const eligibleMachines = getEligibleMachineAssets(machines,{companyId:selectedPO?.companyId,factoryId:selectedPO?.factoryId,processDefinitionId:selectedProcessDefinition?.id||draft.processDefinitionId,selectedMachineId:draft.machineId}).filter(machine=>!getMachineAvailability(machine,maintenanceWorkOrders,machineDowntime).blocksProduction||machine.id===draft.machineId);
+  const selectedMachine = machines.find(machine=>machine.id===draft.machineId);
+  const toolingAssets=activeRows(data.toolingAssets||[]);
+  const fixtureAssets=activeRows(data.fixtureAssets||[]);
+  const eligibleToolingAssets=getEligibleToolingAssets(toolingAssets,{
+    companyId:selectedPO?.companyId||"",factoryId:selectedPO?.factoryId||"",machineId:selectedMachine?.id,machineType:selectedMachine?.machineType,
+    processDefinitionId:selectedProcessDefinition?.id||draft.processDefinitionId,material:selectedComponent?.material,
+    selectedIds:draft.toolingAssetIds||[]
+  });
+  const eligibleFixtureAssets=getEligibleFixtureAssets(fixtureAssets,{
+    companyId:selectedPO?.companyId||"",factoryId:selectedPO?.factoryId||"",machineId:selectedMachine?.id,machineType:selectedMachine?.machineType,
+    processDefinitionId:selectedProcessDefinition?.id||draft.processDefinitionId,componentId:selectedComponent?.id,
+    selectedIds:draft.fixtureAssetIds||[]
+  });
   const processVendorOptions = selectedProcessDefinition?.vendorIds?.length ? vendors.filter(vendor => selectedProcessDefinition.vendorIds.includes(vendor.id)) : vendors;
   const selectedTransportVendor = vendors.find(vendor => vendor.id === draft.transportVendorId);
   // Current Transport Directory routes and vendor-embedded legacy routes share
@@ -612,7 +642,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
   const exportColumns = PROCESS_EXPORT_FIELDS.filter(field=>exportFields.includes(field.key));
   const simulationOperations = exportOperations.filter(operation => operation.relationType !== "subprocess");
   const exportBranches = [...new Set(exportOperations.map(op=>(op.poLineId||op.componentId)+"::"+(op.branch||"Main route")))].sort((a,b)=>a.localeCompare(b));
-  const processAccent = (operation:OperationRecord) => processDefinitions.find(item=>item.id===operation.processDefinitionId)?.displayColor || operation.processColor || DEFAULT_PROCESS_COLOR;
+  const processAccent = (operation:OperationRecord) => {const definition=processDefinitions.find(item=>item.id===operation.processDefinitionId);return resolveProcessColor({category:definition?.category||operation.category,processType:definition?.processType||operation.name,displayColor:definition?.displayColor,processColor:operation.processColor});};
   const branchAccent = (operation:OperationRecord) => operation.relationType==="rework" ? REWORK_ROUTE_COLOR : operation.relationType==="alternate" ? ALTERNATE_ROUTE_COLOR : processAccent(operation);
   const processMapGraph = useMemo(()=>{
     const nodes:ProcessMapGraphNode[]=[];
@@ -625,6 +655,14 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     const isRunningOperation=(id:string)=>exportOperations.some(operation=>operation.id===id&&operation.status==="Running");
     const compactViewport=typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches;
     const nodeWidth=compactViewport?176:210;
+    const routedOperationPositions=buildRouteFlowOperationPositions(exportOperations,routeLayout,compactViewport);
+    const graphNodeCenter=(id:string)=>{
+      const node=nodes.find(row=>row.id===id);
+      if(!node)return {x:0,y:0};
+      const width=typeof node.style?.width==="number"?node.style.width:nodeWidth;
+      return {x:node.position.x+width/2,y:node.position.y+54};
+    };
+    const parallelEdgeCounts=new Map<string,number>();
     const branchRows=exportBranches.map((key,row)=>{
       const operationsInBranch=exportOperations.filter(op=>(op.poLineId||op.componentId)+"::"+(op.branch||"Main route")===key).slice().sort((a,b)=>a.sequence-b.sequence);
       return {key,row,branch:operationsInBranch[0]?.branch||"Main route",operations:operationsInBranch};
@@ -635,14 +673,18 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       if(edgeKeys.has(key))return;
       edgeKeys.add(key);
       const color=relationColors[type]||relationColors.main;
-      const [sourceHandle,targetHandle]=routeRelationshipHandles(type);
-      edges.push({id,source,target,sourceHandle,targetHandle,type:"smoothstep",label,labelStyle:{fontSize:9,fontWeight:750,fill:"#435d73"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.96},labelBgPadding:[5,3],style:{stroke:color,strokeWidth:type==="transport"?2.8:2.4,...(relationDashes[type]?{strokeDasharray:relationDashes[type]}:{})},markerEnd:{type:MarkerType.ArrowClosed,color},animated,selectable:false,focusable:false});
+      const pairKey=source+"::"+target;
+      const parallelIndex=parallelEdgeCounts.get(pairKey)||0;
+      parallelEdgeCounts.set(pairKey,parallelIndex+1);
+      const geometry=routeRelationshipEdgeGeometry(type,graphNodeCenter(source),graphNodeCenter(target),routeLayout,parallelIndex);
+      edges.push({id,source,target,sourceHandle:geometry.sourceHandle,targetHandle:geometry.targetHandle,type:geometry.edgeType,data:{relationshipType:type,routeLayout,parallelIndex,pathOptions:geometry.pathOptions},label,labelStyle:{fontSize:9,fontWeight:750,fill:"#435d73"},labelBgStyle:{fill:"#f7fbff",fillOpacity:.96},labelBgPadding:[5,3],style:{stroke:color,strokeWidth:type==="transport"?2.8:2.4,...(relationDashes[type]?{strokeDasharray:relationDashes[type]}:{})},markerEnd:{type:MarkerType.ArrowClosed,color},animated,selectable:false,focusable:false});
     };
     branchRows.forEach(({row,branch,operations:ops})=>{
       ops.forEach((operation,index)=>{
         // A horizontal, lane-based flow works consistently on phones and desktops.
-        const x=compactViewport?48+index*248:96+index*278;
-        const y=compactViewport?400+row*820:400+row*820;
+        const routedPoint=routedOperationPositions[operation.id]||{x:compactViewport?48+index*248:96+index*278,y:400+row*820};
+        const x=routedPoint.x;
+        const y=routedPoint.y;
         operationPositions.set(operation.id,{x,y,branch,index});
         nodes.push({id:"operation:"+operation.id,type:"processMapEntity",position:{x,y},data:{title:"OP-"+String(operation.sequence).padStart(3,"0")+" · "+operation.name,detail:[operation.category,operation.subcategory,vendors.find(v=>v.id===operation.vendorId)?.company||"Vendor not assigned","Qty "+operation.quantity].filter(Boolean).join(" · "),kind:"PROCESS OPERATION",accent:branchAccent(operation),status:operation.status,actionLabel:"Select operation",onAction:()=>{setSelectedOperationId(operation.id);setShowEditor(false);}},draggable:false,selectable:false,style:{width:nodeWidth}});
       });
@@ -725,7 +767,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
       else if(!materialId&&firstMain&&leg.placement==="start")addEdge(id,"operation:"+firstMain.id,"transport","transport-to-route:"+leg.id,"ROUTE START");
     });
     return {nodes,edges};
-  },[exportBranches,exportOperations,processMapMaterialEntries,componentMaterialProcessLinks,componentTransportLegs,poId,selectedLine?.id,materialMasterRecords,materialProcessPartLabels,data.routeRelationships,vendors,branchAccent]);
+  },[exportBranches,exportOperations,processMapMaterialEntries,componentMaterialProcessLinks,componentTransportLegs,poId,selectedLine?.id,materialMasterRecords,materialProcessPartLabels,data.routeRelationships,vendors,branchAccent,routeLayout]);
 
   const exportValue = (op:OperationRecord,key:ProcessExportField):string|number => {
     switch(key) {
@@ -1138,7 +1180,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     setSelectedOperationId(targetOperation.id);
     const targetLegacyRoute=transportRouteOptions.find(route=>route.id===targetOperation.transportRouteId||(route.legacy&&route.sourceRouteId===targetOperation.transportRouteId));
     setDraft({
-      name: targetOperation.name, category: targetOperation.category, processDefinitionId: targetOperation.processDefinitionId || processDefinitions.find(item=>item.processType===targetOperation.name&&item.category===targetOperation.category)?.id || "", machine: targetOperation.machine, vendorId: targetOperation.vendorId, executionType:targetOperation.executionType||"Outsourced", toleranceCategory:targetOperation.toleranceCategory||"Standard", inspectionRequired:Boolean(targetOperation.inspectionRequired),
+      name: targetOperation.name, category: targetOperation.category, processDefinitionId: targetOperation.processDefinitionId || processDefinitions.find(item=>item.processType===targetOperation.name&&item.category===targetOperation.category)?.id || "", machine: targetOperation.machine, machineId: targetOperation.machineId || "", toolingAssetIds:[...(targetOperation.toolingAssetIds||[])], fixtureAssetIds:[...(targetOperation.fixtureAssetIds||[])], vendorId: targetOperation.vendorId, executionType:targetOperation.executionType||"Outsourced", toleranceCategory:targetOperation.toleranceCategory||"Standard", inspectionRequired:Boolean(targetOperation.inspectionRequired),
       status: targetOperation.status, plannedStart: targetOperation.plannedStart, plannedEnd: targetOperation.plannedEnd, actualStart: targetOperation.actualStart || "", actualEnd: targetOperation.actualEnd || "",
       quantity: targetOperation.quantity, completed: targetOperation.completed, accepted: targetOperation.accepted, rejected: targetOperation.rejected,
       ratePerPart: targetOperation.ratePerPart, processCostTotal: targetOperation.quantity * targetOperation.ratePerPart, actualRatePerPart: targetOperation.actualRatePerPart || 0, transportVendorId: targetOperation.transportVendorId || "", transportFrom:targetOperation.transportFrom||"",transportTo:targetOperation.transportTo||"",transportVehicleType:targetOperation.transportVehicleType||"",transportRouteId:targetOperation.transportRouteId||"",transportTripDirection:targetOperation.transportTripDirection||targetLegacyRoute?.tripDirection||"One-way", transportCost: targetOperation.transportCost, transportPickup: targetOperation.transportPickup,
@@ -1152,6 +1194,41 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     if (!draft.category.trim()) { onNotice("Select or enter a process category."); return; }
     if (!draft.name.trim()) { onNotice("Select or enter a process type."); return; }
     if (draft.vendorId && !vendors.some(vendor => vendor.id === draft.vendorId)) { onNotice("The selected vendor is missing or archived. Choose an active Vendor Directory record."); return; }
+    if(draft.machineId){
+      const assignedMachine=machines.find(machine=>machine.id===draft.machineId);
+      const assignment=validateMachineAssignment(assignedMachine,{machineId:draft.machineId,existingMachineId:operations.find(operation=>operation.id===editingId)?.machineId,companyId:selectedPO.companyId,factoryId:selectedPO.factoryId,processDefinitionId:selectedProcessDefinition?.id||draft.processDefinitionId,executionType:draft.executionType});
+      if(!assignment.ok){onNotice("Registered machine assignment is invalid ("+assignment.reason+"). Choose an available machine in this PO factory with the selected process capability.");return;}
+    }
+    const hasReservedResources=(draft.toolingAssetIds||[]).length>0||(draft.fixtureAssetIds||[]).length>0;
+    if(hasReservedResources){
+      const start=Date.parse(draft.plannedStart||""),end=Date.parse(draft.plannedEnd||"");
+      if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start){
+        onNotice("Enter a valid planned start and end time before reserving a physical tool or fixture. Resource reservations require a conflict-checkable time window.");
+        return;
+      }
+    }
+    const resourceValidation=validateOperationResourceAssignments({
+      toolingIds:draft.toolingAssetIds||[],fixtureIds:draft.fixtureAssetIds||[],toolingAssets,fixtureAssets,
+      scope:{companyId:selectedPO.companyId,factoryId:selectedPO.factoryId,machineId:draft.machineId||undefined,machineType:selectedMachine?.machineType,
+        processDefinitionId:selectedProcessDefinition?.id||draft.processDefinitionId,material:selectedComponent.material,componentId:selectedComponent.id,
+        selectedIds:[...(draft.toolingAssetIds||[]),...(draft.fixtureAssetIds||[])],
+        existingToolingIds:operations.find(operation=>operation.id===editingId)?.toolingAssetIds||[],
+        existingFixtureIds:operations.find(operation=>operation.id===editingId)?.fixtureAssetIds||[]}
+    });
+    if((draft.executionType==="Outsourced"&&((draft.toolingAssetIds||[]).length||(draft.fixtureAssetIds||[]).length))||!resourceValidation.ok){
+      onNotice(draft.executionType==="Outsourced"?"Outsourced operations cannot reserve company-owned tooling or fixtures.":"Tooling / fixture assignment is unavailable, overdue, out of life, incompatible or already reserved during an overlapping operation.");
+      return;
+    }
+    if(draft.machineId){
+      const schedule=validateMachineSchedule({...draft,id:editingId||"__new-operation__"},operations,editingId,maintenanceWorkOrders,machineDowntime);
+      if(!schedule.ok){
+        const conflict=operations.find(operation=>operation.id===schedule.conflictingOperationId);
+        onNotice(schedule.reason==="machine-time-conflict"
+          ?"Machine "+(selectedMachine?.assetCode||selectedMachine?.name||"asset")+" is already reserved by "+(conflict?.name||"another operation")+" ("+dateTimeInput(conflict?.plannedStart)+" → "+dateTimeInput(conflict?.plannedEnd)+"). Choose a non-overlapping time or another machine."
+          :schedule.reason==="machine-maintenance-conflict"?"This machine is reserved for maintenance during the selected production interval. Choose another time or machine.":schedule.reason==="machine-downtime-conflict"?"This machine has recorded downtime during the selected production interval. Close or resolve the downtime event, or choose another machine.":"Enter a valid machine reservation end time after its start time.");
+        return;
+      }
+    }
     if (draft.executionType === "Outsourced" && selectedProcessDefinition?.vendorIds?.length && draft.vendorId && !selectedProcessDefinition.vendorIds.includes(draft.vendorId)) { onNotice("The selected vendor is not assigned to this Process Directory definition. Choose an assigned vendor or update the Process Directory vendor links."); return; }
     if (draft.plannedStart && draft.plannedEnd && draft.plannedEnd < draft.plannedStart) { onNotice("Target/end date cannot be before planned start date."); return; }
     if (draft.actualStart && draft.actualEnd && draft.actualEnd < draft.actualStart) { onNotice("Actual end date cannot be before actual start date."); return; }
@@ -1290,7 +1367,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
     setNewTransportVendorId(leg?.vendorId||"");
     setNewTransportFrom(leg?.fromLocation||"");
     setNewTransportTo(leg?.toLocation||"");
-    setNewTransportVehicle(leg?.vehicleType||"4-wheeler");
+    setNewTransportVehicle(leg?.vehicleType||"4-wheeler / Car");
     setNewTransportDirection(leg?.tripDirection||"One-way");
     setNewTransportAmount("");
     setNewTransportNotes("");
@@ -1584,10 +1661,9 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
           <label>From location *<input list="process-transport-location-options" value={newTransportFrom} onChange={event=>setNewTransportFrom(event.target.value)} placeholder="Search or type pickup location…"/></label>
           <label>To location *<input list="process-transport-location-options" value={newTransportTo} onChange={event=>setNewTransportTo(event.target.value)} placeholder="Search or type delivery location…"/></label>
           <datalist id="process-transport-location-options">{transportLocationOptions.map(location=><option key={location} value={location}/>)}</datalist>
-          <label>Vehicle type *<input list="process-transport-vehicle-options" value={newTransportVehicle} onChange={event=>setNewTransportVehicle(event.target.value)} placeholder="Search or type vehicle type…"/></label>
-          <datalist id="process-transport-vehicle-options">{["2-wheeler","3-wheeler","4-wheeler","Tempo","Mini truck","Pickup truck","LCV","HCV","Container truck","Trailer","Refrigerated truck","Flatbed truck","Tanker","Courier van","Heavy-duty 4-wheeler"].map(value=><option key={value} value={value}/>)}</datalist>
+          <VehicleTypePicker id="process-transport-vehicle-type" label="Vehicle type *" value={newTransportVehicle} onChange={setNewTransportVehicle} options={[...VEHICLE_TYPES,...transportRoutes.map(route=>route.vehicleType),...allTransportLegs.map(leg=>leg.vehicleType)]}/>
           <SearchablePicker id="new-process-transport-direction" label="Route type *" value={newTransportDirection} options={[{id:"One-way",label:"One-way"},{id:"Two-way",label:"Two-way / return"}]} onChange={value=>setNewTransportDirection(value as "One-way"|"Two-way")}/>
-          <label>Agreed route amount (₹) *<input type="number" min="0" step="any" value={newTransportAmount} onChange={event=>setNewTransportAmount(event.target.value)} placeholder="Enter agreed route amount"/></label>
+          <label>Agreed route amount (₹) *<input type="text" inputMode="decimal" value={newTransportAmount} onChange={event=>setNewTransportAmount(event.target.value)} placeholder="Enter agreed route amount"/></label>
           <label className="editor-wide">Route notes<input value={newTransportNotes} onChange={event=>setNewTransportNotes(event.target.value)} placeholder="Loading, waiting, validity or route restrictions"/></label>
           <button type="button" className="button-primary" onClick={saveNewTransportDirectoryRoute}><Check size={13}/> Save route to Transport Directory</button>
         </div>}
@@ -1622,10 +1698,10 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         <label>Due to<input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)}/></label>
         <label>Min quantity<input type="number" min="0" value={minQuantity} onChange={e=>setMinQuantity(e.target.value)}/></label>
         <label>Max quantity<input type="number" min="0" value={maxQuantity} onChange={e=>setMaxQuantity(e.target.value)}/></label>
-        <label>Min price / part (₹)<input type="number" min="0" step="0.01" value={minPrice} onChange={e=>setMinPrice(e.target.value)}/></label>
-        <label>Max price / part (₹)<input type="number" min="0" step="0.01" value={maxPrice} onChange={e=>setMaxPrice(e.target.value)}/></label>
-        <label>Min total cost (₹)<input type="number" min="0" step="0.01" value={minAmount} onChange={e=>setMinAmount(e.target.value)}/></label>
-        <label>Max total cost (₹)<input type="number" min="0" step="0.01" value={maxAmount} onChange={e=>setMaxAmount(e.target.value)}/></label>
+        <label>Min price / part (₹)<input type="text" inputMode="decimal" value={minPrice} onChange={e=>setMinPrice(e.target.value)} placeholder="Amount"/></label>
+        <label>Max price / part (₹)<input type="text" inputMode="decimal" value={maxPrice} onChange={e=>setMaxPrice(e.target.value)} placeholder="Amount"/></label>
+        <label>Min total cost (₹)<input type="text" inputMode="decimal" value={minAmount} onChange={e=>setMinAmount(e.target.value)} placeholder="Amount"/></label>
+        <label>Max total cost (₹)<input type="text" inputMode="decimal" value={maxAmount} onChange={e=>setMaxAmount(e.target.value)} placeholder="Amount"/></label>
       </div>
       <div className="process-map-filter-actions"><span>{visibleOperations.length} visible / {routeOperations.length} operations · {selectedOperationIds.length} selected</span><button className="button-quiet compact-button" onClick={clearAllFilters}>Reset all filters</button></div>
     </details>
@@ -1655,12 +1731,17 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
         </div>
         {showEditor && <div className="ax-linked-editor-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)setShowEditor(false);}}><section className="route-editor-panel linked-operation-editor" role="dialog" aria-modal="true" aria-label={editingId ? "Edit process operation" : "Add process operation"}><div className="route-editor-heading"><div><strong><Plus size={15}/> {editingId ? "Edit operation" : "Add operation"}</strong><small>All saved changes are linked to this selected PO line and component.</small></div><button className="icon-control" onClick={() => setShowEditor(false)} aria-label="Close editor"><X size={14}/></button></div>
           <div className="route-editor-form">
-            <SearchablePicker id="operation-category" label="Process category *" value={draft.category} placeholder="Search process category…" options={processCategories.map(value=>({id:value,label:value}))} onChange={value=>setDraft({...draft,category:value,name:"",processDefinitionId:"",subcategory:"",processSubcategoryId:"",vendorId:""})} allowCustom/>
-            <SearchablePicker id="operation-process-type" label="Process type *" value={draft.processDefinitionId || selectedProcessDefinition?.id || draft.name || ""} placeholder="Search or enter a new process type…" options={processDefinitions.filter(item=>!draft.category||item.category===draft.category).map(item=>({id:item.id,label:item.processType+" · "+item.category}))} onChange={value=>{const definition=processDefinitions.find(item=>item.id===value);const vendorStillAssigned=!definition?.vendorIds?.length||definition.vendorIds.includes(draft.vendorId);setDraft({...draft,processDefinitionId:definition?.id||"",name:definition?.processType||value,category:definition?.category||draft.category,subcategory:"",processSubcategoryId:"",vendorId:vendorStillAssigned?draft.vendorId:"",processColor:definition?.displayColor||draft.processColor||DEFAULT_PROCESS_COLOR});}} allowCustom/>
+            <SearchablePicker id="operation-category" label="Process category *" value={draft.category} placeholder="Search process category…" options={processCategories.map(value=>({id:value,label:value}))} onChange={value=>setDraft({...draft,category:value,name:"",processDefinitionId:"",machineId:"",toolingAssetIds:[],fixtureAssetIds:[],subcategory:"",processSubcategoryId:"",vendorId:""})} allowCustom/>
+            <SearchablePicker id="operation-process-type" label="Process type *" value={draft.processDefinitionId || selectedProcessDefinition?.id || draft.name || ""} placeholder="Search or enter a new process type…" options={processDefinitions.filter(item=>!draft.category||item.category===draft.category).map(item=>({id:item.id,label:item.processType+" · "+item.category}))} onChange={value=>{const definition=processDefinitions.find(item=>item.id===value);const vendorStillAssigned=!definition?.vendorIds?.length||definition.vendorIds.includes(draft.vendorId);setDraft({...draft,processDefinitionId:definition?.id||"",machineId:"",toolingAssetIds:[],fixtureAssetIds:[],name:definition?.processType||value,category:definition?.category||draft.category,subcategory:"",processSubcategoryId:"",vendorId:vendorStillAssigned?draft.vendorId:"",processColor:definition?.displayColor||draft.processColor||DEFAULT_PROCESS_COLOR});}} allowCustom/>
             <SearchablePicker id="operation-subcategory" label="Process subcategory" value={draft.processSubcategoryId} placeholder="Select a subcategory linked to this Process Directory definition…" options={selectedProcessDefinition ? selectedProcessDefinition.subcategories.map((value,index)=>({id:selectedProcessDefinition.subcategoryIds?.[index] || `${selectedProcessDefinition.id}-subprocess-${String(index+1).padStart(3,"0")}`,label:value})) : []} onChange={value=>{const definition=selectedProcessDefinition;const index=definition ? definition.subcategories.findIndex((_,i)=>(definition.subcategoryIds?.[i] || `${definition.id}-subprocess-${String(i+1).padStart(3,"0")}`)===value) : -1;setDraft({...draft,processSubcategoryId:value,subcategory:definition?.subcategories[index]||""});}}/>
             <label className="process-color-field">Process type colour<input type="color" value={draft.processColor||selectedProcessDefinition?.displayColor||DEFAULT_PROCESS_COLOR} onChange={event=>setDraft({...draft,processColor:event.target.value})}/><small>Saved to this Process Directory process type and shared by its operations.</small></label>
-            <SearchablePicker id="operation-execution-type" label="Execution type" value={draft.executionType} options={["Internal","Outsourced"].map(value=>({id:value,label:value}))} onChange={value=>setDraft({...draft,executionType:value as "Internal"|"Outsourced",vendorId:value==="Internal"?"":draft.vendorId})}/>
-            <label>Machine / station<input value={draft.machine} onChange={e => setDraft({...draft,machine:e.target.value})} placeholder="Machine / work centre"/></label>
+            <SearchablePicker id="operation-execution-type" label="Execution type" value={draft.executionType} options={["Internal","Outsourced"].map(value=>({id:value,label:value}))} onChange={value=>setDraft({...draft,executionType:value as "Internal"|"Outsourced",machineId:value==="Outsourced"?"":draft.machineId,toolingAssetIds:value==="Outsourced"?[]:draft.toolingAssetIds,fixtureAssetIds:value==="Outsourced"?[]:draft.fixtureAssetIds,vendorId:value==="Internal"?"":draft.vendorId})}/>
+            <SearchablePicker id="operation-machine-asset" label="Registered machine asset" value={draft.machineId||""} placeholder={draft.executionType==="Outsourced"?"Not used for outsourced operations":"Search eligible machines for this factory…"} options={eligibleMachines.map(machine=>({id:machine.id,label:machine.assetCode+" · "+machine.name+" · "+machine.machineType+" · "+machine.status}))} onChange={machineId=>{const machine=machines.find(row=>row.id===machineId);const changed=machineId!==draft.machineId;setDraft({...draft,machineId,machine:machine?.name||draft.machine,toolingAssetIds:changed?[]:draft.toolingAssetIds,fixtureAssetIds:changed?[]:draft.fixtureAssetIds});}} disabled={draft.executionType==="Outsourced"}/>
+            {selectedMachine&&<small className="field-hint">Selected asset: {selectedMachine.assetCode} · {selectedMachine.machineType}{selectedMachine.model?" · "+selectedMachine.model:""} · {selectedMachine.axisCount||"—"} axes · Travel {selectedMachine.workEnvelopeXmm||"—"} × {selectedMachine.workEnvelopeYmm||"—"} × {selectedMachine.workEnvelopeZmm||"—"} mm · {selectedMachine.status}</small>}
+            {draft.executionType==="Internal"&&!eligibleMachines.length&&<small className="field-hint">No available registered machine matches this company, factory and process capability. Add or update it in Company Directory → Machines, or keep an unregistered work-centre note below.</small>}
+            <label>Machine / station note (optional legacy or external reference)<input value={draft.machine} onChange={e => setDraft({...draft,machine:e.target.value,machineId:"",toolingAssetIds:[],fixtureAssetIds:[]})} placeholder="Unregistered work centre, machine name or external supplier reference"/></label>
+            <div className="module-form-wide"><SearchableMultiSelect id="operation-tooling-assets" label="Tooling / cutting tools reserved for this operation" options={eligibleToolingAssets.map(asset=>({id:asset.id,label:asset.assetCode+" · "+asset.name+" · "+asset.toolType+" · "+asset.status+" · "+(asset.toolLifeLimitMinutes>0?Math.max(0,asset.toolLifeLimitMinutes-asset.toolLifeUsedMinutes)+" min left":"life not limited")}))} selected={draft.toolingAssetIds||[]} onChange={toolingAssetIds=>setDraft({...draft,toolingAssetIds})} disabled={draft.executionType==="Outsourced"}/><small className="field-hint">Only tools owned by the selected company/factory and compatible with this machine, process and material are offered. Tool life and inspection due dates are checked.</small></div>
+            <div className="module-form-wide"><SearchableMultiSelect id="operation-fixture-assets" label="Jigs / fixtures / workholding reserved for this operation" options={eligibleFixtureAssets.map(asset=>({id:asset.id,label:asset.assetCode+" · "+asset.name+" · "+asset.fixtureType+" · "+asset.status+" · "+(Number(asset.maxUsageCycles)>0?Math.max(0,Number(asset.maxUsageCycles)-asset.usageCycles)+" cycles left":"cycles not limited")}))} selected={draft.fixtureAssetIds||[]} onChange={fixtureAssetIds=>setDraft({...draft,fixtureAssetIds})} disabled={draft.executionType==="Outsourced"}/><small className="field-hint">Fixture selection is checked against the registered machine, process, component, inspection date and usage limit. Reservations cannot overlap another active operation.</small></div>
             <SearchablePicker id="operation-vendor-picker" label="Vendor" value={draft.vendorId} placeholder="Type vendor name or phone…" options={processVendorOptions.map(v=>({id:v.id,label:v.company+" · "+(v.phone||"No phone")+(v.status.toLowerCase().includes("unverified")?" · Unverified":"")}))} onChange={vendorId=>setDraft({...draft,vendorId})}/>{!vendors.length && <small className="field-hint">Scan/import contacts or add a vendor in Vendors first.</small>}
             <label>Start date &amp; time<input type="datetime-local" value={dateTimeInput(draft.plannedStart)} onChange={e => setDraft({...draft,plannedStart:e.target.value})}/></label>
             <label>Delivery date &amp; time<input type="datetime-local" min={dateTimeInput(draft.plannedStart)} value={dateTimeInput(draft.plannedEnd)} onChange={e => setDraft({...draft,plannedEnd:e.target.value})}/></label>
@@ -1671,12 +1752,12 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
             <label>Completed quantity<input type="number" min="0" value={draft.completed || ""} onChange={e => setDraft({...draft,completed:Math.max(0,Number(e.target.value)||0)})}/></label>
             <label>Accepted quantity<input type="number" min="0" value={draft.accepted || ""} onChange={e => setDraft({...draft,accepted:Math.max(0,Number(e.target.value)||0)})}/></label>
             <label>Rejected quantity<input type="number" min="0" value={draft.rejected || ""} onChange={e => setDraft({...draft,rejected:Math.max(0,Number(e.target.value)||0)})}/></label>
-            <label>Total planned process cost (₹)<input type="number" min="0" step="0.01" value={draft.processCostTotal || ""} onChange={e => { const total=Math.max(0,Number(e.target.value)||0); setDraft({...draft,processCostTotal:total,ratePerPart:draft.quantity>0?total/draft.quantity:0}); }}/><small className="field-hint">Enter the total PO-line process cost. AXIMACH calculates the per-piece rate using the operation quantity.</small></label><label>Quoted / planned rate per part (₹)<input type="number" min="0" step="0.01" value={draft.ratePerPart || ""} onChange={e => { const rate=Math.max(0,Number(e.target.value)||0); setDraft({...draft,ratePerPart:rate,processCostTotal:draft.quantity*rate}); }}/></label>
-            <label>Actual rate per part (₹)<input type="number" min="0" step="0.01" value={draft.actualRatePerPart || ""} onChange={e => setDraft({...draft,actualRatePerPart:Math.max(0,Number(e.target.value)||0)})}/></label>
+            <label>Total planned process cost (₹)<input type="text" inputMode="decimal" value={moneyDraftValue("processCostTotal",draft.processCostTotal)} onChange={e => { const total=e.target.value.trim()===""?0:Math.max(0,Number(e.target.value)||0); updateMoneyDraft("processCostTotal",e.target.value,{processCostTotal:total,ratePerPart:draft.quantity>0?total/draft.quantity:0}); }} placeholder="Enter total planned process cost"/><small className="field-hint">Enter the total PO-line process cost. AXIMACH calculates the per-piece rate using the operation quantity.</small></label><label>Quoted / planned rate per part (₹)<input type="text" inputMode="decimal" value={moneyDraftValue("ratePerPart",draft.ratePerPart)} onChange={e => { const rate=e.target.value.trim()===""?0:Math.max(0,Number(e.target.value)||0); updateMoneyDraft("ratePerPart",e.target.value,{ratePerPart:rate,processCostTotal:draft.quantity*rate}); }} placeholder="Enter rate; leave blank if not quoted"/></label>
+            <label>Actual rate per part (₹)<input type="text" inputMode="decimal" value={moneyDraftValue("actualRatePerPart",draft.actualRatePerPart)} onChange={e=>updateMoneyDraft("actualRatePerPart",e.target.value,{actualRatePerPart:e.target.value.trim()===""?0:Math.max(0,Number(e.target.value)||0)})} placeholder="Enter actual rate"/></label>
             <SearchablePicker id="operation-payment-status" label="Payment status" value={draft.paymentStatus} options={["Unpaid","Paid"].map(value=>({id:value,label:value}))} onChange={value=>setDraft({...draft,paymentStatus:value as "Paid"|"Unpaid"})}/>
-            <label>Total amount paid (₹)<input type="number" min="0" step="0.01" value={draft.paidAmount || ""} onChange={e=>setDraft({...draft,paidAmount:Math.max(0,Number(e.target.value)||0)})}/><small className="field-hint">Increasing this total appends only the additional amount as a dated payment-ledger transaction.</small></label>
+            <label>Total amount paid (₹)<input type="text" inputMode="decimal" value={moneyDraftValue("paidAmount",draft.paidAmount)} onChange={e=>updateMoneyDraft("paidAmount",e.target.value,{paidAmount:e.target.value.trim()===""?0:Math.max(0,Number(e.target.value)||0)})} placeholder="Enter amount paid"/><small className="field-hint">Increasing this total appends only the additional amount as a dated payment-ledger transaction.</small></label>
             <label>Payment reference<input value={draft.paymentReference} onChange={e=>setDraft({...draft,paymentReference:e.target.value})} placeholder="Voucher / UTR / receipt number"/></label>
-            <label>Planned process cost (₹)<input readOnly value={money(draft.quantity * draft.ratePerPart)}/></label>
+            <label>Planned process cost (₹)<input readOnly value={draft.quantity * draft.ratePerPart > 0 ? money(draft.quantity * draft.ratePerPart) : ""} placeholder="Calculated when a rate is entered"/></label>
             <SearchablePicker id="operation-status" label="Status" value={draft.status} options={["Planned","Queued","Running","Complete","Quality hold","Rejected","Delayed"].map(value=>({id:value,label:value}))} onChange={value=>setDraft({...draft,status:value as LifecycleStatus})}/>
             <SearchablePicker id="operation-route-type" label="Route type *" value={draftRouteType} options={[{id:"Main route",label:"Main route · primary manufacturing flow"},{id:"Alternate route",label:"Alternate route · optional path"},{id:"Rework route",label:"Rework route · corrective path"}]} onChange={value=>{
               if(value==="Main route"){setDraft({...draft,branch:"Main route",parentId:"",relationType:undefined,costIncluded:true});return;}
@@ -1691,7 +1772,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
             <label>Vehicle type<input readOnly value={draft.transportVehicleType||""}/></label>
             <label>Transport pickup date &amp; time<input type="datetime-local" value={dateTimeInput(draft.transportPickup)} onChange={e => setDraft({...draft,transportPickup:e.target.value})}/></label>
             <label>Transport delivery date &amp; time<input type="datetime-local" value={dateTimeInput(draft.transportDelivery)} onChange={e => setDraft({...draft,transportDelivery:e.target.value})}/></label>
-            <label>Legacy operation-level transport (₹)<input type="number" min="0" step="0.01" value={draft.transportCost || ""} onChange={e => setDraft({...draft,transportCost:Math.max(0,Number(e.target.value)||0)})}/><small className="field-hint">Compatibility field for older operation records. New transport must be added with the separate Add transport leg action and is counted in the component Transport Cost bucket.</small></label>
+            <label>Legacy operation-level transport (₹)<input type="text" inputMode="decimal" value={moneyDraftValue("transportCost",draft.transportCost)} onChange={e=>updateMoneyDraft("transportCost",e.target.value,{transportCost:e.target.value.trim()===""?0:Math.max(0,Number(e.target.value)||0)})} placeholder="Enter legacy transport amount"/><small className="field-hint">Compatibility field for older operation records. New transport must be added with the separate Add transport leg action and is counted in the component Transport Cost bucket.</small></label>
             <SearchablePicker id="operation-tolerance" label="Tolerance category" value={draft.toleranceCategory} options={["Standard","Precision","Close","Ultra Precision"].map(value=>({id:value,label:value}))} onChange={value=>setDraft({...draft,toleranceCategory:value as DraftOperation["toleranceCategory"]})}/>
             <label className="editor-wide"><input type="checkbox" checked={draft.inspectionRequired} onChange={e=>setDraft({...draft,inspectionRequired:e.target.checked})}/> Quality / inspection required</label>
             <label className="editor-wide">Quality / inspection requirement<input value={draft.qualityNotes} onChange={e => setDraft({...draft,qualityNotes:e.target.value})} placeholder="Required checks, acceptance criteria, gauges…"/></label>
@@ -1803,9 +1884,9 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                   }
                   if(item.kind==="material-transport"){
                     const entry=item.entry;
-                    const MaterialTransportIcon=transportVehicleIcon(entry.transportVehicleType||"");
+                    const materialVehicleTone=transportVehicleTone(entry.transportVehicleType||"");
                     return <div className="process-route-flow-step process-route-flow-transport" key={item.id}>
-                      <button type="button" className={"ax-transport-icon-trigger vehicle-"+transportVehicleTone(entry.transportVehicleType||"")} aria-label="Open inbound material transport popup" title={(entry.transportVehicleType||"Vehicle")+" · "+(entry.transportFrom||"Pickup")+" → "+(entry.transportTo||"Destination")} onClick={event=>{setInspectedMaterialTransportId(entry.id);setInspectedTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><MaterialTransportIcon size={20}/></button>
+                      <button type="button" className={"ax-transport-icon-trigger vehicle-"+materialVehicleTone} aria-label="Open inbound material transport popup" title={(entry.transportVehicleType||"Vehicle")+" · "+(entry.transportFrom||"Pickup")+" → "+(entry.transportTo||"Destination")} onClick={event=>{setInspectedMaterialTransportId(entry.id);setInspectedTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><VehicleTypeIcon vehicleType={entry.transportVehicleType||""} size={20}/></button>
                       {next&&<span className="process-route-flow-arrow is-transport" style={{color:arrowColor}}><ArrowRight size={20}/></span>}
                     </div>;
                   }
@@ -1813,9 +1894,9 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
                     const leg=item.leg;
                     const anchor=lane.find(op=>op.id===leg.anchorOperationId);
                     const legRelation=anchor?.relationType==="rework"?"rework":anchor?.relationType==="alternate"?"alternate":"main";
-                    const TransportIcon=transportVehicleIcon(leg.vehicleType);
+                    const transportTone=transportVehicleTone(leg.vehicleType);
                     return <div className="process-route-flow-step process-route-flow-transport" key={item.id}>
-                      <button type="button" className={"ax-transport-icon-trigger vehicle-"+transportVehicleTone(leg.vehicleType)} aria-label="Open transport popup" title={(leg.vehicleType||"Vehicle")+" · "+(leg.fromLocation||"From")+" → "+(leg.toLocation||"To")+(leg.targetOperationId?" · Target "+(routeOperations.find(op=>op.id===leg.targetOperationId)?.name||leg.targetOperationId):"")} onClick={event=>{setInspectedTransportId(leg.id);setInspectedMaterialTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><TransportIcon size={20}/></button>
+                      <button type="button" className={"ax-transport-icon-trigger vehicle-"+transportTone} aria-label="Open transport popup" title={(leg.vehicleType||"Vehicle")+" · "+(leg.fromLocation||"From")+" → "+(leg.toLocation||"To")+(leg.targetOperationId?" · Target "+(routeOperations.find(op=>op.id===leg.targetOperationId)?.name||leg.targetOperationId):"")} onClick={event=>{setInspectedTransportId(leg.id);setInspectedMaterialTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><VehicleTypeIcon vehicleType={leg.vehicleType} size={20}/></button>
                       {leg.targetOperationId&&<small className="process-route-flow-transport-target">{(()=>{const target=routeOperations.find(op=>op.id===leg.targetOperationId);return target?"TO OP-"+String(target.sequence).padStart(3,"0")+" · "+target.name:"Target operation not found in this PO line";})()}</small>}
                       {next&&<span className={"process-route-flow-arrow is-transport "+(legRelation==="rework"?"is-rework":legRelation==="alternate"?"is-alternate":"")} style={{color:legRelation==="rework"?REWORK_ROUTE_COLOR:legRelation==="alternate"?ALTERNATE_ROUTE_COLOR:"#1cc8e5"}}><ArrowRight size={20}/></span>}
                     </div>;
@@ -1836,7 +1917,7 @@ export default function LinkedProcessWorkspace({ initialContext, onBack, onNotic
             </div>;
           })}
         </details>}
-        {processMapMaterialEntries.length>0&&<details className="process-material-route-panel process-material-route-collapsible" aria-label="Material supplier and inbound transport route"><summary className="process-material-route-heading"><strong>MATERIAL PROCUREMENT · ROUTE INSERTIONS</strong><span>{processMapMaterialEntries.length} material allocation(s) · open to inspect procurement details</span></summary>{processMapMaterialEntries.map(entry=><div className="process-material-route-row" key={entry.id}><div className="process-material-route-node"><small>{entry.anchorOperationId ? "PROCUREMENT AFTER PROCESS" : "PROCUREMENT · ROUTE START"}</small><strong>{entry.anchorOperationId ? (()=>{const anchor=routeOperations.find(op=>op.id===entry.anchorOperationId);return anchor?"After OP-"+String(anchor.sequence).padStart(3,"0")+" · "+anchor.name:"After selected process"} )() : "Before first manufacturing process"}</strong><small>SUPPLIER · {vendors.find(v=>v.id===entry.vendorId)?.company||"Vendor not assigned"}</small><span>Given {entry.givenDate||"—"} · Due {entry.deliveryDate||"—"} · Received {entry.actualDeliveryDate||"—"}</span></div><span className="process-material-route-arrow"><ArrowRight size={18}/></span><div className="process-material-route-node"><small>MATERIAL</small><strong>{entry.materialName} · {entry.materialGrade}</strong><small>{entry.shapeType} · {Object.entries(entry.dimensions||{}).filter(([,value])=>Number(value)>0).map(([key,value])=>key.replace(/[A-Z]/g,letter=>" "+letter)+" "+value+" "+(entry.dimensionUnits?.[key]||"mm")).join(" · ")||"Dimensions not entered"}</small><span>{entry.quantity} pcs · {entry.totalWeightKg.toFixed(3)} kg · {money(entry.materialRate)} / {entry.priceUnit} · Material {money(entry.materialCost)}</span><small>{entry.cuttingType||"No cutting"} · {money(entry.cuttingCost)} cutting · {entry.cuttingBasis||"—"}</small></div><span className="process-material-route-arrow"><ArrowRight size={18}/></span><div className="process-material-route-node"><small>INBOUND TRANSPORT</small>{(entry.transportVendorId||entry.transportVehicleType||entry.transportFrom||entry.transportTo||Number(entry.transportCost)>0)&&<button type="button" className={"ax-transport-icon-trigger vehicle-"+transportVehicleTone(entry.transportVehicleType||"")} aria-label="Open inbound material transport popup" title="Transport details" onClick={event=>{setInspectedMaterialTransportId(entry.id);setInspectedTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}>{(()=>{const Icon=transportVehicleIcon(entry.transportVehicleType||"");return <Icon size={17}/>})()}</button>}<strong>{vendors.find(v=>v.id===entry.transportVendorId)?.company||"Transport not assigned"}</strong><span>{[entry.transportFrom||vendors.find(v=>v.id===entry.vendorId)?.address,entry.transportTo].filter(Boolean).join(" → ")||"Route not set"} · {entry.transportVehicleType||"Vehicle not set"} · {money(entry.transportCost||0)}</span><small>Pickup {entry.transportPickupAt||"—"} → Delivery {entry.transportDeliveryAt||"—"} · {entry.transportStatus||"Planned"}</small></div><span className="process-material-route-arrow"><ArrowRight size={18}/></span><div className="process-material-route-node process-material-route-destination"><small>ALLOCATED TO</small><strong>{entry.partId?entry.partName+" · "+entry.partNumber:"Component-level allocation"}</strong><span>{selectedComponent?.partNumber} · {selectedComponent?.name}</span></div></div>)}</details>}
+        {processMapMaterialEntries.length>0&&<details className="process-material-route-panel process-material-route-collapsible" aria-label="Material supplier and inbound transport route"><summary className="process-material-route-heading"><strong>MATERIAL PROCUREMENT · ROUTE INSERTIONS</strong><span>{processMapMaterialEntries.length} material allocation(s) · open to inspect procurement details</span></summary>{processMapMaterialEntries.map(entry=><div className="process-material-route-row" key={entry.id}><div className="process-material-route-node"><small>{entry.anchorOperationId ? "PROCUREMENT AFTER PROCESS" : "PROCUREMENT · ROUTE START"}</small><strong>{entry.anchorOperationId ? (()=>{const anchor=routeOperations.find(op=>op.id===entry.anchorOperationId);return anchor?"After OP-"+String(anchor.sequence).padStart(3,"0")+" · "+anchor.name:"After selected process"} )() : "Before first manufacturing process"}</strong><small>SUPPLIER · {vendors.find(v=>v.id===entry.vendorId)?.company||"Vendor not assigned"}</small><span>Given {entry.givenDate||"—"} · Due {entry.deliveryDate||"—"} · Received {entry.actualDeliveryDate||"—"}</span></div><span className="process-material-route-arrow"><ArrowRight size={18}/></span><div className="process-material-route-node"><small>MATERIAL</small><strong>{entry.materialName} · {entry.materialGrade}</strong><small>{entry.shapeType} · {Object.entries(entry.dimensions||{}).filter(([,value])=>Number(value)>0).map(([key,value])=>key.replace(/[A-Z]/g,letter=>" "+letter)+" "+value+" "+(entry.dimensionUnits?.[key]||"mm")).join(" · ")||"Dimensions not entered"}</small><span>{entry.quantity} pcs · {entry.totalWeightKg.toFixed(3)} kg · {money(entry.materialRate)} / {entry.priceUnit} · Material {money(entry.materialCost)}</span><small>{entry.cuttingType||"No cutting"} · {money(entry.cuttingCost)} cutting · {entry.cuttingBasis||"—"}</small></div><span className="process-material-route-arrow"><ArrowRight size={18}/></span><div className="process-material-route-node"><small>INBOUND TRANSPORT</small>{(entry.transportVendorId||entry.transportVehicleType||entry.transportFrom||entry.transportTo||Number(entry.transportCost)>0)&&<button type="button" className={"ax-transport-icon-trigger vehicle-"+transportVehicleTone(entry.transportVehicleType||"")} aria-label="Open inbound material transport popup" title="Transport details" onClick={event=>{setInspectedMaterialTransportId(entry.id);setInspectedTransportId("");setTransportPopupPoint(transportPopupAnchor(event.currentTarget));}}><VehicleTypeIcon vehicleType={entry.transportVehicleType||""} size={17}/></button>}<strong>{vendors.find(v=>v.id===entry.transportVendorId)?.company||"Transport not assigned"}</strong><span>{[entry.transportFrom||vendors.find(v=>v.id===entry.vendorId)?.address,entry.transportTo].filter(Boolean).join(" → ")||"Route not set"} · {entry.transportVehicleType||"Vehicle not set"} · {money(entry.transportCost||0)}</span><small>Pickup {entry.transportPickupAt||"—"} → Delivery {entry.transportDeliveryAt||"—"} · {entry.transportStatus||"Planned"}</small></div><span className="process-material-route-arrow"><ArrowRight size={18}/></span><div className="process-material-route-node process-material-route-destination"><small>ALLOCATED TO</small><strong>{entry.partId?entry.partName+" · "+entry.partNumber:"Component-level allocation"}</strong><span>{selectedComponent?.partNumber} · {selectedComponent?.name}</span></div></div>)}</details>}
         {["graph","sphere","cube","vortex","helix","orbit","stacked","pipeline","network","grid","linear","horizontal","vertical","timeline","gantt","nodes","branch","digital-mesh","molecular","combined"].includes(visualStyle)
           ? <details className="process-universe-collapsible"><summary><strong>MANUFACTURING UNIVERSE · {visualStyle.toUpperCase()}</strong><span>Open 3D route view</span></summary><div className={"process-visual-stage process-visual-"+visualStyle}><ProcessUniverse3D onNotice={onNotice} key={visualStyle} initialLayout={visualStyle==="graph"?"sphere":visualStyle} operations={exportOperations} allOperations={routeOperations} processDefinitions={processDefinitions} vendors={vendors} routeLabels={routeLabels} routeRelationships={activeRows(data.routeRelationships||[]).filter(link=>link.poId===poId&&link.poLineId===selectedLine?.id&&link.status!=="Disabled")} materialLinks={componentMaterialProcessLinks} materialPartLabels={materialProcessPartLabels} materials={materialMasterRecords} componentQuantity={selectedLine?.quantity||0} selectedMaterialLinkId={selectedMaterialLinkId} onSelectMaterialLink={id=>setSelectedMaterialLinkId(current=>current===id?"":id)} transportLegs={componentTransportLegs.filter(leg=>(!leg.poLineId&&selectedComponentLineCount===1)||exportOperations.some(operation=>operation.poLineId===leg.poLineId)).map(leg=>{
             const anchor=routeOperations.find(operation=>operation.id===leg.anchorOperationId);

@@ -54,6 +54,54 @@ test("Manufacturing Universe graph retains cross-register record navigation and 
   assert.ok(graph.includes('data-testid="ecosystem-flow-canvas"'));
 });
 
+test("Machine Register uses company and factory ownership and blocks orphaning active operations",()=>{
+  const master=source("src/ManufacturingMasterWorkspace.tsx");
+  const model=source("src/manufacturingData.ts");
+  const scope=source("server/tenant-scope.mjs");
+  assert.ok(model.includes("export type MachineRecord"));
+  assert.ok(model.includes("machines: MachineRecord[]"));
+  assert.ok(master.includes('tab === "machines" ? "Machine & Equipment Register"'));
+  assert.ok(master.includes("const saveMachine = () =>"));
+  assert.ok(master.includes("machineEditingId"));
+  assert.ok(master.includes("Supported Process Directory definitions"));
+  assert.ok(master.includes('collection==="factories"&&(machines.some(machine=>machine.factoryId===id)||toolingAssets.some(asset=>asset.factoryId===id)||fixtureAssets.some(asset=>asset.factoryId===id))'));
+  assert.ok(master.includes('collection==="machines"&&data.operations.some(operation=>!operation.deletedAt&&operation.machineId===id)'));
+  assert.ok(scope.includes('case "machines":'));
+  assert.ok(scope.includes("factoryAllowed(row.factoryId)"));
+  assert.ok(scope.includes("duplicateAssetCode"));
+});
+
+test("Process Map assigns an internal operation to an eligible registered machine ID",()=>{
+  const processMap=source("src/LinkedProcessWorkspace.tsx");
+  const helper=source("src/machineCapabilities.mjs");
+  assert.ok(processMap.includes('"machineId" | "toolingAssetIds" | "fixtureAssetIds" | "vendorId"'));
+  assert.ok(processMap.includes('id="operation-machine-asset"'));
+  assert.ok(processMap.includes("getEligibleMachineAssets(machines"));
+  assert.ok(processMap.includes("validateMachineAssignment(assignedMachine"));
+  assert.ok(processMap.includes("validateMachineSchedule({...draft"),"Process Map must prevent overlapping reservations on a selected machine.");
+  assert.ok(source("server/tenant-scope.mjs").includes("machineScheduleAllowed(operation)"),"Server writes must enforce the same machine schedule guard.");
+  assert.ok(processMap.includes("machineId: targetOperation.machineId || \"\""));
+  assert.ok(processMap.includes("setDraft({...draft,machineId,machine:machine?.name||draft.machine,toolingAssetIds:changed?[]:draft.toolingAssetIds,fixtureAssetIds:changed?[]:draft.fixtureAssetIds})"));
+  assert.ok(processMap.includes('machineId:""'));
+  assert.ok(helper.includes('machine.status === "Available"'));
+  assert.ok(helper.includes('reason: "process-capability-mismatch"'));
+});
+
+test("Manufacturing Universe graph exposes registered machines and saved operation-to-machine links",()=>{
+  const graph=source("src/ManufacturingEcosystemGraph.tsx");
+  const model=source("src/manufacturingEcosystemGraphModel.mjs");
+  const master=source("src/ManufacturingMasterWorkspace.tsx");
+  assert.ok(graph.includes('"machine"'));
+  assert.ok(graph.includes('title:"Machines & equipment"'));
+  assert.ok(graph.includes('machines.forEach(row=>{add("machine:"+row.id'));
+  assert.ok(graph.includes('edge("machine:"+row.id,"factory:"+row.factoryId,"installed at")'));
+  assert.ok(graph.includes('edge("operation:"+row.id,"machine:"+row.machineId,"runs on")'));
+  assert.ok(graph.includes('subtab:"machines"'));
+  assert.ok(model.includes("version: 5"));
+  assert.ok(model.includes("parsed.version < 4")&&model.includes("parsed.version < 5"));
+  assert.ok(master.includes('navigationContext?.subtab==="machines"?"machines"'));
+});
+
 test("synthetic multi-route fixture covers the graph relationship types without importing live demo data", () => {
   const fixture = JSON.parse(source("tests/fixtures/aximach-transport-routing-demo.json"));
   assert.equal(fixture.synthetic, true);
@@ -156,13 +204,29 @@ test("Route Flow applies the selected layout to the live graph, preserves explic
   assert.ok(flow.includes('import { buildRouteFlowOperationPositions } from "./routeFlowLayout.js"'));
   assert.ok(flow.includes("buildRouteFlowOperationPositions(lineOperations,routeLayout,portrait)"));
   assert.ok(flow.includes('window.addEventListener("orientationchange",syncViewport)'),"Phone rotation must recompute compact graph geometry.");
-  assert.ok(flow.includes("workspaceTheme,compactGraphViewport])"),"Viewport changes must invalidate the live layout memo.");
-  assert.ok(flow.includes("},[routeNodes,routeMaterials,routeLegs,routeOperations,relationships,branch,vendors,routeLayout,workspaceTheme,compactGraphViewport])"));
-  assert.ok(flow.includes("const graphEdgeType=routeLayout==="));
+  assert.ok(flow.includes("workspaceTheme,compactGraphViewport,routeGraphSavedPositions])"),"Viewport changes and saved positions must invalidate the live layout memo.");
+  assert.ok(flow.includes("},[routeNodes,routeMaterials,routeLegs,routeOperations,relationships,branch,vendors,routeLayout,workspaceTheme,compactGraphViewport,routeGraphSavedPositions])"));
+  assert.ok(flow.includes('const ROUTE_FLOW_GRAPH_LAYOUT_PREFIX="aximach.route-flow.graph-layout.v1:"'),"Route Flow layout must use a dedicated storage namespace.");
+  assert.ok(flow.includes("loadRouteFlowGraphLayout(window.localStorage.getItem(routeGraphLayoutStorageKey))"),"Saved node positions must be loaded for the selected company / PO / component.");
+  assert.ok(flow.includes("saveRouteFlowGraphPosition(current,node.id,node.position)"),"Dragged node positions must be written to scoped local storage.");
+  assert.ok(flow.includes("onNodeDragStop={persistRouteGraphNodePosition}"),"Route Flow must persist node positions when a drag completes.");
+  assert.ok(flow.includes("Reset node layout")&&flow.includes("window.localStorage.removeItem(routeGraphLayoutStorageKey)"),"Users must be able to clear saved positions and restore the selected automatic layout.");
+  assert.ok(flow.includes("setRouteGraphResetRevision(value=>value+1)")&&flow.includes("key={routeGraphResetRevision}"),"Reset must remount the canvas to clear in-memory drag overrides and refit the automatic layout.");
+  assert.ok(flow.includes('revision={routeLayout+":"+routeGraphLayoutStorageKey+":"+(compactGraphViewport?"compact":"wide")+":"+routeFlowGraph.nodes.map(node=>node.id).join(";")}'),"Auto-fit must react to scope or node-set changes, not manual position changes.");
+  assert.ok(!flow.includes('node.id+"@"+node.position.x'),"Dragging must not retrigger camera auto-fit.");
+  assert.ok(flow.includes("routeRelationshipEdgeGeometry(type,nodeCenter(source),nodeCenter(target),routeLayout,parallelIndex)"),"Each edge must adapt to its real node geometry and selected route layout.");
+  assert.ok(flow.includes("type:geometry.edgeType,label,animated"),"The edge path type must be selected per relationship.");
+  assert.ok(flow.includes("pathOptions:geometry.pathOptions"),"Per-edge routing geometry must be carried in edge data.");
   assert.ok(flow.includes("zoomOnScroll") && flow.includes("zoomOnPinch"),"Route Flow must support wheel and pinch zoom through the shared graph.");
   assert.ok(flow.includes("maxZoom={2.8}"));
   assert.ok(flow.includes("<RouteConnectorLegend/>"));
   assert.ok(flow.includes("RouteFlowFitController revision={routeLayout+"));
+  assert.ok(flow.includes('validateRouteRelationshipCriteria({relationshipType,status:relationshipStatus,condition:relationshipCondition})'),"The editor must reject conditional/rework links without an acceptance rule.");
+  const connections=source("src/manufacturingGraphConnections.ts");
+  assert.ok(connections.includes('validateRouteRelationshipCriteria({relationshipType:type,status,condition:""})'),"Drag-to-connect must not create blank conditional/rework links.");
+  assert.ok(connections.includes("no blank link was saved"),"The user must be told to enter a condition before a conditional graph link is created.");
+  const visual=source("src/aximach-ui.css");
+  assert.ok(visual.includes(".route-flow-graph-toolbar button{pointer-events:auto}"),"The reset-layout button must receive pointer input above the graph canvas.");
   assert.ok(flow.includes("targetOperationId"),"Transport destinations must remain explicit saved references.");
   assert.ok(flow.includes('markerEnd:{type:MarkerType.ArrowClosed,color:style.color,width:18,height:18}'));
   assert.ok(flow.includes("strokeWidth:type===\"transport\"?3.4:3.8"));
@@ -300,10 +364,214 @@ test("one shared graph canvas renders every route type, material movement and ve
     assert.ok(layout.includes(type), "Shared connector layout is missing "+type);
   }
   assert.ok(route.includes("VehicleTypeIcon vehicleType={data.vehicleType||\"truck\"}"));
-  assert.ok(map.includes("transportVehicleIcon(data.vehicleType||\"truck\")"));
+  assert.ok(map.includes('const vehicleType=data.vehicleType||"truck"') && map.includes('<VehicleTypeIcon vehicleType={vehicleType} size={15}/>'));
   assert.ok(map.includes('const transportId="material-transport:"+entry.id'),"Material inbound transport must be a distinct graph node.");
   assert.ok(map.includes("relationshipRows.forEach(link=>"),"Saved typed relationships must be rendered in the Process Map.");
   assert.ok(universe.includes("RouteConnectorLegend compact"),"Manufacturing Universe must show the full route-type legend.");
   assert.ok(universe.includes("relationshipRows")||universe.includes("routeLinks.forEach"),"Manufacturing Universe must include saved route relationships.");
   assert.ok(shared.includes("ReactFlowProvider")&&shared.includes("<ReactFlow"),"The reusable canvas owns the React Flow provider and renderer.");
 });
+
+
+test("Route Flow supports n8n-style drag-to-connect and persists typed PO-line relationships",()=>{
+  const route=source("src/RouteFlowWorkspace.tsx");
+  const shared=source("src/ManufacturingGraphCanvas.tsx");
+  assert.ok(shared.includes("changes.applyTo(current)") && shared.includes('changes.getByType("position")'),"The shared canvas must keep draggable node positions controlled.");
+  assert.ok(shared.includes("onConnect?:(connection:Connection)=>void"),"The shared canvas must expose React Flow connections.");
+  assert.ok(shared.includes("onConnect={onConnect}"),"The shared canvas must forward connection events.");
+  assert.ok(route.includes("const connectRouteNodes=(connection:Connection)=>{"),"Route Flow must handle drag-to-connect.");
+  const connectors=source("src/manufacturingGraphConnections.ts");
+  assert.ok(route.includes("connectManufacturingGraphNodes"),"Route Flow must use the shared manufacturing connection contract.");
+  assert.ok(connectors.includes('routeRelationships:[...(current.routeRelationships||[]),record]'),"Operation connections must persist in the shared route relationship model.");
+  assert.ok(connectors.includes("anchorOperationId:operation.id"),"Material/process links must persist on material allocation records.");
+  assert.ok(connectors.includes("targetOperationId:operation.id"),"Transport receiving links must persist on transport-leg records.");
+  assert.ok(connectors.includes("operationId:operation.id"),"Quality links must persist on inspection records.");
+  assert.ok(connectors.includes("vendorId:vendor.id"),"Vendor assignments must persist on their owning records.");
+  assert.ok(route.includes("nodesDraggable\n          nodesConnectable\n          onConnect={connectRouteNodes}"),"The Route Flow canvas must enable node dragging and connector handles.");
+  assert.ok(route.includes("connectManufacturingGraphNodes"),"Material, transport and quality links are handled by the shared typed connector.");
+});
+
+
+test("Manufacturing Universe supports typed n8n-style operation connections without linking unrelated records",()=>{
+  const graph=source("src/ManufacturingEcosystemGraph.tsx");
+  const universe=source("src/ManufacturingUniverseWorkspace.tsx");
+  assert.ok(graph.includes('const connectable=data.kind==="operation"||data.kind==="material"||data.kind==="transport"||data.kind==="quality"||data.kind==="vendor"||data.kind==="process"||data.kind==="tooling"||data.kind==="fixture"'),"Operation, material, transport, quality, vendor, process, tooling and fixture nodes expose typed connector handles.");
+  assert.ok(graph.includes("nodesConnectable")&&graph.includes("onConnect={connection=>onConnect?.(connection,relationshipType)}"),"The Universe graph forwards drag connections with the selected relationship type.");
+  assert.ok(graph.includes('aria-label="New manufacturing connection type"'),"The relationship type is selectable.");
+  assert.ok(graph.includes("scope?.poLineId")&&graph.includes("matchesLine"),"The Universe graph is scoped to the selected PO component line.");
+  assert.ok(universe.includes("const connectUniverseOperations=(connection:Connection,relationshipType:string)=>{"),"The Universe workspace must use the shared graph connection handler.");
+  assert.ok(universe.includes("scope:{companyId,poId,poLineId,componentId}"),"The Universe must pass the selected company, PO and component scope.");
+  assert.ok(universe.includes("onConnect={connectUniverseOperations}"),"The Universe graph is wired to the shared data update.");
+});
+
+
+test("Manufacturing Universe is scoped to the selected component and uses the named Manufacturing Graph view",()=>{
+  const graph=source("src/ManufacturingEcosystemGraph.tsx");
+  const workspace=source("src/ManufacturingUniverseWorkspace.tsx");
+  assert.ok(graph.includes("scope?:GraphScope"),"The graph accepts an explicit manufacturing scope.");
+  assert.ok(graph.includes("const scoped=Boolean(scope?.companyId||scope?.poId||scope?.poLineId||scope?.componentId)"));
+  assert.ok(graph.includes("const matchesLine="),"Every line-level collection is filtered by the active component route.");
+  assert.ok(graph.includes("columns:mobile?2:4"),"The mobile graph layout must use fewer horizontal groups.");
+  assert.ok(graph.includes("minZoom:.28"),"The mobile graph must not auto-shrink the whole unfiltered company database to unreadable size.");
+  assert.ok(workspace.includes("scope={{companyId,poId,poLineId,componentId}}"));
+  assert.ok(workspace.includes("Manufacturing Graph"),"The old Ecosystem tab is replaced by the Manufacturing Graph label.");
+  assert.ok(workspace.includes('useState<"ecosystem"|"route">("ecosystem")'),"Manufacturing Universe exposes only shared-data graph and animated 3D route.");
+  assert.ok(!workspace.includes("One Component Preview"),"The isolated static fixture preview is not exposed as a live module.");
+  assert.ok(workspace.includes("const defaultPO=!context.poId&&!context.poLineId&&!context.operationId"),"An unscoped visit must select one available live PO instead of rendering the entire company database.");
+  assert.ok(workspace.includes("targetPO?.lines.find(row=>!row.deletedAt)"),"An unscoped visit must open the first active component line in that PO.");
+  assert.ok(!workspace.includes("<SingleComponentRouteGraphDemo/>"),"Manufacturing Universe uses shared normal-module records only.");
+});
+
+test("the retired two-company demo importer is removed and reserved DEMO records are archived without touching real IDs",()=>{
+  const data=source("src/manufacturingData.ts");
+  const importer=source("src/IntelligenceWorkspaces.tsx");
+  const exchange=source("src/App.tsx");
+  assert.ok(data.includes('marker = "aximach.demo-data-cleanup.v3"'));
+  assert.ok(data.includes('row.id.startsWith("DEMO-")'));
+  assert.ok(data.includes("supplierFinanceApprovals:archiveRows(canonical.supplierFinanceApprovals)"));
+  assert.ok(!importer.includes("loadTwoCompanyDemo"));
+  assert.ok(!importer.includes("createAxMachTwoCompanyDemo"));
+  assert.ok(importer.includes("One-company / one-PO / one-component manufacturing preview"));
+  assert.ok(!exchange.includes("Import Demo Factory"));
+});
+
+test("process definitions use stable distinct category colours instead of the legacy shared blue",()=>{
+  const palette=source("src/processPalette.ts");
+  const directory=source("src/SpecializedDirectoryWorkspace.tsx");
+  const route=source("src/RouteFlowWorkspace.tsx");
+  const universe=source("src/ManufacturingEcosystemGraph.tsx");
+  assert.ok(palette.includes("CATEGORY_COLOURS"));
+  assert.ok(palette.includes("LEGACY_DEFAULTS"));
+  const requiredColours=[
+    ["sawing","#0e9ca6"],["turning","#d28a22"],["wire edm","#7958c8"],
+    ["gear cutting","#d35463"],["heat treatment","#2f7fca"],["grinding","#24936d"],
+    ["metrology","#b86a35"],["laser cutting","#287aa0"],["forming","#9a5b91"],
+    ["fabrication","#6e9439"],["welding","#bd684b"],["finishing","#4d70b5"],
+    ["vmc machining","#a17b28"],["deburring","#278f89"],["quality","#8a64b5"],
+    ["assembly","#cd7a28"],["packaging","#527d91"],["punching","#b14d72"]
+  ];
+  for(const [category,colour] of requiredColours){
+    assert.ok(palette.includes('"'+category+'":"'+colour+'"'),"missing distinct process colour for "+category);
+  }
+  assert.equal(new Set(requiredColours.map(([,colour])=>colour)).size,18,"all 18 demo process categories must have distinct colours");
+  assert.ok(directory.includes("resolveProcessColor(row)"));
+  assert.ok(directory.includes("processPaletteColor(category,processType)"));
+  assert.ok(route.includes("resolveProcessColor({"));
+  assert.ok(universe.includes("resolveProcessColor({"));
+});
+
+
+test("large interactive manufacturing graphs preserve readable phone zoom and manual pan",()=>{
+  const canvas=source("src/ManufacturingGraphCanvas.tsx");
+  const demo=source("src/SingleComponentRouteGraphDemo.tsx");
+  const universe=source("src/ManufacturingEcosystemGraph.tsx");
+  assert.ok(canvas.includes("defaultViewport?:{x:number;y:number;zoom:number}"));
+  assert.ok(canvas.includes("defaultViewport={defaultViewport}"));
+  assert.ok(demo.includes('matchMedia("(max-width:760px)")'));
+  assert.ok(demo.includes("fitView={!compactViewport}"));
+  assert.ok(demo.includes("zoom:.68"));
+  assert.ok(universe.includes('matchMedia("(max-width:760px)")'));
+  assert.ok(universe.includes("fitView={!compactViewport}"));
+  assert.ok(universe.includes("zoom:.62"));
+});
+
+test("manufacturing route connectors show animated directional pulses without overriding arrow colours",()=>{
+  const edge=source("src/ManufacturingRelationshipEdge.tsx");
+  const route=source("src/RouteFlowWorkspace.tsx");
+  const universe=source("src/ManufacturingEcosystemGraph.tsx");
+  const demo=source("src/SingleComponentRouteGraphDemo.tsx");
+  const css=source("src/aximach-visual-fixes.css");
+  assert.ok(edge.includes("flowMotion?:boolean"));
+  assert.ok(edge.includes("<animateMotion dur="));
+  assert.ok(route.includes('flowMotion:["main","alternate","rework","transport","material"].includes(type)'));
+  assert.ok(universe.includes('flowMotion:["main","alternate","rework","transport","feeds operation","allocated to"].includes(link.kind)'));
+  assert.ok(demo.includes('flowMotion:["main","alternate","rework","transport","material"].includes(row.type)'));
+  assert.ok(css.includes(".ax-manufacturing-edge-pulse"));
+  assert.ok(css.includes("@media(prefers-reduced-motion:reduce)"));
+  assert.ok(!css.includes(".ax-ecosystem-flow-canvas .react-flow__arrowhead path{fill:currentColor!important"));
+});
+
+
+test("Manufacturing Universe renders every selected-line BOM material link and attaches unanchored allocations to the first main operation",()=>{
+  const graph=source("src/ManufacturingEcosystemGraph.tsx");
+  assert.ok(graph.includes("materialProcessLinks=activeRows(data.materialProcessLinks||[]).filter(matchesLine)"));
+  assert.ok(graph.includes('const linkId="material-link:"+link.id'));
+  assert.ok(graph.includes('if(link.flowType==="Output")edge("operation:"+link.operationId,linkId,"output from operation")'));
+  assert.ok(graph.includes('else edge(linkId,"operation:"+link.operationId,"feeds operation")'));
+  assert.ok(graph.includes("const firstMainOperation=operations.filter"));
+  assert.ok(graph.includes("operations.find(operation=>operation.id===row.anchorOperationId)||firstMainOperation"));
+  assert.ok(graph.includes("if(targetOperation)edge(transportId,\"operation:\"+targetOperation.id,\"transport\")"));
+});
+
+test("custom process colours override palette defaults while legacy shared blues fall back to category colours",()=>{
+  const palette=source("src/processPalette.ts");
+  assert.ok(palette.includes("const saved=[record.processColor,record.displayColor]"));
+  assert.ok(palette.includes(".find(value=>Boolean(value)&&!LEGACY_DEFAULTS.has(value))"));
+  assert.ok(palette.includes("if(saved)return saved"));
+});
+
+
+test("shared graph connector persists BOM process links and carrier links to the correct source records",()=>{
+  const connector=source("src/manufacturingGraphConnections.ts");
+  assert.ok(connector.includes('afterPrefix(source,["material-link:"])'));
+  assert.ok(connector.includes("row.id===materialProcessLink.id?{...row,operationId:operation.id"));
+  assert.ok(connector.includes("isInboundMaterialTransport"));
+  assert.ok(connector.includes("transportVendorId:vendor.id"));
+  assert.ok(connector.includes("vendorIds:[...row.vendorIds,vendor.id]"));
+  assert.ok(connector.includes("preferredVendorId:vendor.id"));
+});
+
+test("Manufacturing Universe maps machine maintenance plans, work orders and downtime as first-class linked entities",()=>{
+  const graph=source("src/ManufacturingEcosystemGraph.tsx");
+  assert.ok(graph.includes('"maintenance"|"downtime"'),"Maintenance and downtime need dedicated entity kinds.");
+  assert.ok(graph.includes('maintenancePlans=activeRows(data.maintenancePlans||[])'));
+  assert.ok(graph.includes('maintenanceWorkOrders=activeRows(data.maintenanceWorkOrders||[])'));
+  assert.ok(graph.includes('machineDowntime=activeRows(data.machineDowntime||[])'));
+  assert.ok(graph.includes('"has maintenance plan"'));
+  assert.ok(graph.includes('"maintenance work"'));
+  assert.ok(graph.includes('"affects machine availability"'));
+  assert.ok(graph.includes('"recorded under"'));
+});
+
+test("Tooling and fixture registers are factory-scoped, lifecycle-tracked and connected to operations",()=>{
+ const model=source("src/manufacturingData.ts");
+ const master=source("src/ManufacturingMasterWorkspace.tsx");
+ const processMap=source("src/LinkedProcessWorkspace.tsx");
+ const graph=source("src/ManufacturingEcosystemGraph.tsx");
+ const connector=source("src/manufacturingGraphConnections.ts");
+ const scope=source("server/tenant-scope.mjs");
+ assert.ok(model.includes("toolingAssets:ToolingAssetRecord[]"));
+ assert.ok(model.includes("fixtureAssets:FixtureAssetRecord[]"));
+ assert.ok(model.includes("resourceUsageEvents:ResourceUsageEventRecord[]"));
+ assert.ok(master.includes('tab === "tooling" ? "Tooling Register"'));
+ assert.ok(master.includes('tab === "fixtures" ? "Fixtures & Workholding Register"'));
+ assert.ok(master.includes("const saveToolingAsset=")&&master.includes("const saveFixtureAsset="));
+ assert.ok(master.includes("const saveResourceUsage=")&&master.includes("applyResourceUsageEvent"));
+ assert.ok(master.includes("Log event"));
+ assert.ok(processMap.includes('id="operation-tooling-assets"'));
+ assert.ok(processMap.includes('id="operation-fixture-assets"'));
+ assert.ok(processMap.includes("validateOperationResourceAssignments"));
+ assert.ok(graph.includes('title:"Tooling & cutting assets"')&&graph.includes('title:"Jigs, fixtures & workholding"'));
+ assert.ok(graph.includes('edge("operation:"+row.id,"tooling:"+id,"uses tooling")'));
+ assert.ok(graph.includes('edge("operation:"+row.id,"fixture:"+id,"uses fixture")'));
+ assert.ok(connector.includes("toolingAssetIds:nextToolingIds"));
+ assert.ok(connector.includes("fixtureAssetIds:nextFixtureIds"));
+ assert.ok(scope.includes('case "toolingAssets":')&&scope.includes('case "fixtureAssets":'));
+ assert.ok(scope.includes("resourceAssignmentsAllowed(row)"));
+});
+
+test("Manufacturing Universe graph supports typed connections for tooling, fixtures and components",()=>{
+ const connector=source("src/manufacturingGraphConnections.ts");
+ assert.ok(connector.includes("compatibleMachineIds:[...new Set"));
+ assert.ok(connector.includes("processDefinitionIds:[...new Set"));
+ assert.ok(connector.includes("componentIds:[...new Set"));
+ assert.ok(connector.includes("Outsourced operations cannot reserve"));
+});
+
+test("Manufacturing Universe preferences reveal new tooling and fixture groups without re-enabling previously hidden groups",()=>{
+ const model=source("src/manufacturingEcosystemGraphModel.mjs");
+ assert.ok(model.includes('["tooling","fixture","resourceEvent"]'));
+ assert.ok(model.includes("parsed.version < 5"));
+ assert.ok(model.includes("return { version: 5, visibleKinds, visibleLimits: normalizedLimits }"));
+});
+

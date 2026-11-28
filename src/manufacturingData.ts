@@ -34,6 +34,73 @@ export type FactoryRecord = {
   id: string; companyId: string; name: string; address: string; contactPhone: string;
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export type MachineStatus = "Available" | "Running" | "Planned maintenance" | "Under maintenance" | "Breakdown" | "Retired";
+export type MachineRecord = {
+  id: string; companyId: string; factoryId: string;
+  assetCode: string; name: string; machineType: string;
+  manufacturer?: string; model?: string; serialNumber?: string; controller?: string;
+  axisCount?: number; workEnvelopeXmm?: number; workEnvelopeYmm?: number; workEnvelopeZmm?: number;
+  spindleMaxRpm?: number; positioningAccuracyMicron?: number; maxWorkpieceWeightKg?: number;
+  processDefinitionIds: string[]; materialCapabilities: string[];
+  status: MachineStatus; commissionedAt?: string; nextMaintenanceAt?: string;
+  notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
+};
+export type ToolingAssetStatus = "Available" | "In use" | "Needs regrind" | "Under maintenance" | "Retired";
+export type ToolingAssetRecord = {
+  id:string; companyId:string; factoryId:string; assetCode:string; name:string; toolType:string;
+  manufacturer?:string; model?:string; specification?:string; holderInterface?:string; coating?:string;
+  diameterMm?:number; fluteCount?:number; maxRpm?:number;
+  compatibleMachineIds:string[]; machineTypeCapabilities:string[]; processDefinitionIds:string[]; materialCapabilities:string[];
+  toolLifeLimitMinutes:number; toolLifeUsedMinutes:number; toolLifeLimitCycles:number; toolLifeUsedCycles:number;
+  regrindCount:number; maxRegrinds:number; lastInspectedAt?:string; inspectionDueAt?:string;
+  status:ToolingAssetStatus; storageLocation:string; notes:string;
+  createdAt:string; updatedAt:string; deletedAt?:string;
+};
+export type FixtureAssetStatus = "Available" | "In use" | "Under maintenance" | "Retired";
+export type FixtureAssetRecord = {
+  id:string; companyId:string; factoryId:string; assetCode:string; name:string; fixtureType:string;
+  manufacturer?:string; model?:string; workholdingType:string;
+  compatibleMachineIds:string[]; machineTypeCapabilities:string[]; processDefinitionIds:string[]; componentIds:string[];
+  maxWorkpieceWeightKg?:number; maxClampForceKn?:number; repeatabilityMicron?:number;
+  usageCycles:number; maxUsageCycles?:number; lastInspectedAt?:string; inspectionDueAt?:string;
+  status:FixtureAssetStatus; storageLocation:string; setupNotes:string; notes:string;
+  createdAt:string; updatedAt:string; deletedAt?:string;
+};
+export type ResourceUsageEventKind = "Production use" | "Regrind" | "Inspection" | "Repair" | "Replacement";
+export type ResourceUsageEventRecord = {
+  id:string; companyId:string; factoryId:string; resourceType:"tooling"|"fixture"; resourceId:string;
+  operationId?:string; eventType:ResourceUsageEventKind; runtimeMinutes:number; cycles:number;
+  inspectionResult?:"Pass"|"Fail"|"Not assessed"; inspectionDueAt?:string; occurredAt:string; notes:string;
+  createdAt:string; updatedAt:string; deletedAt?:string;
+};
+export type MaintenancePlanFrequencyUnit = "Days" | "Weeks" | "Months";
+export type MaintenancePlanType = "Preventive" | "Lubrication" | "Calibration" | "Inspection";
+export type MachineMaintenancePlanRecord = {
+  id:string; companyId:string; factoryId:string; machineId:string; planName:string;
+  maintenanceType:MaintenancePlanType; frequencyValue:number; frequencyUnit:MaintenancePlanFrequencyUnit;
+  lastCompletedAt?:string; nextDueAt:string; estimatedDurationHours:number;
+  checklist:string[]; assignedTo:string; active:boolean; notes:string;
+  createdAt:string; updatedAt:string; deletedAt?:string;
+};
+export type MachineMaintenanceWorkType = "Preventive" | "Breakdown" | "Corrective" | "Calibration" | "Inspection";
+export type MachineMaintenanceWorkStatus = "Planned" | "Open" | "In progress" | "Waiting parts" | "Completed" | "Cancelled";
+export type MachineMaintenancePriority = "Low" | "Normal" | "High" | "Critical";
+export type MachineMaintenanceWorkOrderRecord = {
+  id:string; companyId:string; factoryId:string; machineId:string; planId?:string;
+  workOrderNumber:string; workType:MachineMaintenanceWorkType; priority:MachineMaintenancePriority;
+  status:MachineMaintenanceWorkStatus; title:string; reportedAt:string;
+  scheduledStart:string; scheduledEnd:string; actualStart?:string; actualEnd?:string;
+  symptom:string; rootCause:string; actionTaken:string; technician:string;
+  estimatedCost:number; actualCost:number; notes:string;
+  createdAt:string; updatedAt:string; deletedAt?:string;
+};
+export type MachineDowntimeType = "Planned maintenance" | "Unplanned breakdown" | "Waiting for parts" | "Setup" | "Quality hold" | "Other";
+export type MachineDowntimeRecord = {
+  id:string; companyId:string; factoryId:string; machineId:string; workOrderId?:string;
+  downtimeType:MachineDowntimeType; startedAt:string; endedAt?:string;
+  reason:string; productionImpactQty:number; recordedBy:string; notes:string;
+  createdAt:string; updatedAt:string; deletedAt?:string;
+};
 export type ComponentRecord = {
   id: string; companyId?: string; partNumber: string; name: string; revision: string; material?: string;
   drawingReference: string; notes: string; salePrice: number; salePriceUnit: "piece" | "set";
@@ -52,7 +119,7 @@ export type PurchaseOrderLine = {
   overhead?: number; toolingCost?: number; reworkCost?: number; scrapCost?: number; rejectedQty?: number; gstRate?: number;
 };
 export type PurchaseOrderRecord = {
-  id: string; number: string; companyId: string; factoryId: string; issueDate: string;
+  id: string; number: string; companyId: string; factoryId: string; customerId?: string; issueDate: string;
   targetDelivery: string; status: string; notes: string; lines: PurchaseOrderLine[];
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
@@ -111,7 +178,7 @@ export type PlannedCostEntry = {
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type OperationRecord = {
-  id: string; poId: string; poLineId: string; componentId: string; processDefinitionId?: string; sequence: number; name: string;
+  id: string; poId: string; poLineId: string; componentId: string; processDefinitionId?: string; machineId?: string; toolingAssetIds?: string[]; fixtureAssetIds?: string[]; sequence: number; name: string;
   category: string; machine: string; vendorId: string; status: LifecycleStatus;
   plannedStart: string; plannedEnd: string; actualStart: string; actualEnd: string;
   quantity: number; completed: number; accepted: number; rejected: number;
@@ -163,10 +230,20 @@ export type SupplierPaymentAllocationRecord = {
   id: string; paymentId: string; invoiceId: string; amount: number; notes: string;
   createdBy: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
+export const STANDARD_MANUFACTURING_MATERIAL_TYPES = [
+  "Steel","Carbon steel","Mild steel","Structural steel","Alloy steel","Tool steel","Spring steel","Bearing steel","Stainless steel",
+  "Cast iron","Ductile iron","Aluminium","Copper","Copper alloy","Brass","Bronze","Non-ferrous",
+  "Nickel alloy","Titanium","Magnesium","Zinc","Lead","Tin","Plastic","Engineering plastic",
+  "Nylon","Polycarbonate","Acetal / POM","PTFE","PEEK","Polyethylene","Polypropylene",
+  "Ceramic","Composite","CFRP / GFRP","Rubber","Graphite","Wood",
+  "Coating / finishing consumable","Paint / powder coating","Cutting fluid / coolant","Lubricant / oil",
+  "Adhesive / sealant","Chemical / treatment","Packaging material","Electrical / electronic","Other"
+] as const;
+
 export type MaterialRecord = {
   id: string; code: string; name: string; grade: string; unit: string; specification: string;
   preferredVendorId: string; ratePerUnit: number; notes: string;
-  materialType?: string; shapeType?: string; dimensions?: Record<string, number>; dimensionUnit?: "mm" | "inch"; densityKgM3?: number; densityUnit?: "kg/m3" | "g/cm3"; priceUnit?: "kg" | "lb";
+  materialType?: string; shapeType?: string; dimensions?: Record<string, number>; dimensionUnit?: "mm" | "inch"; densityKgM3?: number; densityUnit?: "kg/m3" | "g/cm3"; priceUnit?: "kg" | "lb" | "piece";
   createdAt: string; updatedAt: string; deletedAt?: string;
 };
 export type ComponentPartRecord = {
@@ -182,7 +259,7 @@ export type MaterialCostEntryRecord = {
   /** Optional route insertion point: blank means procurement before the first manufacturing operation. */
   anchorOperationId?: string;
   shapeType: string; dimensions: Record<string, number>; dimensionUnits: Record<string, string>; quantity: number;
-  weightPerPieceKg: number; totalWeightKg: number; priceUnit: "kg" | "lb"; materialRate: number; materialCost: number;
+  weightPerPieceKg: number; totalWeightKg: number; priceUnit: "kg" | "lb" | "piece"; piecesPerFinishedPart?: number; materialRate: number; materialCost: number;
   cuttingType: string; cuttingBasis: string; cuttingRate: number; cutsPerPiece: number; cuttingHours: number; cuttingCost: number; wastagePercent: number;
   vendorId: string; givenDate: string; deliveryDate: string; actualDeliveryDate: string; poReference: string; notes: string; currency: "INR";
   /** Direct material inbound transport; kept separate from material and cutting cost. */
@@ -206,18 +283,33 @@ export type MaterialProcessLinkRecord = {
   flowType: "Material input" | "Consumable" | "WIP transfer" | "Output";
   placement: "before" | "after"; notes: string; createdAt: string; updatedAt: string; deletedAt?: string;
 };
+/**
+ * Actual material reconciliation for one BOM material at one PO-line operation.
+ * consumedQuantity is gross material consumed and includes scrapQuantity as a subset.
+ * returnedQuantity is physically returned to stock by a linked inventory Return row;
+ * it is not deducted from on-hand stock a second time.
+ */
+export type MaterialConsumptionRecord = {
+  id:string; companyId:string; factoryId:string; poId:string; poLineId:string; componentId:string;
+  partId?:string; bomLineId:string; materialId:string; operationId:string; unit:string;
+  plannedQuantity:number; issuedQuantityAtRecord:number;
+  consumedQuantity:number; scrapQuantity:number; returnedQuantity:number;
+  sourceMaterialProcessLinkIds?:string[];
+  occurredAt:string; reference:string; recordedBy:string; notes:string;
+  createdAt:string; updatedAt:string; deletedAt?:string;
+};
 export type StockTransactionKind = "Opening balance" | "Receipt" | "Issue to production" | "WIP transfer" | "Return" | "Rejected" | "Scrap" | "Finished goods receipt" | "Dispatch" | "Adjustment";
 export type InventoryTransactionRecord = {
   id: string; itemType: "material" | "component"; itemId: string; transactionType: StockTransactionKind;
   direction: "in" | "out"; quantity: number; occurredAt: string; reference: string; notes: string;
   companyId: string; factoryId: string; poId: string; poLineId: string; operationId: string; vendorId: string;
-  reversalOfId: string; createdAt: string; createdBy: string; updatedAt?: string; deletedAt?: string;
+  reversalOfId: string; sourceConsumptionId?:string; createdAt: string; createdBy: string; updatedAt?: string; deletedAt?: string;
 };
 export type ManufacturingData = {
   updatedAt: string;
-  companies: CompanyRecord[]; customers: CustomerRecord[]; prospects: ProspectRecord[]; factories: FactoryRecord[]; purchaseOrders: PurchaseOrderRecord[];
+  companies: CompanyRecord[]; customers: CustomerRecord[]; prospects: ProspectRecord[]; factories: FactoryRecord[]; machines: MachineRecord[]; toolingAssets:ToolingAssetRecord[]; fixtureAssets:FixtureAssetRecord[]; resourceUsageEvents:ResourceUsageEventRecord[]; maintenancePlans: MachineMaintenancePlanRecord[]; maintenanceWorkOrders: MachineMaintenanceWorkOrderRecord[]; machineDowntime: MachineDowntimeRecord[]; purchaseOrders: PurchaseOrderRecord[];
   components: ComponentRecord[]; vendors: VendorRecord[]; operations: OperationRecord[];
-  quotations: QuotationRecord[]; materials: MaterialRecord[]; componentParts: ComponentPartRecord[]; materialCostEntries: MaterialCostEntryRecord[]; bomLines: BomLineRecord[]; materialProcessLinks: MaterialProcessLinkRecord[];
+  quotations: QuotationRecord[]; materials: MaterialRecord[]; componentParts: ComponentPartRecord[]; materialCostEntries: MaterialCostEntryRecord[]; bomLines: BomLineRecord[]; materialProcessLinks: MaterialProcessLinkRecord[]; materialConsumptions:MaterialConsumptionRecord[];
   inventoryTransactions: InventoryTransactionRecord[];
   contactProfiles: ContactProfileRecord[]; processDefinitions: ProcessDefinitionRecord[]; plannedCosts: PlannedCostEntry[];
   transportRoutes: TransportRouteRecord[]; transportLegs: ComponentTransportLegRecord[];
@@ -235,8 +327,8 @@ export function makeId(prefix: string): string {
 export const activeRows = <T extends { deletedAt?: string }>(rows: T[]) => rows.filter(row => !row.deletedAt);
 
 export const emptyManufacturingData = (): ManufacturingData => ({
-  updatedAt: "", companies: [], customers: [], prospects: [], factories: [], purchaseOrders: [], components: [], vendors: [],
-  operations: [], quotations: [], materials: [], componentParts: [], materialCostEntries: [], bomLines: [], materialProcessLinks: [], inventoryTransactions: [],
+  updatedAt: "", companies: [], customers: [], prospects: [], factories: [], machines: [], toolingAssets: [], fixtureAssets: [], resourceUsageEvents: [], maintenancePlans: [], maintenanceWorkOrders: [], machineDowntime: [], purchaseOrders: [], components: [], vendors: [],
+  operations: [], quotations: [], materials: [], componentParts: [], materialCostEntries: [], bomLines: [], materialProcessLinks: [], materialConsumptions:[], inventoryTransactions: [],
   contactProfiles: [], processDefinitions: [], plannedCosts: [], transportRoutes: [], transportLegs: [], paymentTransactions: [], inspectionMeasurements: [],
   supplierInvoices: [], supplierPayments: [], supplierFinanceApprovals: [], supplierPaymentAllocations: [],
   routeRelationships: [], followUpAssignments: []
@@ -250,19 +342,42 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     customers: Array.isArray(value?.customers) ? value.customers : empty.customers,
     prospects: Array.isArray(value?.prospects) ? value.prospects : empty.prospects,
     factories: Array.isArray(value?.factories) ? value.factories : empty.factories,
+    machines: Array.isArray(value?.machines) ? value.machines.map(machine => ({
+      ...machine,
+      processDefinitionIds: Array.isArray(machine.processDefinitionIds) ? [...new Set(machine.processDefinitionIds.filter(id => typeof id === "string" && id))] : [],
+      materialCapabilities: Array.isArray(machine.materialCapabilities) ? [...new Set(machine.materialCapabilities.filter(value => typeof value === "string" && value.trim()))] : []
+    })) : empty.machines,
+    toolingAssets: Array.isArray(value?.toolingAssets) ? value.toolingAssets.map(row=>({
+      ...row,
+      compatibleMachineIds:Array.isArray(row.compatibleMachineIds)?[...new Set(row.compatibleMachineIds.filter(id=>typeof id==="string"&&id))]:[],
+      machineTypeCapabilities:Array.isArray(row.machineTypeCapabilities)?[...new Set(row.machineTypeCapabilities.filter(value=>typeof value==="string"&&value.trim()))]:[],
+      processDefinitionIds:Array.isArray(row.processDefinitionIds)?[...new Set(row.processDefinitionIds.filter(id=>typeof id==="string"&&id))]:[],
+      materialCapabilities:Array.isArray(row.materialCapabilities)?[...new Set(row.materialCapabilities.filter(value=>typeof value==="string"&&value.trim()))]:[]
+    })) : empty.toolingAssets,
+    fixtureAssets: Array.isArray(value?.fixtureAssets) ? value.fixtureAssets.map(row=>({
+      ...row,
+      compatibleMachineIds:Array.isArray(row.compatibleMachineIds)?[...new Set(row.compatibleMachineIds.filter(id=>typeof id==="string"&&id))]:[],
+      machineTypeCapabilities:Array.isArray(row.machineTypeCapabilities)?[...new Set(row.machineTypeCapabilities.filter(value=>typeof value==="string"&&value.trim()))]:[],
+      processDefinitionIds:Array.isArray(row.processDefinitionIds)?[...new Set(row.processDefinitionIds.filter(id=>typeof id==="string"&&id))]:[],
+      componentIds:Array.isArray(row.componentIds)?[...new Set(row.componentIds.filter(id=>typeof id==="string"&&id))]:[]
+    })) : empty.fixtureAssets,
+    resourceUsageEvents: Array.isArray(value?.resourceUsageEvents) ? value.resourceUsageEvents : empty.resourceUsageEvents,
+    maintenancePlans: Array.isArray(value?.maintenancePlans) ? value.maintenancePlans : empty.maintenancePlans,
+    maintenanceWorkOrders: Array.isArray(value?.maintenanceWorkOrders) ? value.maintenanceWorkOrders : empty.maintenanceWorkOrders,
+    machineDowntime: Array.isArray(value?.machineDowntime) ? value.machineDowntime : empty.machineDowntime,
     purchaseOrders: Array.isArray(value?.purchaseOrders) ? value.purchaseOrders : empty.purchaseOrders,
     components: Array.isArray(value?.components) ? value.components.map(component => ({
       ...component,
       salePriceUnit: component.salePriceUnit === "set" ? "set" as const : component.salePriceUnit === "piece" ? "piece" as const : component.orderUnit === "Set" ? "set" as const : "piece" as const
     })) : empty.components,
     vendors: Array.isArray(value?.vendors) ? value.vendors : empty.vendors,
-    operations: Array.isArray(value?.operations) ? value.operations : empty.operations,
+    operations: Array.isArray(value?.operations) ? value.operations.map(row=>({...row,toolingAssetIds:Array.isArray(row.toolingAssetIds)?[...new Set(row.toolingAssetIds.filter(id=>typeof id==="string"&&id))]:[],fixtureAssetIds:Array.isArray(row.fixtureAssetIds)?[...new Set(row.fixtureAssetIds.filter(id=>typeof id==="string"&&id))]:[]})) : empty.operations,
     quotations: Array.isArray(value?.quotations) ? value.quotations : empty.quotations,
     materials: Array.isArray(value?.materials) ? value.materials.map(material => ({
       ...material,
       densityKgM3: material.densityKgM3 == null ? undefined : Number(material.densityUnit === "g/cm3" ? Number(material.densityKgM3) * 1000 : material.densityKgM3),
       densityUnit: "kg/m3" as const,
-      priceUnit: material.priceUnit === "lb" ? "lb" as const : "kg" as const,
+      priceUnit: material.priceUnit === "lb" ? "lb" as const : material.priceUnit === "piece" ? "piece" as const : "kg" as const,
       unit: material.unit || "kg"
     })) : empty.materials,
     componentParts: Array.isArray(value?.componentParts) ? value.componentParts.map(part => {
@@ -272,6 +387,7 @@ function normaliseData(value: Partial<ManufacturingData> | null | undefined): Ma
     materialCostEntries: Array.isArray(value?.materialCostEntries) ? value.materialCostEntries : empty.materialCostEntries,
     bomLines: Array.isArray(value?.bomLines) ? value.bomLines : empty.bomLines,
     materialProcessLinks: Array.isArray(value?.materialProcessLinks) ? value.materialProcessLinks : empty.materialProcessLinks,
+    materialConsumptions: Array.isArray(value?.materialConsumptions) ? value.materialConsumptions : empty.materialConsumptions,
     inventoryTransactions: Array.isArray(value?.inventoryTransactions) ? value.inventoryTransactions : empty.inventoryTransactions,
     contactProfiles: Array.isArray(value?.contactProfiles) ? value.contactProfiles : empty.contactProfiles,
     processDefinitions: Array.isArray(value?.processDefinitions) ? value.processDefinitions : empty.processDefinitions,
@@ -373,6 +489,13 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     customers: mergeRows(local.customers, remote.customers),
     prospects: mergeRows(local.prospects, remote.prospects),
     factories: mergeRows(local.factories, remote.factories),
+    machines: mergeRows(local.machines, remote.machines),
+    toolingAssets: mergeRows(local.toolingAssets, remote.toolingAssets),
+    fixtureAssets: mergeRows(local.fixtureAssets, remote.fixtureAssets),
+    resourceUsageEvents: mergeRows(local.resourceUsageEvents, remote.resourceUsageEvents),
+    maintenancePlans: mergeRows(local.maintenancePlans, remote.maintenancePlans),
+    maintenanceWorkOrders: mergeRows(local.maintenanceWorkOrders, remote.maintenanceWorkOrders),
+    machineDowntime: mergeRows(local.machineDowntime, remote.machineDowntime),
     purchaseOrders: mergePurchaseOrderRows(local.purchaseOrders, remote.purchaseOrders),
     components: mergeRows(local.components, remote.components),
     vendors: mergeRows(local.vendors, remote.vendors),
@@ -383,6 +506,7 @@ export function mergeManufacturingData(localValue: Partial<ManufacturingData>, r
     materialCostEntries: mergeRows(local.materialCostEntries, remote.materialCostEntries),
     bomLines: mergeRows(local.bomLines, remote.bomLines),
     materialProcessLinks: mergeRows(local.materialProcessLinks, remote.materialProcessLinks),
+    materialConsumptions: mergeRows(local.materialConsumptions, remote.materialConsumptions),
     inventoryTransactions: mergeRows(local.inventoryTransactions, remote.inventoryTransactions),
     contactProfiles: mergeRows(local.contactProfiles, remote.contactProfiles),
     processDefinitions: mergeRows(local.processDefinitions, remote.processDefinitions),
@@ -581,11 +705,60 @@ export function useManufacturingData() {
 /** Remove only known AXIMACH demo seeds; preserve user-edited and user-entered records. */
 export function removeLegacyDemoData() {
   if (typeof window === "undefined") return;
-  const marker = "aximach.legacy-demo-cleanup.v2";
+  const marker = "aximach.demo-data-cleanup.v3";
   if (window.localStorage.getItem(marker) === "done") return;
   const safeRead = (key: string) => {
     try { return JSON.parse(window.localStorage.getItem(key) || "null"); } catch { return null; }
   };
+  // Retire only the reserved synthetic DEMO- namespace. Real company, PO,
+  // component, vendor and production records are preserved unchanged.
+  const canonical = readManufacturingData();
+  const stamp = nowIso();
+  const archiveRows = <T extends {id:string;deletedAt?:string;updatedAt?:string}>(rows:T[]) =>
+    rows.map(row=>row.id.startsWith("DEMO-")?{...row,deletedAt:row.deletedAt||stamp,updatedAt:stamp}:row);
+  const hasReservedDemo = Object.values(canonical).some(value=>
+    Array.isArray(value)&&value.some((row:any)=>typeof row?.id==="string"&&row.id.startsWith("DEMO-")&&!row.deletedAt)
+  );
+  if (hasReservedDemo) {
+    const archived:ManufacturingData = {
+      ...canonical,
+      updatedAt:stamp,
+      companies:archiveRows(canonical.companies),
+      customers:archiveRows(canonical.customers),
+      prospects:archiveRows(canonical.prospects),
+      factories:archiveRows(canonical.factories),
+      purchaseOrders:canonical.purchaseOrders.map(po=>({
+        ...po,
+        ...(po.id.startsWith("DEMO-")?{deletedAt:po.deletedAt||stamp,updatedAt:stamp}:{}),
+        lines:po.lines.map(line=>line.id.startsWith("DEMO-")?{...line,deletedAt:line.deletedAt||stamp,updatedAt:stamp}:line)
+      })),
+      components:archiveRows(canonical.components),
+      vendors:archiveRows(canonical.vendors),
+      operations:archiveRows(canonical.operations),
+      quotations:archiveRows(canonical.quotations),
+      materials:archiveRows(canonical.materials),
+      componentParts:archiveRows(canonical.componentParts),
+      materialCostEntries:archiveRows(canonical.materialCostEntries),
+      bomLines:archiveRows(canonical.bomLines),
+      materialProcessLinks:archiveRows(canonical.materialProcessLinks),
+      materialConsumptions:archiveRows(canonical.materialConsumptions),
+      inventoryTransactions:archiveRows(canonical.inventoryTransactions),
+      contactProfiles:archiveRows(canonical.contactProfiles),
+      processDefinitions:archiveRows(canonical.processDefinitions),
+      plannedCosts:archiveRows(canonical.plannedCosts),
+      transportRoutes:archiveRows(canonical.transportRoutes),
+      transportLegs:archiveRows(canonical.transportLegs),
+      paymentTransactions:archiveRows(canonical.paymentTransactions),
+      inspectionMeasurements:archiveRows(canonical.inspectionMeasurements),
+      supplierInvoices:archiveRows(canonical.supplierInvoices),
+      supplierPayments:archiveRows(canonical.supplierPayments),
+      supplierFinanceApprovals:archiveRows(canonical.supplierFinanceApprovals),
+      supplierPaymentAllocations:archiveRows(canonical.supplierPaymentAllocations),
+      routeRelationships:archiveRows(canonical.routeRelationships),
+      followUpAssignments:archiveRows(canonical.followUpAssignments)
+    };
+    writeLocal(archived);
+  }
   const route = safeRead("aximach.processRoute.v2");
   if (Array.isArray(route)) {
     const knownVendors = new Set(["Steel Mart", "Ramesh CNC", "Tech Mach", "HeatTreat Co", "Precision Grind", "TapTech", "SurfacePro", "CoatWell"]);
