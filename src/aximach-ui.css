@@ -7134,3 +7134,9 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
  .app-shell .status-ribbon .ribbon-right{display:none!important}
  .app-shell .status-ribbon>button{flex:0 0 auto!important;min-height:20px!important;padding:2px 6px!important;font-size:8px!important}
 }
+
+/* Wide touch devices use the compact header without the desktop ribbon.
+   Phone layouts (<=760px) keep the shared load/remove control visible above the canvas. */
+@media(min-width:761px) and (any-pointer:coarse){
+ .app-shell:has(.mobile-nav-trigger) :is(.status-ribbon){display:none!important}
+}
