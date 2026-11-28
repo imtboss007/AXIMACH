@@ -2913,7 +2913,7 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
   height:100vh!important;height:100dvh!important;min-height:100dvh!important;padding:0!important;overflow:hidden!important;
 }
 .app-shell:has(.route-flow-workspace) .command-deck,.app-shell:has(.manufacturing-universe-workspace) .command-deck{display:none!important}
-.app-shell:has(.route-flow-workspace) .status-ribbon,.app-shell:has(.manufacturing-universe-workspace) .status-ribbon{display:none!important}
+.app-shell:has(.route-flow-workspace) .status-ribbon,.app-shell:has(.manufacturing-universe-workspace) .status-ribbon{display:flex!important}
 .app-shell:has(.route-flow-workspace) .page-content,.app-shell:has(.manufacturing-universe-workspace) .page-content{
   position:absolute!important;inset:0!important;top:0!important;left:0!important;right:0!important;bottom:0!important;
   width:100%!important;height:100%!important;max-width:none!important;margin:0!important;padding:clamp(10px,1.5vw,22px)!important;
@@ -2981,7 +2981,7 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
  .app-shell:has(.route-flow-workspace) .command-deck,.app-shell:has(.manufacturing-universe-workspace) .command-deck{
    height:64px!important;min-height:64px!important;padding:0 10px!important
  }
- .app-shell:has(.route-flow-workspace) .status-ribbon,.app-shell:has(.manufacturing-universe-workspace) .status-ribbon{display:none!important}
+ .app-shell:has(.route-flow-workspace) .status-ribbon,.app-shell:has(.manufacturing-universe-workspace) .status-ribbon{display:flex!important}
  .app-shell:has(.route-flow-workspace) .page-content,.app-shell:has(.manufacturing-universe-workspace) .page-content{padding:12px 9px 18px!important}
  .route-flow-workspace-head,.manufacturing-universe-head{padding-right:44px!important;gap:8px!important}
  .route-flow-workspace-head h1,.manufacturing-universe-head h1{font-size:clamp(20px,4.5vw,27px)!important}
@@ -5704,7 +5704,7 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 @media (orientation:landscape) and (max-height:600px) and (max-width:1100px){
   .app-shell:has(.linked-process-page){padding:54px 0 0!important}
   .app-shell:has(.linked-process-page) .command-rail,
-  .app-shell:has(.linked-process-page) .status-ribbon{display:none!important}
+  .app-shell:has(.linked-process-page) .status-ribbon{display:flex!important}
   .app-shell:has(.linked-process-page) .command-deck{
     height:54px!important;min-height:54px!important;padding:0 10px!important;gap:8px!important;
   }
@@ -6419,7 +6419,7 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
     height:38px!important;margin:0!important;padding:0!important;border:1px solid #29475f!important;border-radius:10px!important;
     background:#10283c!important;color:#e2f2ff!important
   }
-  .app-shell .status-ribbon{display:none!important}
+  .app-shell .status-ribbon{display:flex!important}
   .app-shell .page-content,
   .app-shell:has(.route-flow-workspace) .page-content,
   .app-shell:has(.manufacturing-universe-workspace) .page-content,
@@ -7115,3 +7115,22 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 .route-flow-vehicle-chip.vehicle-light-van,.route-flow-vehicle-marker.vehicle-light-van,.ax-transport-icon-trigger.vehicle-light-van{color:#367c58!important}
 .route-flow-vehicle-chip.vehicle-courier-van,.route-flow-vehicle-marker.vehicle-courier-van,.ax-transport-icon-trigger.vehicle-courier-van{color:#247b58!important}
 .ax-transport-inspector.vehicle-motorcycle{--ax-vehicle:#b17a25}.ax-transport-inspector.vehicle-scooter{--ax-vehicle:#8b72c9}.ax-transport-inspector.vehicle-taxi{--ax-vehicle:#c18a18}.ax-transport-inspector.vehicle-light-van{--ax-vehicle:#4e9c74}.ax-transport-inspector.vehicle-courier-van{--ax-vehicle:#299a70}
+
+/* The global demo/data ribbon is part of the shared shell, not an immersive-workspace-only control. */
+.app-shell .status-ribbon{display:flex!important;align-items:center!important;flex-wrap:wrap!important;min-height:26px!important;gap:6px!important;overflow:visible!important}
+.app-shell:has(.route-flow-workspace) .status-ribbon,
+.app-shell:has(.manufacturing-universe-workspace) .status-ribbon,
+.app-shell:has(.linked-process-page) .status-ribbon{display:flex!important}
+@media(max-width:760px){
+ .app-shell .status-ribbon,
+ .app-shell:has(.route-flow-workspace) .status-ribbon,
+ .app-shell:has(.manufacturing-universe-workspace) .status-ribbon,
+ .app-shell:has(.linked-process-page) .status-ribbon{
+  display:flex!important;position:absolute!important;top:58px!important;left:52px!important;right:0!important;
+  width:auto!important;height:26px!important;min-height:26px!important;max-height:26px!important;margin:0!important;
+  padding:0 7px!important;gap:5px!important;flex-wrap:nowrap!important;white-space:nowrap!important;
+  overflow-x:auto!important;overflow-y:hidden!important;font-size:8px!important;z-index:115!important
+ }
+ .app-shell .status-ribbon .ribbon-right{display:none!important}
+ .app-shell .status-ribbon>button{flex:0 0 auto!important;min-height:20px!important;padding:2px 6px!important;font-size:8px!important}
+}
