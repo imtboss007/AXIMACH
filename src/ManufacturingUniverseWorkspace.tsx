@@ -4,7 +4,6 @@ import { Activity, ArrowRight, Boxes, CheckCircle2, CircleDollarSign, ClipboardC
 import { activeRows, useManufacturingData, type MaterialCostEntryRecord, type OperationRecord } from "./manufacturingData";
 import ProcessUniverse3D from "./ProcessUniverse3D";
 import ManufacturingEcosystemGraph from "./ManufacturingEcosystemGraph";
-import { SingleComponentRouteGraphDemo } from "./SingleComponentRouteGraphDemo";
 import OperationInlineEditor from "./OperationInlineEditor";
 import OperationQuickCreate from "./OperationQuickCreate";
 import TransportRecordInspector from "./TransportRecordInspector";
@@ -34,7 +33,6 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
   const [showAddOperation,setShowAddOperation]=useState(false);
   const [exportFormat,setExportFormat]=useState<"svg"|"png"|"pdf"|"csv"|"json">("svg");
   const [universeView,setUniverseView]=useState<"ecosystem"|"route">("ecosystem");
-  const [showOneComponentPreview,setShowOneComponentPreview]=useState(false);
   const [zoom,setZoom]=useState(()=>typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches?.78:1),[simulationIndex,setSimulationIndex]=useState(-1);
   const [simulationActive,setSimulationActive]=useState(false);
   const [ganttScale,setGanttScale]=useState<"day"|"week"|"month">("week");
@@ -262,15 +260,6 @@ export default function ManufacturingUniverseWorkspace({onBack,onNotice,notice,o
       <div className="manufacturing-universe-actions"><WorkspaceThemePicker value={workspaceTheme} onChange={setWorkspaceTheme}/><span className={"manufacturing-universe-sync "+(syncStatus==="synced"?"is-synced":"")}><i/>{syncText}</span><button className="button-quiet" disabled={!activeOperation} onClick={()=>activeOperation&&setEditingOperation(activeOperation)}><Workflow size={15}/> Edit selected process here</button><div className="manufacturing-universe-simulation-controls">{simulationActive?<button className="button-quiet compact-button" onClick={()=>setSimulationActive(false)}><Activity size={14}/> Pause simulation</button>:<button className="button-quiet compact-button" onClick={startRouteSimulation} disabled={!simulationOperations.length}><Activity size={14}/> Simulate route</button>}<button className="button-quiet compact-button" onClick={()=>{setSimulationActive(false);setSimulationIndex(-1);}} disabled={simulationIndex<0}><CheckCircle2 size={14}/> Reset</button>{simulationIndex>=0&&<small>STEP {simulationIndex+1}/{simulationOperations.length} · VISUAL ONLY</small>}</div>{universeView==="route"&&<div className="route-flow-export-controls"><select aria-label="Universe export format" value={exportFormat} onChange={e=>setExportFormat(e.target.value as typeof exportFormat)}><option value="svg">SVG vector</option><option value="png">PNG image</option><option value="pdf">PDF / print</option><option value="csv">Excel CSV</option><option value="json">JSON data</option></select><button className="button-quiet compact-button" onClick={exportUniverse}><FileDown size={14}/> Download</button></div>}</div>
     </header>
     {notice&&<div className="notice-banner"><CheckCircle2 size={15}/><span>{notice}</span></div>}
-    <section className="manufacturing-universe-preview-launcher" aria-label="Synthetic one component route preview">
-      <div className="manufacturing-universe-preview-launcher-head">
-        <div><span className="eyebrow">ISOLATED SYNTHETIC PREVIEW</span><strong>Inspect a complete one-company, one-PO, one-component route</strong></div>
-        <button type="button" className="button-quiet compact-button" aria-expanded={showOneComponentPreview} aria-controls="aximach-one-component-preview" onClick={()=>setShowOneComponentPreview(value=>!value)}>
-          <GitBranch size={14}/>{showOneComponentPreview?"Hide One Component Preview":"One Component Preview"}
-        </button>
-      </div>
-      {showOneComponentPreview&&<div id="aximach-one-component-preview"><SingleComponentRouteGraphDemo/></div>}
-    </section>
     <div className="manufacturing-universe-scope">
       <label>Company<select value={companyId} onChange={e=>{setSimulationActive(false);setSimulationIndex(-1);setCompanyPick(e.target.value);setPoPick("");setLinePick("");setSelectedOperationId("");}}><option value="">Select company…</option>{companies.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
       <label>Purchase order<select value={poId} onChange={e=>{setSimulationActive(false);setSimulationIndex(-1);setPoPick(e.target.value);setLinePick("");setSelectedOperationId("");}}><option value="">Select PO…</option>{companyOrders.map(row=><option key={row.id} value={row.id}>{row.number}</option>)}</select></label>
