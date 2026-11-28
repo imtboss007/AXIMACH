@@ -492,12 +492,12 @@ try {
   if (routePortraitGeometry.documentWidth > routePortraitGeometry.viewportWidth + 1 || routePortraitGeometry.pageLeft > 1 || routePortraitGeometry.canvasLeft < 0 || routePortraitGeometry.canvasRight > routePortraitGeometry.viewportWidth + 1 || routePortraitGeometry.canvasWidth < 250) {
     throw new Error("Route Flow does not fit portrait width: " + JSON.stringify(routePortraitGeometry));
   }
-  // The unified preview lives inside Manufacturing Universe and remains
-  // isolated from the real company / PO data store. Verify its complete graph.
+  // The isolated synthetic preview belongs in Transport Directory, never in
+  // the live Manufacturing Universe. Verify it on the phone from its labelled launcher.
   await mobilePage.getByRole("button",{name:"Open navigation menu"}).click();
-  await mobileNavigation.locator('button[title="Manufacturing Universe"]').click();
-  await mobilePage.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Manufacturing Universe",undefined,{timeout:10000});
-  await mobilePage.getByRole("button",{name:"One Component Preview"}).click();
+  await mobileNavigation.locator('button[title="Transport Directory"]').click();
+  await mobilePage.waitForFunction(() => document.querySelector('nav[aria-label="AXIMACH navigation"] .rail-active')?.getAttribute("title") === "Transport Directory",undefined,{timeout:10000});
+  await mobilePage.getByRole("button",{name:"Preview multi-route demo"}).click();
   const oneComponentGraph=mobilePage.locator('[data-testid="single-component-route-graph"]');
   await oneComponentGraph.waitFor({state:"visible",timeout:10000});
   const oneComponentMetrics=await oneComponentGraph.evaluate(element=>({
