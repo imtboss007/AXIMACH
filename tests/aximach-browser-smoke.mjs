@@ -810,7 +810,7 @@ try {
 
   // The ASTER example must be imported into normal company / PO / component
   // selectors and rendered by the live Route Flow graph, not an isolated demo.
-  await page.getByRole("button", { name: /Load ASTER example into AXIMACH/ }).click();
+  await page.getByRole("button", { name: /Load full demo/ }).click();
   const asterExampleScopeSelects = page.locator(".route-flow-scope-bar select");
   await page.waitForFunction(() => {
     const selects = [...document.querySelectorAll(".route-flow-scope-bar select")];
