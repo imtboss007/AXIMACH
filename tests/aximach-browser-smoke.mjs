@@ -1154,6 +1154,138 @@ try {
   await page.waitForFunction(() => document.documentElement.dataset.theme === "dark" &&
     getComputedStyle(document.documentElement).getPropertyValue("--ax-theme-accent").trim().toLowerCase() === "#123456");
   console.log("PASS custom HEX theme applies and persists across a renderer reload");
+  // Exercise the complete shared ASTER demo lifecycle in the isolated browser
+  // fixture: load (covered above), archive through the visible ribbon, reload,
+  // and prove every pre-existing non-demo record and PO line remains present.
+  const baselineNonDemoIds = await page.evaluate(() => {
+    const data = JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}");
+    const prefix = "ASTER-EXAMPLE-";
+    const ids = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (!Array.isArray(value)) continue;
+      ids[key] = value
+        .filter(row => row && typeof row === "object" && !String(row.id || "").startsWith(prefix))
+        .map(row => String(row.id || ""))
+        .filter(Boolean)
+        .sort();
+    }
+    ids.purchaseOrderLines = (data.purchaseOrders || [])
+      .flatMap(po => po.lines || [])
+      .filter(line => !String(line.id || "").startsWith(prefix))
+      .map(line => String(line.id || ""))
+      .filter(Boolean)
+      .sort();
+    return ids;
+  });
+  if (!Object.values(baselineNonDemoIds).some(ids => ids.length > 0)) {
+    throw new Error("Browser removal acceptance fixture did not contain any pre-existing non-demo records.");
+  }
+
+  await page.evaluate(() => {
+    window.scrollTo(0, 0);
+    const content = document.querySelector("main.page-content");
+    if (content) content.scrollTop = 0;
+  });
+  const removeDemoButton = page.getByRole("button", { name: "Remove test data", exact: true });
+  await removeDemoButton.waitFor({ state: "visible", timeout: 10000 });
+  let removalConfirmation = "";
+  page.once("dialog", async dialog => {
+    removalConfirmation = dialog.message();
+    await dialog.accept();
+  });
+  await removeDemoButton.click();
+  await page.waitForFunction(() => {
+    const ribbon = document.querySelector(".status-ribbon");
+    const data = JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}");
+    const rows = Object.entries(data)
+      .filter(([, value]) => Array.isArray(value))
+      .flatMap(([, value]) => value)
+      .filter(row => row && typeof row === "object" && String(row.id || "").startsWith("ASTER-EXAMPLE-"));
+    const active = rows.filter(row => !row.deletedAt);
+    const lines = (data.purchaseOrders || []).flatMap(po => po.lines || [])
+      .filter(line => String(line.id || "").startsWith("ASTER-EXAMPLE-"));
+    return Boolean(ribbon?.textContent?.includes("No shared example loaded"))
+      && active.length === 0
+      && rows.length > 0
+      && [...rows, ...lines].every(row => Boolean(row.deletedAt));
+  }, null, { timeout: 10000 });
+  if (!removalConfirmation.includes("Only ASTER-EXAMPLE records will be archived")) {
+    throw new Error("The shared demo removal did not present the expected namespaced-data-only confirmation.");
+  }
+
+  const afterRemoval = await page.evaluate(() => {
+    const data = JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}");
+    const prefix = "ASTER-EXAMPLE-";
+    const ids = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (!Array.isArray(value)) continue;
+      ids[key] = value
+        .filter(row => row && typeof row === "object" && !String(row.id || "").startsWith(prefix))
+        .map(row => String(row.id || ""))
+        .filter(Boolean)
+        .sort();
+    }
+    ids.purchaseOrderLines = (data.purchaseOrders || [])
+      .flatMap(po => po.lines || [])
+      .filter(line => !String(line.id || "").startsWith(prefix))
+      .map(line => String(line.id || ""))
+      .filter(Boolean)
+      .sort();
+    const rows = Object.entries(data)
+      .filter(([, value]) => Array.isArray(value))
+      .flatMap(([, value]) => value)
+      .filter(row => row && typeof row === "object" && String(row.id || "").startsWith(prefix));
+    const lines = (data.purchaseOrders || []).flatMap(po => po.lines || [])
+      .filter(line => String(line.id || "").startsWith(prefix));
+    return {
+      ids,
+      archivedCount: [...rows, ...lines].filter(row => Boolean(row.deletedAt)).length,
+      activeCount: [...rows, ...lines].filter(row => !row.deletedAt).length
+    };
+  });
+  if (JSON.stringify(afterRemoval.ids) !== JSON.stringify(baselineNonDemoIds)) {
+    throw new Error("Removing the ASTER example changed or removed pre-existing non-demo record IDs.");
+  }
+  if (afterRemoval.archivedCount === 0 || afterRemoval.activeCount !== 0) {
+    throw new Error("The ASTER example was not fully archived: " + JSON.stringify({ archivedCount: afterRemoval.archivedCount, activeCount: afterRemoval.activeCount }));
+  }
+
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForFunction(() => {
+    const ribbon = document.querySelector(".status-ribbon");
+    const data = JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}");
+    const rows = Object.entries(data)
+      .filter(([, value]) => Array.isArray(value))
+      .flatMap(([, value]) => value)
+      .filter(row => row && typeof row === "object" && String(row.id || "").startsWith("ASTER-EXAMPLE-"));
+    return Boolean(ribbon?.textContent?.includes("No shared example loaded"))
+      && rows.length > 0
+      && rows.every(row => Boolean(row.deletedAt));
+  }, null, { timeout: 10000 });
+  const idsAfterReload = await page.evaluate(() => {
+    const data = JSON.parse(localStorage.getItem("aximach.manufacturingData.v1") || "{}");
+    const prefix = "ASTER-EXAMPLE-";
+    const ids = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (!Array.isArray(value)) continue;
+      ids[key] = value
+        .filter(row => row && typeof row === "object" && !String(row.id || "").startsWith(prefix))
+        .map(row => String(row.id || ""))
+        .filter(Boolean)
+        .sort();
+    }
+    ids.purchaseOrderLines = (data.purchaseOrders || [])
+      .flatMap(po => po.lines || [])
+      .filter(line => !String(line.id || "").startsWith(prefix))
+      .map(line => String(line.id || ""))
+      .filter(Boolean)
+      .sort();
+    return ids;
+  });
+  if (JSON.stringify(idsAfterReload) !== JSON.stringify(baselineNonDemoIds)) {
+    throw new Error("Pre-existing non-demo records did not remain unchanged after reloading the archived demo state.");
+  }
+  console.log("PASS ASTER demo lifecycle: load, explicit archive, namespaced-row verification, non-demo record retention and reload persistence");
   if (pageErrors.length) throw new Error("Browser runtime errors: " + pageErrors.join(" | "));
   console.log("PASS responsive mobile navigation and Purchase Orders workspace");
   console.log("PASS browser smoke: 22 module routes, Company/Factory tabs, module explorer, global search, desktop and mobile navigation, no renderer page errors");
