@@ -7140,3 +7140,6 @@ details.surface-panel > summary.panel-heading .relationship-actions { flex-shrin
 @media(min-width:761px) and (any-pointer:coarse){
  .app-shell:has(.mobile-nav-trigger) :is(.status-ribbon){display:none!important}
 }
+
+/* Keep shared ribbon actions interactive above the floating immersive navigation rail. */
+.app-shell .status-ribbon{position:relative!important;z-index:60!important}
