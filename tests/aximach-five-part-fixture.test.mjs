@@ -866,7 +866,7 @@ test("five synthetic component names resolve to the intended mechanical logo fam
   for (const part of fixture.parts) {
     assert.equal(glyphFor(part.name + " " + part.partNumber), expected.get(part.partNumber), part.partNumber + " mechanical logo family");
   }
-  assert.ok(iconSource.indexOf("\\bgear\\b|\\bsprocket\\b|\\brack\\b|worm wheel|splined") < iconSource.indexOf("shaft|spindle|axle|pinion shaft|drive shaft"), "gear identity must take priority over the generic shaft rule");
+  assert.equal(glyphFor("gear shaft"), "hob", "gear identity must take priority over the generic shaft rule");
 });
 
 
