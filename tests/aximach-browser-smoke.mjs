@@ -810,6 +810,10 @@ try {
 
   // The ASTER example must be imported into normal company / PO / component
   // selectors and rendered by the live Route Flow graph, not an isolated demo.
+  // The immersive command rail is fixed to the viewport bottom. Reset scroll
+  // before activating the global ribbon so the rail cannot intercept the click.
+  await page.evaluate(() => { window.scrollTo(0, 0); const content=document.querySelector("main.page-content"); if(content) content.scrollTop=0; });
+  await page.waitForTimeout(100);
   await page.getByRole("button", { name: /Load full demo/ }).click();
   const asterExampleScopeSelects = page.locator(".route-flow-scope-bar select");
   await page.waitForFunction(() => {
